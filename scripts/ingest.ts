@@ -10,10 +10,26 @@
  *   npx tsx scripts/ingest.ts AAPL MSFT RY     # specific symbols
  *   npx tsx scripts/ingest.ts --limit 25       # first 25, for a smoke test
  */
+// Loads .env.local when running locally. On a hosting platform the environment
+// is already populated and this is a harmless no-op.
+//
+// dotenv and tsx are deliberately production dependencies, not dev ones: hosts
+// set NODE_ENV=production, which prunes devDependencies, and this script would
+// otherwise fail to start in a deployed container.
 import "dotenv/config";
 import { closeDb } from "../src/lib/db";
 import { ingestSymbols } from "../src/lib/ingest";
 import { getUniverse } from "../src/lib/universe";
+
+/** Describes a connection string without ever printing the password. */
+function describeDbUrl(url: string): string {
+  try {
+    const { hostname, port, pathname } = new URL(url);
+    return `${hostname}:${port || 5432}${pathname}`;
+  } catch {
+    return "set (unparseable)";
+  }
+}
 
 function parseArgs(argv: string[]) {
   const symbols: string[] = [];
@@ -32,10 +48,34 @@ function parseArgs(argv: string[]) {
 async function main() {
   const { symbols, limit } = parseArgs(process.argv.slice(2));
 
-  if (!process.env.DATABASE_URL) {
+  // Print what the process can actually see before doing any work. Silent
+  // misconfiguration is the most common failure here, especially on a hosting
+  // platform where the environment comes from the dashboard rather than a file.
+  const dbUrl = process.env.DATABASE_URL;
+  console.log("Environment:");
+  console.log(`  DATABASE_URL       ${dbUrl ? describeDbUrl(dbUrl) : "MISSING"}`);
+  console.log(`  SEC_USER_AGENT     ${process.env.SEC_USER_AGENT ? "set" : "using default"}`);
+  console.log(`  FINNHUB_API_KEY    ${process.env.FINNHUB_API_KEY ? "set" : "not set (market caps will be limited)"}`);
+  console.log(`  TWELVEDATA_API_KEY ${process.env.TWELVEDATA_API_KEY ? "set" : "not set (market caps will be limited)"}`);
+  console.log();
+
+  if (!dbUrl) {
     console.error(
-      "DATABASE_URL is not set.\n" +
-        "Provision Postgres on Railway, then put its connection string in .env.local",
+      "DATABASE_URL is not set, so there is nowhere to store the results.\n\n" +
+        "  Running on Railway: open the service's Variables tab and add\n" +
+        "    DATABASE_URL = ${{Postgres.DATABASE_URL}}\n" +
+        "  Running locally:   put the database's PUBLIC connection string in .env.local\n",
+    );
+    process.exit(1);
+  }
+
+  // An internal hostname only resolves inside the provider's own network.
+  // Catching this here turns a confusing hang into an immediate explanation.
+  if (/\.railway\.internal/.test(dbUrl) && !process.env.RAILWAY_ENVIRONMENT) {
+    console.error(
+      "DATABASE_URL points at railway.internal, which only resolves inside Railway.\n" +
+        "From your own machine use DATABASE_PUBLIC_URL instead (enable it under\n" +
+        "the Postgres service -> Settings -> Networking -> Public Access).\n",
     );
     process.exit(1);
   }
