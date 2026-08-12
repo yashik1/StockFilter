@@ -16,7 +16,8 @@
     "ingest": "tsx scripts/ingest.ts",
     "build:fixtures": "tsx scripts/build-fixtures.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:check": "tsx scripts/check-db.ts"
+    "db:check": "tsx scripts/check-db.ts",
+    "universe:audit": "tsx scripts/audit-universe.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

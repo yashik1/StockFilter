@@ -19,46 +19,46 @@ export const US_SYMBOLS: string[] = [
   "INTU", "IBM", "QCOM", "TXN", "NOW", "AMAT", "ADI", "MU", "LRCX", "KLAC",
   "SNPS", "CDNS", "PANW", "ANET", "ROP", "APH", "MSI", "FTNT", "NXPI", "MCHP",
   "TEL", "GLW", "HPQ", "HPE", "DELL", "WDC", "STX", "NTAP", "SWKS", "MPWR",
-  "TER", "ZBRA", "KEYS", "TYL", "PTC", "ANSS", "CDW", "GDDY", "AKAM", "JNPR",
+  "TER", "ZBRA", "KEYS", "TYL", "PTC", "CDW", "GDDY", "AKAM",
   "FFIV", "EPAM", "IT", "CTSH", "INFY", "WIT", "SMCI", "ON", "ENPH", "SEDG",
   "CRWD", "DDOG", "ZS", "SNOW", "MDB", "TEAM", "WDAY", "VEEV", "HUBS", "NET",
-  "OKTA", "TWLO", "DOCU", "ZM", "SQ", "SHOP", "SPOT", "UBER", "LYFT", "ABNB",
+  "OKTA", "TWLO", "DOCU", "ZM", "XYZ", "SHOP", "SPOT", "UBER", "LYFT", "ABNB",
   "DASH", "PLTR", "RBLX", "U", "PATH", "AI", "COIN", "HOOD", "SOFI", "AFRM",
 
   // Communication services
   "GOOGL", "GOOG", "META", "NFLX", "DIS", "CMCSA", "T", "VZ", "TMUS", "CHTR",
-  "EA", "TTWO", "WBD", "PARA", "OMC", "IPG", "LYV", "MTCH", "PINS", "SNAP",
+  "EA", "TTWO", "WBD", "PSKY", "OMC", "LYV", "MTCH", "PINS", "SNAP",
 
   // Consumer discretionary
   "AMZN", "TSLA", "HD", "MCD", "NKE", "LOW", "SBUX", "TJX", "BKNG", "ORLY",
   "AZO", "ROST", "YUM", "CMG", "MAR", "HLT", "GM", "F", "RIVN", "LCID",
   "APTV", "BWA", "LEA", "DHI", "LEN", "PHM", "NVR", "TOL", "WHR", "MHK",
-  "EBAY", "ETSY", "W", "CHWY", "LULU", "DECK", "SKX", "CROX", "VFC", "PVH",
-  "RL", "TPR", "CPRI", "GPS", "ANF", "AEO", "URBN", "BBY", "DG", "DLTR",
+  "EBAY", "ETSY", "W", "CHWY", "LULU", "DECK", "CROX", "VFC", "PVH",
+  "RL", "TPR", "CPRI", "GAP", "ANF", "AEO", "URBN", "BBY", "DG", "DLTR",
   "KMX", "AN", "LAD", "GPC", "AAP", "TSCO", "WSM", "RH", "FND", "POOL",
 
   // Consumer staples
   "WMT", "COST", "PG", "KO", "PEP", "PM", "MO", "MDLZ", "CL", "KMB",
-  "GIS", "K", "HSY", "SJM", "CPB", "CAG", "HRL", "TSN", "KHC", "STZ",
+  "GIS", "HSY", "SJM", "CPB", "CAG", "HRL", "TSN", "KHC", "STZ",
   "BF.B", "TAP", "MNST", "KDP", "CELH", "KR", "SYY", "ADM", "BG", "CHD",
   "CLX", "EL", "COTY", "DLTR", "TGT", "DG",
 
   // Health care
   "LLY", "UNH", "JNJ", "ABBV", "MRK", "TMO", "ABT", "DHR", "PFE", "AMGN",
   "BMY", "GILD", "VRTX", "REGN", "MRNA", "BIIB", "ISRG", "SYK", "BSX", "MDT",
-  "EW", "ZBH", "BAX", "BDX", "HOLX", "RMD", "DXCM", "PODD", "ALGN", "IDXX",
+  "EW", "ZBH", "BAX", "BDX", "RMD", "DXCM", "PODD", "ALGN", "IDXX",
   "CI", "ELV", "CVS", "HUM", "CNC", "MOH", "HCA", "UHS", "THC", "DVA",
-  "MCK", "COR", "CAH", "ZTS", "IQV", "A", "MTD", "WAT", "PKI", "TECH",
-  "CRL", "LH", "DGX", "VTRS", "OGN", "JAZZ", "INCY", "EXAS", "NBIX", "ALNY",
+  "MCK", "COR", "CAH", "ZTS", "IQV", "A", "MTD", "WAT", "RVTY", "TECH",
+  "CRL", "LH", "DGX", "VTRS", "OGN", "JAZZ", "INCY", "NBIX", "ALNY",
 
   // Financials
   "BRK.B", "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "SPGI", "BLK",
-  "AXP", "C", "SCHW", "CB", "MMC", "PGR", "AON", "ICE", "CME", "MCO",
-  "PNC", "USB", "TFC", "COF", "BK", "STT", "NTRS", "FITB", "HBAN", "RF",
-  "CFG", "KEY", "MTB", "ZION", "CMA", "ALL", "TRV", "AIG", "MET", "PRU",
-  "AFL", "HIG", "PFG", "LNC", "GL", "AJG", "BRO", "WTW", "ACGL", "RE",
+  "AXP", "C", "SCHW", "CB", "MRSH", "PGR", "AON", "ICE", "CME", "MCO",
+  "PNC", "USB", "TFC", "COF", "BNY", "STT", "NTRS", "FITB", "HBAN", "RF",
+  "CFG", "KEY", "MTB", "ZION", "ALL", "TRV", "AIG", "MET", "PRU",
+  "AFL", "HIG", "PFG", "LNC", "GL", "AJG", "BRO", "WTW", "ACGL", "EG",
   "AMP", "TROW", "BEN", "IVZ", "NDAQ", "CBOE", "MKTX", "FDS", "MSCI", "PYPL",
-  "FI", "FIS", "GPN", "DFS", "SYF", "ALLY",
+  "FISV", "FIS", "GPN", "SYF", "ALLY",
 
   // Industrials
   "GE", "CAT", "RTX", "HON", "UNP", "BA", "LMT", "DE", "UPS", "ADP",
@@ -71,11 +71,11 @@ export const US_SYMBOLS: string[] = [
 
   // Energy
   "XOM", "CVX", "COP", "EOG", "SLB", "MPC", "PSX", "VLO", "OXY", "WMB",
-  "KMI", "OKE", "HES", "DVN", "FANG", "HAL", "BKR", "TRGP", "EQT", "CTRA",
-  "APA", "MRO", "PR", "AR", "RRC", "SWN", "CHK", "MUR", "NOV", "FTI",
+  "KMI", "OKE", "DVN", "FANG", "HAL", "BKR", "TRGP", "EQT",
+  "APA", "PR", "AR", "RRC", "EXE", "MUR", "NOV", "FTI",
 
   // Utilities
-  "NEE", "SO", "DUK", "SRE", "AEP", "D", "EXC", "XEL", "ED", "PEG",
+  "NEE", "SO", "DUK", "SRE", "D", "EXC", "XEL", "ED", "PEG",
   "WEC", "ES", "AWK", "DTE", "PPL", "FE", "AEE", "CMS", "CNP", "NI",
   "LNT", "EVRG", "ATO", "PNW", "NRG", "VST", "CEG", "AES",
 
@@ -85,9 +85,9 @@ export const US_SYMBOLS: string[] = [
   "REG", "FRT", "HST", "IRM", "EXR", "CUBE", "WY", "SBAC",
 
   // Materials
-  "LIN", "SHW", "APD", "ECL", "FCX", "NEM", "NUE", "STLD", "CLF", "X",
+  "LIN", "SHW", "APD", "ECL", "FCX", "NEM", "NUE", "STLD", "CLF",
   "DOW", "DD", "LYB", "PPG", "IFF", "ALB", "CE", "EMN", "MOS", "CF",
-  "VMC", "MLM", "PKG", "IP", "AMCR", "AVY", "BALL", "SEE",
+  "VMC", "MLM", "PKG", "IP", "AMCR", "AVY", "BALL",
 ];
 
 /**
@@ -103,12 +103,12 @@ export const CANADIAN_SYMBOLS: string[] = [
   // Energy and pipelines
   "ENB", "TRP", "SU", "CNQ", "IMO", "OVV", "CVE", "PBA", "VET", "BTE",
   // Materials and mining
-  "ABX", "AEM", "WPM", "FNV", "KGC", "IAG", "NGD", "TECK", "CCJ", "MAG",
+  "ABX", "AEM", "WPM", "FNV", "KGC", "IAG", "TECK", "CCJ",
   // Industrials and transport
   "CP", "CNI", "WCN", "TRI", "BIP", "BEP", "BAM", "BN",
   // Technology and consumer
-  "SHOP", "LULU", "OTEX", "CLS", "QSR", "ATZ", "DOOO", "MG", "GIL", "NTR",
-  "AQN", "CPX", "FTS", "EMA", "H", "TA",
+  "SHOP", "LULU", "OTEX", "CLS", "QSR", "DOO", "MG", "GIL", "NTR",
+  "AQN", "CPXXY", "FTS", "EMA", "H", "TAC",
 ];
 
 /** The full nightly ingest universe. */

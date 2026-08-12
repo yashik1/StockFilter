@@ -61,8 +61,19 @@ export function padCik(cik: string | number): string {
 
 export async function cikForSymbol(symbol: string): Promise<string | null> {
   const map = await loadTickerMap();
-  const entry = map.get(symbol.toUpperCase());
-  return entry ? padCik(entry.cik_str) : null;
+  const upper = symbol.toUpperCase();
+
+  const direct = map.get(upper);
+  if (direct) return padCik(direct.cik_str);
+
+  // Share classes are written with a dot by most data sources (BRK.B) but with
+  // a hyphen by EDGAR (BRK-B). Without this, every multi-class company fails.
+  if (upper.includes(".")) {
+    const hyphenated = map.get(upper.replace(/\./g, "-"));
+    if (hyphenated) return padCik(hyphenated.cik_str);
+  }
+
+  return null;
 }
 
 interface SecSubmissions {
