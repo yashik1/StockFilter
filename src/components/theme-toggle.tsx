@@ -1,0 +1,52 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
+
+type Theme = "light" | "dark";
+
+/**
+ * Theme toggle.
+ *
+ * The initial theme is applied by an inline script in the document head before
+ * paint (see layout.tsx), so this component only has to reflect and update it —
+ * reading it here would cause a flash of the wrong theme on load.
+ */
+export function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme | null>(null);
+
+  useEffect(() => {
+    const current = document.documentElement.dataset.theme as Theme | undefined;
+    setTheme(
+      current ??
+        (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
+    );
+  }, []);
+
+  function toggle() {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      // Private browsing can block storage; the toggle still works for this page.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-strong transition-colors hover:bg-surface-2"
+    >
+      {/* Render nothing until mounted so the icon cannot contradict the theme. */}
+      {theme === "dark" ? (
+        <Sun className="size-4" />
+      ) : theme === "light" ? (
+        <Moon className="size-4" />
+      ) : null}
+    </button>
+  );
+}

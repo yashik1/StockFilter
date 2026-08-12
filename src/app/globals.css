@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
+/*
+ * Light palette is defined on bare :root so it applies with no theme attribute
+ * present. Dark is redefined twice: under prefers-color-scheme for viewers on
+ * "system", and under [data-theme="dark"] so the manual toggle wins either way.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --muted-strong: #475569;
+
+  --accent: #2563eb;
+  --accent-fg: #ffffff;
+  --accent-soft: #dbeafe;
+
+  /* Ratings. Deliberately not pure red/green: these need to stay legible for
+     the ~8% of men with red-green colour vision deficiency, so the good tone
+     leans teal and the poor tone leans crimson, and every rating is also
+     labelled in text rather than relying on colour alone. */
+  --good: #0d9488;
+  --good-soft: #ccfbf1;
+  --good-fg: #115e59;
+  --fair: #d97706;
+  --fair-soft: #fef3c7;
+  --fair-fg: #92400e;
+  --poor: #dc2626;
+  --poor-soft: #fee2e2;
+  --poor-fg: #991b1b;
+  --unknown: #94a3b8;
+  --unknown-soft: #f1f5f9;
+  --unknown-fg: #475569;
+
+  --up: #059669;
+  --down: #dc2626;
+
+  --radius: 0.75rem;
+  --shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-lg: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 6px -2px rgb(15 23 42 / 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0b1120;
+    --surface: #111827;
+    --surface-2: #1e293b;
+    --border: #1e293b;
+    --border-strong: #334155;
+    --foreground: #f1f5f9;
+    --muted: #94a3b8;
+    --muted-strong: #cbd5e1;
+
+    --accent: #3b82f6;
+    --accent-fg: #ffffff;
+    --accent-soft: #1e3a8a;
+
+    --good: #2dd4bf;
+    --good-soft: #134e4a;
+    --good-fg: #99f6e4;
+    --fair: #fbbf24;
+    --fair-soft: #451a03;
+    --fair-fg: #fde68a;
+    --poor: #f87171;
+    --poor-soft: #450a0a;
+    --poor-fg: #fecaca;
+    --unknown: #64748b;
+    --unknown-soft: #1e293b;
+    --unknown-fg: #cbd5e1;
+
+    --up: #34d399;
+    --down: #f87171;
+
+    --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 0 rgb(0 0 0 / 0.2);
+    --shadow-lg: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 6px -2px rgb(0 0 0 / 0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #0b1120;
+  --surface: #111827;
+  --surface-2: #1e293b;
+  --border: #1e293b;
+  --border-strong: #334155;
+  --foreground: #f1f5f9;
+  --muted: #94a3b8;
+  --muted-strong: #cbd5e1;
+
+  --accent: #3b82f6;
+  --accent-fg: #ffffff;
+  --accent-soft: #1e3a8a;
+
+  --good: #2dd4bf;
+  --good-soft: #134e4a;
+  --good-fg: #99f6e4;
+  --fair: #fbbf24;
+  --fair-soft: #451a03;
+  --fair-fg: #fde68a;
+  --poor: #f87171;
+  --poor-soft: #450a0a;
+  --poor-fg: #fecaca;
+  --unknown: #64748b;
+  --unknown-soft: #1e293b;
+  --unknown-fg: #cbd5e1;
+
+  --up: #34d399;
+  --down: #f87171;
+
+  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 0 rgb(0 0 0 / 0.2);
+  --shadow-lg: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 6px -2px rgb(0 0 0 / 0.3);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-strong: var(--muted-strong);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-good-fg: var(--good-fg);
+  --color-fair: var(--fair);
+  --color-fair-soft: var(--fair-soft);
+  --color-fair-fg: var(--fair-fg);
+  --color-poor: var(--poor);
+  --color-poor-soft: var(--poor-soft);
+  --color-poor-fg: var(--poor-fg);
+  --color-unknown: var(--unknown);
+  --color-unknown-soft: var(--unknown-soft);
+  --color-unknown-fg: var(--unknown-fg);
+  --color-up: var(--up);
+  --color-down: var(--down);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-card: var(--radius);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Tabular figures keep price and metric columns from jittering as they update. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Wide content (tables, charts) scrolls inside its own container so the page
+   body never scrolls horizontally on mobile. */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

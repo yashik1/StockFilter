@@ -1,0 +1,42 @@
+name: Nightly ingest
+
+# GitHub Actions is the primary scheduler for the full universe refresh.
+# Vercel Hobby crons fire only once a day and their functions time out long
+# before several hundred companies can be processed; Actions has neither limit
+# and is free for public repositories.
+on:
+  schedule:
+    # 06:15 UTC, after US filings and end-of-day prices have settled.
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "Specific symbols to refresh (space separated). Blank = whole universe."
+        required: false
+        default: ""
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Refresh fundamentals and scores
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
+          ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          # The SEC requires a contact address in the User-Agent.
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: npx tsx scripts/ingest.ts ${{ github.event.inputs.symbols }}

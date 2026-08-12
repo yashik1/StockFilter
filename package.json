@@ -6,7 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "ingest": "tsx scripts/ingest.ts",
+    "build:fixtures": "tsx scripts/build-fixtures.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

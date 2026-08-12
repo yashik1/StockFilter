@@ -1,0 +1,121 @@
+import type { NormalizedFundamentals } from "../fundamentals/types";
+
+/**
+ * Chart timeframes. The intraday buckets are the reason Alpaca is used for
+ * price data rather than Finnhub, whose free tier no longer serves candles.
+ */
+export type Timeframe = "1Min" | "5Min" | "15Min" | "1Hour" | "1Day" | "1Week";
+
+export const TIMEFRAMES: { value: Timeframe; label: string; intraday: boolean }[] = [
+  { value: "1Min", label: "1m", intraday: true },
+  { value: "5Min", label: "5m", intraday: true },
+  { value: "15Min", label: "15m", intraday: true },
+  { value: "1Hour", label: "1h", intraday: true },
+  { value: "1Day", label: "1D", intraday: false },
+  { value: "1Week", label: "1W", intraday: false },
+];
+
+/** A single OHLCV candle. `time` is a Unix timestamp in seconds (UTC). */
+export interface Bar {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+/**
+ * How fresh a price is. Surfaced in the UI as a badge so a user always knows
+ * whether they are looking at a live price or a delayed one — free tiers stream
+ * IEX in real time but consolidated data is 15 minutes behind.
+ */
+export type PriceFreshness = "realtime-iex" | "delayed-15min" | "end-of-day" | "unknown";
+
+export interface Quote {
+  symbol: string;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  previousClose: number | null;
+  dayHigh: number | null;
+  dayLow: number | null;
+  volume: number | null;
+  freshness: PriceFreshness;
+  asOf: string | null;
+}
+
+export interface CompanyProfile {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  country: string | null;
+  currency: string | null;
+  sicCode: string | null;
+  sicDescription: string | null;
+  industry: string | null;
+  website: string | null;
+  logo: string | null;
+  marketCap: number | null;
+  sharesOutstanding: number | null;
+  cik: string | null;
+  description: string | null;
+}
+
+export interface NewsItem {
+  id: string;
+  headline: string;
+  summary: string | null;
+  source: string;
+  url: string;
+  publishedAt: string;
+  imageUrl: string | null;
+}
+
+/** A regulatory filing, linked directly to its source. */
+export interface Filing {
+  form: string;
+  filedAt: string;
+  periodOfReport: string | null;
+  description: string | null;
+  url: string;
+}
+
+export interface SymbolSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  cik: string | null;
+}
+
+/**
+ * The contract every data source implements.
+ *
+ * Adding a provider means implementing this interface and registering it in
+ * `index.ts` — no page or component changes. This is what makes the jump from
+ * the free US-only stack to worldwide coverage a configuration change.
+ */
+export interface MarketDataProvider {
+  readonly name: string;
+  /** False when required credentials are absent, so the UI can explain why. */
+  isConfigured(): boolean;
+
+  getBars(symbol: string, timeframe: Timeframe, from: Date, to: Date): Promise<Bar[]>;
+  getQuote(symbol: string): Promise<Quote | null>;
+  getProfile(symbol: string): Promise<CompanyProfile | null>;
+  getFundamentals(symbol: string): Promise<NormalizedFundamentals | null>;
+  getNews(symbol: string, limit?: number): Promise<NewsItem[]>;
+  getFilings(symbol: string, limit?: number): Promise<Filing[]>;
+  searchSymbols(query: string, limit?: number): Promise<SymbolSearchResult[]>;
+}
+
+/** Raised when a provider is called without the credentials it needs. */
+export class ProviderNotConfiguredError extends Error {
+  constructor(provider: string, envVars: string[]) {
+    super(
+      `${provider} is not configured. Set ${envVars.join(" and ")} in your environment. ` +
+        `See .env.example for setup instructions.`,
+    );
+    this.name = "ProviderNotConfiguredError";
+  }
+}
