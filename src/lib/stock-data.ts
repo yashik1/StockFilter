@@ -26,7 +26,7 @@ export interface StockPageData {
  * EDGAR — not just the precomputed screening universe. Responses are cached by
  * the fetch layer, so repeat views are cheap.
  *
- * Optional sources fail soft: missing news or an unset Alpaca key degrades that
+ * Optional sources fail soft: missing news or an unset price key degrades that
  * section only, never the page.
  */
 export async function getStockPageData(symbol: string): Promise<StockPageData> {

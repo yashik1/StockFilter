@@ -198,9 +198,9 @@ export default async function HomePage() {
               ok
             />
             <Source
-              name="Alpaca"
+              name="Twelve Data"
               role="Price history and quotes"
-              detail="Minute-level history going back years, used for the price charts."
+              detail="Minute, hourly and daily history used for the price charts. A free key is an email signup."
               ok={status.charts}
             />
             <Source

@@ -102,7 +102,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               >
                 SEC EDGAR
               </a>
-              . Prices from Alpaca. News from Finnhub.
+              . Prices from Twelve Data. News from Finnhub.
             </p>
           </div>
         </footer>

@@ -34,8 +34,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-          ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
-          ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
           # The SEC requires a contact address in the User-Agent.
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}

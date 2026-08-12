@@ -3,7 +3,7 @@ import { getDb } from "./db";
 import { companies, financials, ingestRuns, scores } from "./db/schema";
 import { fieldValue } from "./fundamentals/normalize";
 import type { CanonicalField, NormalizedFundamentals } from "./fundamentals/types";
-import { alpaca, finnhub, secEdgar } from "./providers";
+import { finnhub, secEdgar, twelveData } from "./providers";
 import { cikForSymbol } from "./providers/sec-edgar";
 import { sectorFromSic } from "./scoring/applicability";
 import { buildHealthReport } from "./scoring/health";
@@ -70,8 +70,8 @@ async function resolveMarketCap(
     if (profile?.marketCap) return profile.marketCap;
   }
 
-  if (alpaca.isConfigured()) {
-    const quote = await alpaca.getQuote(symbol).catch(() => null);
+  if (twelveData.isConfigured()) {
+    const quote = await twelveData.getQuote(symbol).catch(() => null);
     const shares = fieldValue(fundamentals.annual[0], "sharesOutstanding");
     if (quote?.price && shares) return quote.price * shares;
   }

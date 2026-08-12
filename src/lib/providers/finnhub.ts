@@ -19,7 +19,7 @@ const BASE = "https://finnhub.io/api/v1";
  * Its free tier allows 60 requests/minute and covers profiles, peers and company
  * news. It deliberately does NOT provide candles here: Finnhub moved historical
  * and intraday candles to its paid plans in April 2025 and the free tier now
- * returns 403, which is why price data comes from Alpaca instead.
+ * returns 403, which is why price data comes from Twelve Data instead.
  */
 export class FinnhubProvider implements MarketDataProvider {
   readonly name = "Finnhub";
@@ -149,7 +149,7 @@ export class FinnhubProvider implements MarketDataProvider {
 
   // ---- Not used from Finnhub ----
 
-  /** Free-tier candles return 403; Alpaca serves bars instead. */
+  /** Free-tier candles return 403; Twelve Data serves bars instead. */
   async getBars(_s: string, _tf: Timeframe, _from: Date, _to: Date): Promise<Bar[]> {
     return [];
   }

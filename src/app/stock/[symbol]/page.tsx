@@ -92,7 +92,7 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
               </div>
             </>
           ) : (
-            <Badge title="Add ALPACA_API_KEY_ID to show live prices.">
+            <Badge title="Add TWELVEDATA_API_KEY to show live prices.">
               Price unavailable
             </Badge>
           )}

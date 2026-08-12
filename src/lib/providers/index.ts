@@ -1,8 +1,8 @@
 import type { NormalizedFundamentals } from "../fundamentals/types";
-import { alpaca } from "./alpaca";
 import { eodhd } from "./eodhd";
 import { finnhub } from "./finnhub";
 import { secEdgar } from "./sec-edgar";
+import { twelveData } from "./twelvedata";
 import type {
   Bar,
   CompanyProfile,
@@ -19,15 +19,15 @@ import type {
  *
  * No one free source covers everything, so each job goes to the source that
  * does it best at zero cost:
- *   fundamentals + filings + sector -> SEC EDGAR (authoritative, no key, no cap)
- *   price bars + quotes             -> Alpaca    (7+ yrs of minute bars, free)
- *   news + logo + peers             -> Finnhub   (free tier covers these)
+ *   fundamentals + filings + sector -> SEC EDGAR   (authoritative, no key, no cap)
+ *   price bars + quotes             -> Twelve Data (full intraday range, free)
+ *   news + logo + peers             -> Finnhub     (free tier covers these)
  *
  * Anything unavailable degrades to empty rather than throwing, so a missing
  * optional key never takes down a page.
  */
 class FreeStackProvider implements MarketDataProvider {
-  readonly name = "SEC EDGAR + Alpaca + Finnhub";
+  readonly name = "SEC EDGAR + Twelve Data + Finnhub";
 
   /** EDGAR alone needs no credentials, so fundamentals always work. */
   isConfigured(): boolean {
@@ -35,13 +35,13 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getBars(symbol: string, timeframe: Timeframe, from: Date, to: Date): Promise<Bar[]> {
-    if (!alpaca.isConfigured()) return [];
-    return alpaca.getBars(symbol, timeframe, from, to);
+    if (!twelveData.isConfigured()) return [];
+    return twelveData.getBars(symbol, timeframe, from, to);
   }
 
   async getQuote(symbol: string): Promise<Quote | null> {
-    if (!alpaca.isConfigured()) return null;
-    return alpaca.getQuote(symbol);
+    if (!twelveData.isConfigured()) return null;
+    return twelveData.getQuote(symbol).catch(() => null);
   }
 
   /**
@@ -124,14 +124,14 @@ export function providerStatus() {
     activeProvider: global ? eodhd.name : freeStack.name,
     coverage: global ? "worldwide" : "US and Canadian cross-listed",
     fundamentals: true,
-    charts: global || alpaca.isConfigured(),
+    charts: global || twelveData.isConfigured(),
     news: global || finnhub.isConfigured(),
     missing: [
-      ...(global || alpaca.isConfigured() ? [] : ["ALPACA_API_KEY_ID"]),
+      ...(global || twelveData.isConfigured() ? [] : ["TWELVEDATA_API_KEY"]),
       ...(global || finnhub.isConfigured() ? [] : ["FINNHUB_API_KEY"]),
     ],
   };
 }
 
-export { secEdgar, alpaca, finnhub, eodhd };
+export { secEdgar, twelveData, finnhub, eodhd };
 export * from "./types";

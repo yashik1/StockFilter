@@ -1,8 +1,8 @@
 import type { NormalizedFundamentals } from "../fundamentals/types";
 
 /**
- * Chart timeframes. The intraday buckets are the reason Alpaca is used for
- * price data rather than Finnhub, whose free tier no longer serves candles.
+ * Chart timeframes. The intraday buckets are the reason Twelve Data is used
+ * for price data rather than Finnhub, whose free tier no longer serves candles.
  */
 export type Timeframe = "1Min" | "5Min" | "15Min" | "1Hour" | "1Day" | "1Week";
 

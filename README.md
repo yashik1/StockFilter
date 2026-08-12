@@ -42,7 +42,7 @@ want:
 | Feature | Needs | Cost |
 | --- | --- | --- |
 | Fundamentals, scores, filings | nothing | free |
-| Price charts and quotes | `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` | free |
+| Price charts and quotes | `TWELVEDATA_API_KEY` | free |
 | News, logos, peers | `FINNHUB_API_KEY` | free |
 | Screener and rankings | `DATABASE_URL` | free tier |
 | Worldwide coverage | `EODHD_API_KEY` | ~$100/mo |
@@ -97,8 +97,13 @@ The free stack composes three sources, each doing what it does best at no cost:
 | Source | Supplies | Why |
 | --- | --- | --- |
 | **SEC EDGAR** | fundamentals, filings, SIC codes | Authoritative, no API key, no daily cap |
-| **Alpaca** | OHLCV bars, quotes | Free tier serves 7+ years of *minute* bars |
+| **Twelve Data** | OHLCV bars, quotes | Free tier serves the full intraday range; key is an email signup, no brokerage account |
 | **Finnhub** | news, logos, peers | Free tier covers these (its candles are paywalled) |
+
+Free-plan caveats worth knowing for price data: Twelve Data allows 800 credits/day
+and 8/minute (a chart view costs one credit), 1-minute history begins 2020-02-10,
+and prices carry a short delay — so quotes are labelled delayed rather than live
+unless you set `TWELVEDATA_REALTIME=true` on a paid plan.
 
 Setting `EODHD_API_KEY` alone switches the entire app to worldwide coverage — 60+
 exchanges, 150,000+ tickers — with no other change. Its payload maps onto the same
@@ -159,7 +164,7 @@ and **SHOP** (us-gaap, untagged liabilities, mid-history concept switch).
 ## Data sources
 
 Fundamentals and filings from [SEC EDGAR](https://www.sec.gov/search-filings/edgar-application-programming-interfaces).
-Prices from [Alpaca](https://alpaca.markets/data). News from [Finnhub](https://finnhub.io).
+Prices from [Twelve Data](https://twelvedata.com). News from [Finnhub](https://finnhub.io).
 Optional worldwide data from [EODHD](https://eodhd.com).
 
 SEC EDGAR requires a `User-Agent` header identifying you with a contact address — set

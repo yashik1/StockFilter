@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProvider } from "@/lib/providers";
-import { alpaca, eodhd } from "@/lib/providers";
+import { eodhd, twelveData } from "@/lib/providers";
 import type { Timeframe } from "@/lib/providers/types";
 
 const VALID: Timeframe[] = ["1Min", "5Min", "15Min", "1Hour", "1Day", "1Week"];
@@ -37,14 +37,14 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!alpaca.isConfigured() && !eodhd.isConfigured()) {
+  if (!twelveData.isConfigured() && !eodhd.isConfigured()) {
     return NextResponse.json(
       {
         bars: [],
         error: "not-configured",
         message:
-          "Price charts need an Alpaca key. Add ALPACA_API_KEY_ID and " +
-          "ALPACA_API_SECRET_KEY to your environment — a free paper account is enough.",
+          "Price charts need a Twelve Data key. Get a free one at twelvedata.com " +
+          "(email signup, no brokerage account) and set TWELVEDATA_API_KEY.",
       },
       { status: 200 },
     );
