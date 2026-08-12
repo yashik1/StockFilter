@@ -43,6 +43,7 @@ want:
 | --- | --- | --- |
 | Fundamentals, scores, filings | nothing | free |
 | Price charts and quotes | `TWELVEDATA_API_KEY` | free |
+| Price fallback when rate limited | `TIINGO_API_KEY` | free |
 | News, logos, peers | `FINNHUB_API_KEY` | free |
 | Screener and rankings | `DATABASE_URL` | free tier |
 | Worldwide coverage | `EODHD_API_KEY` | ~$100/mo |
@@ -98,7 +99,8 @@ The free stack composes three sources, each doing what it does best at no cost:
 | --- | --- | --- |
 | **SEC EDGAR** | fundamentals, filings, SIC codes | Authoritative, no API key, no daily cap |
 | **Twelve Data** | OHLCV bars, quotes | Free tier serves the full intraday range; key is an email signup, no brokerage account |
-| **Finnhub** | news, logos, peers | Free tier covers these (its candles are paywalled) |
+| **Finnhub** | news, logos, peers, quote fallback | Free tier covers these; its `/quote` allows 60/min (candles are paywalled) |
+| **Tiingo** | daily/weekly price fallback | Free tier counts usage per hour, not per minute, so it survives a Twelve Data burst |
 
 Free-plan caveats worth knowing for price data: Twelve Data allows 800 credits/day
 and 8/minute (a chart view costs one credit), 1-minute history begins 2020-02-10,

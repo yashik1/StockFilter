@@ -2,7 +2,13 @@ import type { NormalizedFundamentals } from "../fundamentals/types";
 import { eodhd } from "./eodhd";
 import { finnhub } from "./finnhub";
 import { cikForSymbol, secEdgar } from "./sec-edgar";
+import { tiingo } from "./tiingo";
 import { twelveData } from "./twelvedata";
+import {
+  fetchBarsWithFailover,
+  fetchQuoteWithFailover,
+  type PriceSource,
+} from "./failover";
 import type {
   Bar,
   CompanyProfile,
@@ -36,13 +42,18 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getBars(symbol: string, timeframe: Timeframe, from: Date, to: Date): Promise<Bar[]> {
-    if (!twelveData.isConfigured()) return [];
-    return twelveData.getBars(symbol, timeframe, from, to);
+    const result = await fetchBarsWithFailover(PRICE_SOURCES, symbol, timeframe, from, to);
+    if (result.value.length === 0 && result.attempts.length > 0) {
+      // Every provider failed. Report why rather than returning an empty chart,
+      // which reads as "this symbol has no history".
+      throw new Error(describeFailure(result.attempts));
+    }
+    return result.value;
   }
 
   async getQuote(symbol: string): Promise<Quote | null> {
-    if (!twelveData.isConfigured()) return null;
-    return twelveData.getQuote(symbol).catch(() => null);
+    const result = await fetchQuoteWithFailover(PRICE_SOURCES, symbol);
+    return result.value;
   }
 
   /**
@@ -136,6 +147,26 @@ class FreeStackProvider implements MarketDataProvider {
   }
 }
 
+/**
+ * Price providers in preference order.
+ *
+ * Twelve Data leads because it is the only free source covering the full
+ * intraday range. Finnhub follows for quotes — its 60 requests/minute is far
+ * more headroom than Twelve Data's 8, and its key is already needed for news.
+ * Tiingo backs up daily and weekly history, where its limits are counted per
+ * hour rather than per minute.
+ */
+const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo];
+
+/** Summarises a total failure across every provider. */
+function describeFailure(attempts: { provider: string; error: string }[]): string {
+  const detail = attempts.map((a) => `${a.provider}: ${a.error}`).join("; ");
+  return attempts.some((a) => /rate limit|quota|credit/i.test(a.error))
+    ? `All price providers are rate limited right now. ${detail}. ` +
+        `Adding TIINGO_API_KEY (free) gives more headroom.`
+    : `Could not load price data. ${detail}`;
+}
+
 const freeStack = new FreeStackProvider();
 
 /**
@@ -171,14 +202,16 @@ export function providerStatus() {
     activeProvider: global ? eodhd.name : freeStack.name,
     coverage: global ? "worldwide" : "US and Canadian cross-listed",
     fundamentals: true,
-    charts: global || twelveData.isConfigured(),
+    charts: global || twelveData.isConfigured() || tiingo.isConfigured(),
     news: global || finnhub.isConfigured(),
+    priceSources: PRICE_SOURCES.filter((s) => s.isConfigured()).map((s) => s.name),
     missing: [
       ...(global || twelveData.isConfigured() ? [] : ["TWELVEDATA_API_KEY"]),
       ...(global || finnhub.isConfigured() ? [] : ["FINNHUB_API_KEY"]),
+      ...(global || tiingo.isConfigured() ? [] : ["TIINGO_API_KEY (optional fallback)"]),
     ],
   };
 }
 
-export { secEdgar, twelveData, finnhub, eodhd };
+export { secEdgar, twelveData, finnhub, tiingo, eodhd };
 export * from "./types";

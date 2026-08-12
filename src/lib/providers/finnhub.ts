@@ -154,8 +154,40 @@ export class FinnhubProvider implements MarketDataProvider {
     return [];
   }
 
-  async getQuote(_symbol: string): Promise<Quote | null> {
-    return null;
+  /**
+   * Real-time US quote.
+   *
+   * Finnhub's candles are paywalled, but `/quote` remains on the free tier at
+   * 60 requests/minute — a far higher ceiling than Twelve Data's 8/minute, which
+   * makes this the natural fallback when that limit is hit.
+   */
+  async getQuote(symbol: string): Promise<Quote | null> {
+    const res = await fetch(this.url("/quote", { symbol }), { next: { revalidate: 30 } });
+    if (!res.ok) {
+      if (res.status === 429) throw new Error("Finnhub rate limit reached (60 requests/minute).");
+      throw new Error(`Finnhub quote ${symbol}: HTTP ${res.status}`);
+    }
+
+    const q = (await res.json()) as {
+      c?: number; d?: number; dp?: number; h?: number; l?: number; pc?: number; t?: number;
+    };
+
+    // Finnhub returns zeros rather than an error for an unknown symbol.
+    if (!q.c) return null;
+
+    return {
+      symbol: symbol.toUpperCase(),
+      price: q.c,
+      change: q.d ?? null,
+      // Reported as a percentage; stored as a ratio.
+      changePercent: q.dp != null ? q.dp / 100 : null,
+      previousClose: q.pc ?? null,
+      dayHigh: q.h ?? null,
+      dayLow: q.l ?? null,
+      volume: null,
+      freshness: "realtime-iex",
+      asOf: q.t ? new Date(q.t * 1000).toISOString() : null,
+    };
   }
 
   async getFundamentals(_symbol: string): Promise<NormalizedFundamentals | null> {
