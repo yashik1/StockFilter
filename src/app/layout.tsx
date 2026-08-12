@@ -33,6 +33,7 @@ try {
 const NAV = [
   { href: "/", label: "Dashboard" },
   { href: "/screen", label: "Screener" },
+  { href: "/compare", label: "Compare" },
   { href: "/learn", label: "Learn" },
 ];
 

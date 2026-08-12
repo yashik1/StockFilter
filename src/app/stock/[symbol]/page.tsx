@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BalanceSheetVisual } from "@/components/stock/balance-sheet";
@@ -105,6 +106,28 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
       {/* ---- verdict ---- */}
       {report ? (
         <VerdictCard report={report} companyName={profile?.name ?? upper} />
+      ) : data.instrumentType === "etf" ? (
+        // A fund holds other assets rather than running a business, so there is
+        // no balance sheet to score. Saying that plainly is more useful than an
+        // empty card implying the data merely failed to load.
+        <Card className="p-5">
+          <h2 className="text-base font-semibold">This is a fund, not a company</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">
+            {profile?.name ?? upper} is an ETF or trust — a basket of other holdings. It has
+            no revenue, no balance sheet and files no annual report, so the profitability,
+            debt and accounting scores used for companies have nothing to measure here.
+          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
+            Price history below still applies, and{" "}
+            <Link
+              href={`/compare?symbols=${encodeURIComponent(upper)},SPY`}
+              className="text-accent underline"
+            >
+              comparing its performance
+            </Link>{" "}
+            against other funds or the wider market is a meaningful way to judge it.
+          </p>
+        </Card>
       ) : (
         <Card>
           <EmptyState

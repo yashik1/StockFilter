@@ -1,9 +1,10 @@
 import { fieldValue } from "./fundamentals/normalize";
 import type { NormalizedFundamentals } from "./fundamentals/types";
-import { getPeers, getProvider } from "./providers";
-import type { CompanyProfile, Filing, NewsItem, Quote } from "./providers/types";
+import { getInstrumentType, getPeers, getProvider } from "./providers";
+import type { CompanyProfile, Filing, InstrumentType, NewsItem, Quote } from "./providers/types";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
+import { resolveType } from "./compare";
 
 export interface StockPageData {
   symbol: string;
@@ -16,6 +17,8 @@ export interface StockPageData {
   sector: SectorKind;
   marketCap: number | null;
   report: HealthReport | null;
+  /** Funds file no statements, so scoring is suppressed rather than computed. */
+  instrumentType: InstrumentType;
 }
 
 /**
@@ -33,14 +36,16 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
   const provider = getProvider();
   const upper = symbol.toUpperCase();
 
-  const [profile, fundamentals, quote, news, filings, peers] = await Promise.all([
-    provider.getProfile(upper).catch(() => null),
-    provider.getFundamentals(upper).catch(() => null),
-    provider.getQuote(upper).catch(() => null),
-    provider.getNews(upper, 12).catch(() => []),
-    provider.getFilings(upper, 20).catch(() => []),
-    getPeers(upper).catch(() => []),
-  ]);
+  const [profile, fundamentals, quote, news, filings, peers, providerType] =
+    await Promise.all([
+      provider.getProfile(upper).catch(() => null),
+      provider.getFundamentals(upper).catch(() => null),
+      provider.getQuote(upper).catch(() => null),
+      provider.getNews(upper, 12).catch(() => []),
+      provider.getFilings(upper, 20).catch(() => []),
+      getPeers(upper).catch(() => []),
+      getInstrumentType(upper).catch(() => "unknown" as InstrumentType),
+    ]);
 
   const sector = sectorFromSic(profile?.sicCode);
 
@@ -70,6 +75,12 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     sector,
     marketCap,
     report,
+    instrumentType: resolveType(
+      providerType,
+      Boolean(fundamentals?.annual.length),
+      profile?.entityType,
+      profile?.sicCode,
+    ),
   };
 }
 

@@ -1,12 +1,13 @@
 import type { NormalizedFundamentals } from "../fundamentals/types";
 import { eodhd } from "./eodhd";
 import { finnhub } from "./finnhub";
-import { secEdgar } from "./sec-edgar";
+import { cikForSymbol, secEdgar } from "./sec-edgar";
 import { twelveData } from "./twelvedata";
 import type {
   Bar,
   CompanyProfile,
   Filing,
+  InstrumentType,
   MarketDataProvider,
   NewsItem,
   Quote,
@@ -72,6 +73,7 @@ class FreeStackProvider implements MarketDataProvider {
       sharesOutstanding: fin?.sharesOutstanding ?? null,
       cik: sec?.cik ?? null,
       description: fin?.description ?? null,
+      entityType: sec?.entityType ?? null,
     };
   }
 
@@ -88,8 +90,44 @@ class FreeStackProvider implements MarketDataProvider {
     return secEdgar.getFilings(symbol, limit).catch(() => []);
   }
 
-  async searchSymbols(query: string, limit?: number): Promise<SymbolSearchResult[]> {
-    return secEdgar.searchSymbols(query, limit).catch(() => []);
+  /**
+   * Searches EDGAR first, then tops up from Twelve Data.
+   *
+   * EDGAR only lists SEC registrants, so most ETFs are simply absent from it —
+   * VTI, VOO, IWM and ARKK cannot be found there at all. Without the second
+   * source those symbols would be unreachable through search.
+   */
+  async searchSymbols(query: string, limit = 10): Promise<SymbolSearchResult[]> {
+    const fromEdgar = await secEdgar.searchSymbols(query, limit).catch(() => []);
+    if (fromEdgar.length >= limit || !twelveData.isConfigured()) return fromEdgar;
+
+    const seen = new Set(fromEdgar.map((r) => r.symbol.toUpperCase()));
+    const fromTwelve = await twelveData
+      .searchSymbols(query, limit)
+      .catch(() => [] as SymbolSearchResult[]);
+
+    return [
+      // EDGAR results carry a CIK and therefore full fundamentals, so they rank first.
+      ...fromEdgar.map((r) => ({ ...r, type: r.type ?? ("stock" as const) })),
+      ...fromTwelve.filter((r) => !seen.has(r.symbol.toUpperCase())),
+    ].slice(0, limit);
+  }
+
+  /**
+   * Classifies a symbol as an operating company or a fund.
+   *
+   * Resolving in EDGAR with usable XBRL data is the strongest signal of an
+   * operating company. Funds file no statements — `companyfacts` returns 404
+   * for SPY — so anything without them is checked against the market data
+   * provider before being reported as unknown.
+   */
+  async getInstrumentType(symbol: string): Promise<InstrumentType> {
+    if (twelveData.isConfigured()) {
+      const type = await twelveData.getInstrumentType(symbol).catch(() => "unknown" as const);
+      if (type !== "unknown") return type;
+    }
+    const cik = await cikForSymbol(symbol).catch(() => null);
+    return cik ? "stock" : "unknown";
   }
 
   async getPeers(symbol: string): Promise<string[]> {
@@ -109,6 +147,15 @@ const freeStack = new FreeStackProvider();
  */
 export function getProvider(): MarketDataProvider {
   return eodhd.isConfigured() ? eodhd : freeStack;
+}
+
+/**
+ * Classifies a symbol as an operating company or a fund.
+ * Funds file no financial statements, so balance-sheet scoring cannot apply.
+ */
+export async function getInstrumentType(symbol: string): Promise<InstrumentType> {
+  if (eodhd.isConfigured()) return "unknown";
+  return freeStack.getInstrumentType(symbol);
 }
 
 /** Peers come from Finnhub and are optional, so they have their own accessor. */

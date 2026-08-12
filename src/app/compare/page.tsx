@@ -1,0 +1,285 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { CompareChart } from "@/components/compare-chart";
+import { Badge, Card, CardHeader, Change, RatingBadge } from "@/components/ui";
+import { loadComparison, MAX_COMPARE, parseSymbols, type CompareItem } from "@/lib/compare";
+import { money, multiple, percent, price as fmtPrice } from "@/lib/format";
+import type { Rating } from "@/lib/scoring/types";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Compare stocks and ETFs",
+  description:
+    "Compare companies and funds side by side — financial health, valuation, growth and performance.",
+};
+
+const SUGGESTIONS = [
+  { label: "Big tech", symbols: "AAPL,MSFT,GOOGL,NVDA" },
+  { label: "Canadian banks", symbols: "RY,TD,BNS,BMO" },
+  { label: "Index ETFs", symbols: "SPY,QQQ,VTI" },
+  { label: "Retail", symbols: "WMT,COST,TGT" },
+];
+
+function healthRating(score: number | null | undefined): Rating {
+  if (score == null) return "unknown";
+  if (score >= 7.5) return "good";
+  if (score >= 5) return "fair";
+  return "poor";
+}
+
+export default async function ComparePage({ searchParams }: PageProps<"/compare">) {
+  const params = await searchParams;
+  const symbols = parseSymbols(params.symbols);
+  const items = symbols.length > 0 ? await loadComparison(symbols) : [];
+  const chartable = items.filter((i) => !i.error).map((i) => i.symbol);
+
+  return (
+    <div className="space-y-5">
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight">Compare</h1>
+        <p className="mt-1 text-sm text-muted">
+          Put up to {MAX_COMPARE} companies or ETFs side by side.
+        </p>
+      </header>
+
+      <Card>
+        <form method="get" className="flex flex-wrap items-end gap-3 p-5">
+          <div className="min-w-0 flex-1">
+            <label htmlFor="symbols" className="text-xs text-muted">
+              Tickers, separated by commas
+            </label>
+            <input
+              id="symbols"
+              name="symbols"
+              defaultValue={symbols.join(", ")}
+              placeholder="AAPL, MSFT, SPY"
+              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
+          >
+            Compare
+          </button>
+        </form>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
+          <span className="text-xs text-muted">Try:</span>
+          {SUGGESTIONS.map((s) => (
+            <Link
+              key={s.label}
+              href={`/compare?symbols=${encodeURIComponent(s.symbols)}`}
+              className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
+            >
+              {s.label}
+            </Link>
+          ))}
+        </div>
+      </Card>
+
+      {items.length === 0 ? (
+        <Card>
+          <div className="px-6 py-12 text-center">
+            <p className="text-sm font-medium">Nothing to compare yet</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted">
+              Enter two or more tickers above, or pick one of the suggestions.
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {chartable.length > 0 && (
+            <Card>
+              <CardHeader
+                title="Relative performance"
+                subtitle="Rebased so every symbol starts at 0%"
+              />
+              <div className="p-5">
+                <CompareChart symbols={chartable} />
+              </div>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader title="Side by side" subtitle="Latest annual figures from each company's filings" />
+            <ComparisonTable items={items} />
+          </Card>
+
+          {items.some((i) => i.type === "etf") && (
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold">Why funds show no financial scores</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">
+                An ETF is a basket of other holdings, not a business. It has no revenue, no
+                balance sheet and files no annual report, so profitability, debt and accounting
+                scores have nothing to measure. Comparing a fund on price performance is
+                meaningful; comparing it on profit margin is not, so those cells are left blank
+                rather than filled with zeros.
+              </p>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ComparisonTable({ items }: { items: CompareItem[] }) {
+  const rows: {
+    label: string;
+    hint?: string;
+    render: (item: CompareItem) => React.ReactNode;
+  }[] = [
+    {
+      label: "Type",
+      render: (i) =>
+        i.type === "etf" ? (
+          <Badge tone="accent">Fund / ETF</Badge>
+        ) : i.type === "stock" ? (
+          <Badge>Company</Badge>
+        ) : (
+          <span className="text-muted">—</span>
+        ),
+    },
+    {
+      label: "Price",
+      render: (i) =>
+        i.quote?.price != null ? (
+          <div>
+            <span className="tnum font-medium">{fmtPrice(i.quote.price)}</span>
+            <Change
+              value={i.quote.change}
+              percent={i.quote.changePercent}
+              className="ml-2 text-xs"
+            />
+          </div>
+        ) : (
+          <span className="text-muted">—</span>
+        ),
+    },
+    {
+      label: "Health score",
+      hint: "Composite of profitability, growth, debt and accounting quality.",
+      render: (i) =>
+        i.report?.score != null ? (
+          <RatingBadge
+            rating={healthRating(i.report.score)}
+            label={`${i.report.score.toFixed(1)}/10`}
+          />
+        ) : (
+          <span className="text-xs text-muted">
+            {i.type === "etf" ? "n/a for funds" : "—"}
+          </span>
+        ),
+    },
+    {
+      label: "Market value",
+      render: (i) => <span className="tnum">{money(i.marketCap)}</span>,
+    },
+    { label: "Revenue", render: (i) => <span className="tnum">{money(i.metrics.revenue)}</span> },
+    { label: "Profit", render: (i) => <span className="tnum">{money(i.metrics.netIncome)}</span> },
+    {
+      label: "Revenue growth",
+      hint: "Change in sales versus the prior year.",
+      render: (i) => <span className="tnum">{percent(i.metrics.revenueGrowth)}</span>,
+    },
+    {
+      label: "Profit margin",
+      hint: "Profit kept from each dollar of sales.",
+      render: (i) => <span className="tnum">{percent(i.metrics.netMargin)}</span>,
+    },
+    {
+      label: "P/E ratio",
+      hint: "Price paid per dollar of annual profit.",
+      render: (i) => <span className="tnum">{multiple(i.metrics.peRatio)}</span>,
+    },
+    {
+      label: "Price to book",
+      render: (i) => <span className="tnum">{multiple(i.metrics.pbRatio)}</span>,
+    },
+    {
+      label: "Debt to equity",
+      hint: "Total liabilities compared with owners' stake.",
+      render: (i) => <span className="tnum">{multiple(i.metrics.debtToEquity)}</span>,
+    },
+    {
+      label: "Piotroski F-Score",
+      hint: "Nine checks of financial strength. Higher is stronger.",
+      render: (i) =>
+        i.report?.piotroski.maxScore
+          ? `${i.report.piotroski.score}/${i.report.piotroski.maxScore}`
+          : <span className="text-muted">—</span>,
+    },
+    {
+      label: "Bankruptcy risk",
+      hint: "Altman Z-Score zone.",
+      render: (i) =>
+        i.report?.altman.value ? (
+          <span className="capitalize">{i.report.altman.value.zone}</span>
+        ) : (
+          <span className="text-xs text-muted">
+            {i.sector === "financial" ? "n/a for banks" : i.type === "etf" ? "n/a for funds" : "—"}
+          </span>
+        ),
+    },
+  ];
+
+  return (
+    <div className="scroll-x">
+      <table className="w-full min-w-[40rem] text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-muted">
+              Metric
+            </th>
+            {items.map((i) => (
+              <th key={i.symbol} scope="col" className="px-4 py-3 text-left">
+                <Link href={`/stock/${encodeURIComponent(i.symbol)}`} className="block">
+                  <span className="font-semibold">{i.symbol}</span>
+                  <span className="block max-w-[12rem] truncate text-xs font-normal text-muted">
+                    {i.name}
+                  </span>
+                </Link>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.some((i) => i.error) && (
+            <tr>
+              <td className="px-5 py-2 text-xs text-muted">Status</td>
+              {items.map((i) => (
+                <td key={i.symbol} className="px-4 py-2 text-xs text-poor">
+                  {i.error ?? "OK"}
+                </td>
+              ))}
+            </tr>
+          )}
+          {rows.map((row) => (
+            <tr key={row.label} className="transition-colors hover:bg-surface-2">
+              <th
+                scope="row"
+                className="px-5 py-3 text-left text-xs font-medium text-muted"
+                title={row.hint}
+              >
+                {row.label}
+                {row.hint && (
+                  <>
+                    <span aria-hidden className="ml-1 cursor-help opacity-60">ⓘ</span>
+                    <span className="sr-only">{row.hint}</span>
+                  </>
+                )}
+              </th>
+              {items.map((i) => (
+                <td key={i.symbol} className="px-4 py-3">
+                  {row.render(i)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

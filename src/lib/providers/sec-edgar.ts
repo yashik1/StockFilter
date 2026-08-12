@@ -166,6 +166,7 @@ export class SecEdgarProvider implements MarketDataProvider {
       sharesOutstanding: null,
       cik,
       description: null,
+      entityType: sub.entityType ?? null,
     };
   }
 

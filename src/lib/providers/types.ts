@@ -60,6 +60,12 @@ export interface CompanyProfile {
   sharesOutstanding: number | null;
   cik: string | null;
   description: string | null;
+  /**
+   * EDGAR's own classification: "operating", "investment", or "other".
+   * The strongest keyless signal of whether a symbol is a company or a fund —
+   * QQQ reports "investment" while Apple reports "operating".
+   */
+  entityType?: string | null;
 }
 
 export interface NewsItem {
@@ -81,11 +87,22 @@ export interface Filing {
   url: string;
 }
 
+/**
+ * What kind of instrument a symbol refers to.
+ *
+ * This matters because funds file no financial statements. SEC `companyfacts`
+ * returns 404 for SPY, and most ETFs (VTI, VOO, IWM) are absent from EDGAR's
+ * ticker file entirely — so every balance-sheet score is meaningless for them
+ * and must be suppressed rather than computed from nothing.
+ */
+export type InstrumentType = "stock" | "etf" | "unknown";
+
 export interface SymbolSearchResult {
   symbol: string;
   name: string;
   exchange: string | null;
   cik: string | null;
+  type?: InstrumentType;
 }
 
 /**

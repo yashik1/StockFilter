@@ -3,6 +3,7 @@ import type {
   Bar,
   CompanyProfile,
   Filing,
+  InstrumentType,
   MarketDataProvider,
   NewsItem,
   Quote,
@@ -173,14 +174,33 @@ export class TwelveDataProvider implements MarketDataProvider {
     if (!res.ok) return [];
 
     const json = (await res.json()) as {
-      data?: { symbol: string; instrument_name: string; exchange: string }[];
+      data?: {
+        symbol: string;
+        instrument_name: string;
+        exchange: string;
+        instrument_type?: string;
+        country?: string;
+      }[];
     };
     return (json.data ?? []).slice(0, limit).map((d) => ({
       symbol: d.symbol,
       name: d.instrument_name,
       exchange: d.exchange,
       cik: null,
+      type: classifyInstrumentType(d.instrument_type),
     }));
+  }
+
+  /**
+   * Determines whether a symbol is a fund or an operating company.
+   *
+   * Used to decide whether balance-sheet scoring applies at all. Returns
+   * "unknown" rather than guessing when the provider gives no answer.
+   */
+  async getInstrumentType(symbol: string): Promise<InstrumentType> {
+    const results = await this.searchSymbols(symbol, 10).catch(() => []);
+    const exact = results.find((r) => r.symbol.toUpperCase() === symbol.toUpperCase());
+    return exact?.type ?? "unknown";
   }
 
   // ---- Not served by Twelve Data on the free plan ----
@@ -200,6 +220,19 @@ export class TwelveDataProvider implements MarketDataProvider {
   async getFilings(_symbol: string, _limit?: number): Promise<Filing[]> {
     return [];
   }
+}
+
+/**
+ * Maps the provider's instrument_type label onto our own classification.
+ * Funds appear under several names ("ETF", "Mutual Fund", "Trust"), all of
+ * which share the property that matters here: no financial statements.
+ */
+export function classifyInstrumentType(raw: string | undefined): InstrumentType {
+  if (!raw) return "unknown";
+  const value = raw.toLowerCase();
+  if (/etf|fund|trust|etn|index/.test(value)) return "etf";
+  if (/stock|share|equity|depositary|adr/.test(value)) return "stock";
+  return "unknown";
 }
 
 /** `YYYY-MM-DD HH:MM:SS`, the format the API accepts. */
