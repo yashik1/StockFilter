@@ -65,9 +65,12 @@ export async function GET(request: Request) {
       },
     );
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load bars";
+    // Returned with HTTP 200 so the client renders the explanation instead of
+    // a generic network failure. `error` marks it as unsuccessful.
     return NextResponse.json(
-      { bars: [], error: err instanceof Error ? err.message : "Failed to load bars" },
-      { status: 502 },
+      { bars: [], error: "provider-error", message, symbol, timeframe },
+      { status: 200 },
     );
   }
 }

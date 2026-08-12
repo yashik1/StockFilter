@@ -82,14 +82,7 @@ export class TwelveDataProvider implements MarketDataProvider {
     });
 
     const res = await fetch(url, { next: { revalidate: revalidateFor(timeframe) } });
-    if (!res.ok) {
-      if (res.status === 429) {
-        throw new Error(
-          "Twelve Data rate limit reached (8 requests/minute on the free plan). Try again shortly.",
-        );
-      }
-      throw new Error(`Twelve Data bars ${symbol}: HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(httpMessage(res.status, symbol));
 
     const json = (await res.json()) as {
       status?: string;
@@ -97,13 +90,15 @@ export class TwelveDataProvider implements MarketDataProvider {
       values?: TwelveDataValue[];
     };
 
-    // The API returns HTTP 200 with status:"error" for business errors such as
-    // an unknown symbol or an exhausted quota.
+    // The API answers business errors with HTTP 200 and status:"error", so the
+    // failure has to be read out of the body.
+    //
+    // These are never converted to an empty result. "No bars" and "your key is
+    // invalid" look identical to the user otherwise, and the real message —
+    // wrong key, symbol not on your plan, quota exhausted — is the only thing
+    // that says what to do about it.
     if (json.status === "error") {
-      if (/limit|credits/i.test(json.message ?? "")) {
-        throw new Error(`Twelve Data quota reached: ${json.message}`);
-      }
-      return [];
+      throw new Error(`Twelve Data: ${json.message ?? "unknown error"}`);
     }
 
     return (json.values ?? [])
@@ -140,7 +135,11 @@ export class TwelveDataProvider implements MarketDataProvider {
       volume?: string;
       datetime?: string;
     };
-    if (q.status === "error") return null;
+    // Same rule as getBars: report the cause rather than silently reporting
+    // "no price", which is indistinguishable from a bad key or an exhausted quota.
+    if (q.status === "error") {
+      throw new Error(`Twelve Data: ${(q as { message?: string }).message ?? "unknown error"}`);
+    }
 
     const num = (v: string | undefined) => {
       if (v == null) return null;
@@ -219,6 +218,34 @@ export class TwelveDataProvider implements MarketDataProvider {
 
   async getFilings(_symbol: string, _limit?: number): Promise<Filing[]> {
     return [];
+  }
+}
+
+/**
+ * Turns an HTTP status into something a person can act on.
+ *
+ * The raw status alone ("HTTP 401") does not say whether the key is wrong, the
+ * plan lacks the endpoint, or the quota is spent — which are three different
+ * fixes.
+ */
+function httpMessage(status: number, symbol: string): string {
+  switch (status) {
+    case 401:
+      return "Twelve Data rejected the API key. Check TWELVEDATA_API_KEY is correct and active.";
+    case 403:
+      return (
+        `Twelve Data denied access to ${symbol}. This usually means the symbol or ` +
+        `interval is not included in your plan.`
+      );
+    case 404:
+      return `Twelve Data has no data for ${symbol}.`;
+    case 429:
+      return (
+        "Twelve Data rate limit reached. The free plan allows 8 requests/minute " +
+        "and 800/day — wait a moment and reload."
+      );
+    default:
+      return `Twelve Data request failed for ${symbol} (HTTP ${status}).`;
   }
 }
 

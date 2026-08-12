@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
-import { providerStatus } from "@/lib/providers";
+import { providerStatus, twelveData } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +65,7 @@ export async function GET() {
       message: status.message,
       database,
       providers: providerStatus(),
+      priceData: await probePriceProvider(),
       checkedInMs: Date.now() - started,
     },
     {
@@ -72,6 +73,51 @@ export async function GET() {
       headers: { "Cache-Control": "no-store" },
     },
   );
+}
+
+/**
+ * Makes one real call to the price provider and reports what came back.
+ *
+ * A key can be present and still not work — invalid, out of quota, or on a plan
+ * that excludes the endpoint. Only an actual request distinguishes those, and
+ * the provider's own message is the thing worth reading.
+ */
+async function probePriceProvider(): Promise<Record<string, unknown>> {
+  if (!twelveData.isConfigured()) {
+    return {
+      configured: false,
+      note: "TWELVEDATA_API_KEY is not set, so charts and quotes are unavailable.",
+    };
+  }
+
+  const to = new Date();
+  const from = new Date(to.getTime() - 7 * 86_400_000);
+
+  try {
+    const bars = await twelveData.getBars("AAPL", "1Day", from, to);
+    return {
+      configured: true,
+      working: bars.length > 0,
+      barsReturned: bars.length,
+      note:
+        bars.length > 0
+          ? "Price data is working."
+          : "The request succeeded but returned no bars for AAPL over the last week.",
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      configured: true,
+      working: false,
+      // The provider's own wording usually names the cause outright.
+      error: message.slice(0, 300),
+      note: /api key|apikey|unauthor/i.test(message)
+        ? "The API key appears to be invalid."
+        : /limit|credit|quota|run out/i.test(message)
+          ? "The plan's request limit has been reached. The free plan allows 8 requests/minute and 800/day."
+          : "The provider rejected the request.",
+    };
+  }
 }
 
 function describeUrl(url: string): string {

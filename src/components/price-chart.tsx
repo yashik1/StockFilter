@@ -89,9 +89,11 @@ export function PriceChart({ symbol }: { symbol: string }) {
         const json = await res.json();
         if (cancelled) return;
 
-        if (json.error === "not-configured") {
+        // Any reported failure is shown verbatim. Collapsing an invalid key or
+        // an exhausted quota into "no data" hides the only useful information.
+        if (json.error) {
           setStatus("error");
-          setMessage(json.message);
+          setMessage(json.message ?? json.error);
           return;
         }
         const next: Bar[] = json.bars ?? [];

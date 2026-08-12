@@ -68,7 +68,9 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
               { signal: controller.signal },
             );
             const json = await res.json();
-            if (json.error === "not-configured") throw new Error(json.message);
+            // Surface any reported failure, not just a missing key — an invalid
+            // key or an exhausted quota otherwise looks like "no data exists".
+            if (json.error) throw new Error(json.message ?? json.error);
             return { symbol, bars: (json.bars ?? []) as Bar[] };
           }),
         );
