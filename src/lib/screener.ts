@@ -75,12 +75,70 @@ export interface ScreenRow {
   debtToEquity: number | null;
 }
 
-export type ScreenStatus = "ok" | "no-database" | "empty";
+/**
+ * Why a screen returned nothing.
+ *
+ * These were previously collapsed into `empty`, which meant a database with no
+ * tables looked identical to one that was simply not populated yet — and sent
+ * people off to re-run an ingest that could never work. Each cause now reports
+ * itself.
+ */
+export type ScreenStatus =
+  | "ok"
+  /** DATABASE_URL is not set at all. */
+  | "no-database"
+  /** Connected, tables exist, but no companies have been ingested. */
+  | "empty"
+  /** Connected, but the tables do not exist — migrations never ran. */
+  | "no-tables"
+  /** Could not reach or authenticate against the database. */
+  | "connection-error";
 
 export interface ScreenResult {
   status: ScreenStatus;
   rows: ScreenRow[];
   total: number;
+  /** Safe error detail for the UI. Never contains credentials. */
+  detail?: string;
+}
+
+/** Maps a driver error onto the specific cause, so the UI can be precise. */
+function classifyDbError(err: unknown): { status: ScreenStatus; detail: string } {
+  const code = (err as { code?: string })?.code;
+  const message = err instanceof Error ? err.message : String(err);
+
+  // 42P01 undefined_table — the schema was never created.
+  if (code === "42P01") {
+    return {
+      status: "no-tables",
+      detail: "The database is reachable but the tables do not exist yet.",
+    };
+  }
+  if (code === "ENOTFOUND" || code === "ECONNREFUSED" || code === "ETIMEDOUT") {
+    return {
+      status: "connection-error",
+      detail:
+        "Could not reach the database. If the host ends in .railway.internal it only " +
+        "resolves inside Railway — from elsewhere use the public connection string.",
+    };
+  }
+  if (code === "28P01") {
+    return {
+      status: "connection-error",
+      detail: "The database rejected the password in DATABASE_URL.",
+    };
+  }
+  if (code === "3D000") {
+    return {
+      status: "connection-error",
+      detail: "That database name does not exist on the server.",
+    };
+  }
+  return {
+    status: "connection-error",
+    // Strip anything resembling a connection string before display.
+    detail: message.replace(/postgres(ql)?:\/\/\S+/gi, "[connection string]"),
+  };
 }
 
 /** Translates a preset into concrete conditions. */
@@ -175,9 +233,9 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
       rows,
       total: rows.length,
     };
-  } catch {
-    // A missing table means migrations have not been pushed yet.
-    return { status: "empty", rows: [], total: 0 };
+  } catch (err) {
+    const { status, detail } = classifyDbError(err);
+    return { status, rows: [], total: 0, detail };
   }
 }
 
@@ -196,6 +254,7 @@ export async function getUniverseCount(): Promise<number | null> {
       .from(companies);
     return row?.count ?? 0;
   } catch {
+    // Null means "could not determine", distinct from a genuine zero.
     return null;
   }
 }

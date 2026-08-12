@@ -195,9 +195,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
 
       {/* Results */}
       {result.status !== "ok" ? (
-        result.status === "no-database" || result.status === "empty" ? (
-          <SetupNotice status={result.status} />
-        ) : null
+        <SetupNotice status={result.status} detail={result.detail} />
       ) : (
         <Card>
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
