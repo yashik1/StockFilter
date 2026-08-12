@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "ingest": "tsx scripts/ingest.ts",
     "build:fixtures": "tsx scripts/build-fixtures.ts",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:check": "tsx scripts/check-db.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

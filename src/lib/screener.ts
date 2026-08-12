@@ -102,10 +102,33 @@ export interface ScreenResult {
   detail?: string;
 }
 
+/**
+ * Finds the underlying driver error.
+ *
+ * Drizzle wraps failures in a DrizzleQueryError whose message is the full SQL
+ * text and whose `code` is undefined — the Postgres error code lives on
+ * `.cause`. Reading only the outer error misclassifies every failure and dumps
+ * an unreadable query at the user, so the chain is walked to the root.
+ */
+function rootCause(err: unknown): { code?: string; message: string } {
+  let current: unknown = err;
+  const seen = new Set<unknown>();
+
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const code = (current as { code?: string }).code;
+    if (typeof code === "string" && code.length > 0) {
+      return { code, message: (current as Error).message ?? String(current) };
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  return { message: err instanceof Error ? err.message : String(err) };
+}
+
 /** Maps a driver error onto the specific cause, so the UI can be precise. */
 function classifyDbError(err: unknown): { status: ScreenStatus; detail: string } {
-  const code = (err as { code?: string })?.code;
-  const message = err instanceof Error ? err.message : String(err);
+  const { code, message } = rootCause(err);
 
   // 42P01 undefined_table — the schema was never created.
   if (code === "42P01") {
@@ -136,9 +159,20 @@ function classifyDbError(err: unknown): { status: ScreenStatus; detail: string }
   }
   return {
     status: "connection-error",
-    // Strip anything resembling a connection string before display.
-    detail: message.replace(/postgres(ql)?:\/\/\S+/gi, "[connection string]"),
+    detail: safeDetail(message),
   };
+}
+
+/**
+ * Prepares an error message for display: strips anything resembling a
+ * connection string, drops the SQL body Drizzle appends, and truncates.
+ */
+function safeDetail(message: string): string {
+  const withoutSql = message.replace(/Failed query:[\s\S]*/i, "").trim();
+  const cleaned = (withoutSql || message)
+    .replace(/postgres(ql)?:\/\/\S+/gi, "[connection string]")
+    .trim();
+  return cleaned.length > 300 ? `${cleaned.slice(0, 300)}…` : cleaned;
 }
 
 /** Translates a preset into concrete conditions. */
@@ -260,3 +294,6 @@ export async function getUniverseCount(): Promise<number | null> {
 }
 
 export { asc, desc };
+
+/** Exposed for tests only. */
+export const __testing = { classifyDbError, rootCause, safeDetail };
