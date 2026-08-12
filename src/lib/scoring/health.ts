@@ -328,7 +328,13 @@ function valuationQuestion(f: Getter, marketCap: number | null): Question {
   const ps = div(marketCap, revenue);
 
   let rating: Rating = "unknown";
-  let answer = "A price could not be compared with earnings for this company.";
+  // Distinguish "we have no price" from "there are no profits to compare to" —
+  // the first is a setup gap, the second is a fact about the company.
+  let answer =
+    marketCap == null
+      ? "No share price is available, so this company cannot be valued here. " +
+        "Valuation needs a price source — see the setup notes for adding a free key."
+      : "A price could not be compared with earnings for this company.";
 
   if (pe != null) {
     const v = pe.toFixed(1);

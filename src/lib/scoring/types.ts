@@ -33,7 +33,14 @@ export interface PiotroskiResult {
   rating: Rating;
 }
 
-export type AltmanVariant = "manufacturing" | "non-manufacturing";
+/**
+ * Which Altman model was used.
+ * - `manufacturing`: the original 1968 five-factor Z, using market value.
+ * - `manufacturing-book`: the 1983 Z' revision, which substitutes book equity
+ *   for market value when no market capitalisation is available.
+ * - `non-manufacturing`: the four-factor Z'' for service and other industries.
+ */
+export type AltmanVariant = "manufacturing" | "manufacturing-book" | "non-manufacturing";
 
 export interface AltmanResult {
   z: number;

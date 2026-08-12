@@ -53,8 +53,13 @@ export function altmanZScore(
 
   const isManufacturing = sector === "manufacturing";
 
-  // The original model uses market value of equity; Z'' uses book value.
-  const equityValue = isManufacturing ? marketCap : f("equity");
+  // The original model needs market value of equity. When no price source is
+  // configured there is no market cap, so fall back to Altman's own 1983 Z'
+  // revision, which re-fitted every coefficient around book equity for exactly
+  // this situation. That keeps the score available on a zero-key install
+  // instead of dropping it entirely.
+  const useBookValue = isManufacturing && marketCap == null;
+  const equityValue = isManufacturing && !useBookValue ? marketCap : f("equity");
   const x4 = div(equityValue, liabilities);
 
   if (x1 == null || x2 == null || x3 == null || x4 == null) {
@@ -66,6 +71,21 @@ export function altmanZScore(
     if (x5 == null) {
       return { value: null, applicable: false, reason: INSUFFICIENT_DATA_REASON };
     }
+
+    if (useBookValue) {
+      // Z' (1983): distinct coefficients and thresholds from the 1968 model.
+      const z = 0.717 * x1 + 0.847 * x2 + 3.107 * x3 + 0.42 * x4 + 0.998 * x5;
+      return {
+        value: {
+          z: round(z),
+          variant: "manufacturing-book",
+          zone: z > 2.9 ? "safe" : z >= 1.23 ? "grey" : "distress",
+          rating: z > 2.9 ? "good" : z >= 1.23 ? "fair" : "poor",
+        },
+        applicable: true,
+      };
+    }
+
     const z = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5;
     return {
       value: {

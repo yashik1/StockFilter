@@ -56,13 +56,13 @@ export function VerdictCard({
             hint="Nine checks of financial strength. Higher is stronger."
           />
           <Metric
-            label="Altman Z-Score"
-            value={report.altman.value ? report.altman.value.z.toFixed(2) : "n/a"}
-            hint={
-              report.altman.value
-                ? "Distance from bankruptcy risk. Higher is safer."
-                : report.altman.reason
+            label={
+              report.altman.value?.variant === "manufacturing-book"
+                ? "Altman Z′-Score"
+                : "Altman Z-Score"
             }
+            value={report.altman.value ? report.altman.value.z.toFixed(2) : "n/a"}
+            hint={report.altman.value ? altmanHint(report.altman.value.variant) : report.altman.reason}
           />
           <Metric
             label="Beneish M-Score"
@@ -77,6 +77,29 @@ export function VerdictCard({
       </div>
     </Card>
   );
+}
+
+/**
+ * Which Altman model produced the number, and why it matters.
+ *
+ * The book-value variant can read very differently from the market-value one
+ * for companies that have bought back a lot of stock — buybacks shrink book
+ * equity, which drags the score down without the business having changed.
+ * Saying which model ran avoids that looking like an error.
+ */
+function altmanHint(variant: "manufacturing" | "manufacturing-book" | "non-manufacturing"): string {
+  switch (variant) {
+    case "manufacturing":
+      return "Distance from bankruptcy risk, using market value. Above 2.99 is the safe zone.";
+    case "manufacturing-book":
+      return (
+        "Distance from bankruptcy risk. No share price is available, so this uses Altman's " +
+        "book-value model (Z′), where above 2.9 is the safe zone. Companies that have bought " +
+        "back a lot of shares score lower on this variant than on the market-value one."
+      );
+    case "non-manufacturing":
+      return "Distance from bankruptcy risk, using the model for non-manufacturers. Above 2.6 is the safe zone.";
+  }
 }
 
 function ScoreDial({ score, tone }: { score: number | null; tone: Rating }) {

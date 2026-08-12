@@ -57,6 +57,22 @@ describe("Altman Z-Score", () => {
     expect(result.value?.variant).toBe("non-manufacturing");
   });
 
+  // Without a price source there is no market cap. Altman's own 1983 Z'
+  // revision exists for this, so the score stays available rather than vanishing
+  // on a zero-key install.
+  it("falls back to the book-value Z' model when market cap is unknown", () => {
+    const result = altmanZScore(aapl.annual[0], AAPL_SECTOR, null);
+    expect(result.applicable).toBe(true);
+    expect(result.value?.variant).toBe("manufacturing-book");
+    expect(Number.isFinite(result.value!.z)).toBe(true);
+    expect(result.value!.zone).not.toBe("distress");
+  });
+
+  it("prefers the market-value model when market cap is known", () => {
+    const result = altmanZScore(aapl.annual[0], AAPL_SECTOR, 3.5e12);
+    expect(result.value?.variant).toBe("manufacturing");
+  });
+
   it("reports insufficient data rather than a wrong number", () => {
     const empty = { fiscalYear: 2024, fiscalPeriod: "FY", end: "2024-12-31", form: "10-K", facts: {} };
     const result = altmanZScore(empty, "manufacturing", 1e9);
