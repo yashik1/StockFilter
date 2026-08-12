@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 import { BalanceSheetVisual } from "@/components/stock/balance-sheet";
 import { FundamentalsChart, type TrendSeries } from "@/components/stock/fundamentals-chart";
 import { FilingsList, NewsList, PeersList, ResearchLinks } from "@/components/stock/links";
-import { QuestionCard, VerdictCard } from "@/components/stock/verdict";
+import { QuestionCard, QuestionSummary, VerdictCard } from "@/components/stock/verdict";
 import { PriceChart } from "@/components/price-chart";
-import { Badge, Card, CardHeader, Change, EmptyState } from "@/components/ui";
+import { Badge, Card, CardHeader, Change, EmptyState, SectionHeading } from "@/components/ui";
 import { money, price as fmtPrice } from "@/lib/format";
 import { fieldValue } from "@/lib/fundamentals/normalize";
 import type { PriceFreshness } from "@/lib/providers/types";
@@ -63,10 +63,10 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
   return (
     <div className="space-y-5">
       {/* ---- header ---- */}
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4 pt-1">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{upper}</h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="display text-3xl font-bold sm:text-4xl">{upper}</h1>
             {profile?.exchange && <Badge>{profile.exchange}</Badge>}
             {profile?.country === "CA" && <Badge tone="accent">Canadian</Badge>}
             {sector === "financial" && (
@@ -75,7 +75,7 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
               </Badge>
             )}
           </div>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1.5 text-sm text-muted">
             {profile?.name ?? fundamentals?.entityName}
             {profile?.industry && ` · ${profile.industry}`}
           </p>
@@ -84,7 +84,7 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
         <div className="text-right">
           {quote?.price != null ? (
             <>
-              <p className="tnum text-2xl font-bold">{fmtPrice(quote.price)}</p>
+              <p className="display text-3xl font-bold">{fmtPrice(quote.price)}</p>
               <div className="flex items-center justify-end gap-2">
                 <Change value={quote.change} percent={quote.changePercent} />
                 <Badge title={FRESHNESS[quote.freshness].hint}>
@@ -151,13 +151,20 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
       {/* ---- the five questions ---- */}
       {report && (
         <section aria-labelledby="questions-heading">
-          <h2 id="questions-heading" className="mb-3 text-lg font-semibold tracking-tight">
-            The five questions that matter
-          </h2>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {report.questions.map((q) => (
-              <QuestionCard key={q.key} question={q} />
-            ))}
+          <SectionHeading
+            eyebrow="The essentials"
+            title="The five questions that matter"
+            description="Each answered from the filings, with the numbers behind it."
+          />
+          <div className="grid gap-4 xl:grid-cols-[1fr_20rem]">
+            <div className="grid gap-4 md:grid-cols-2">
+              {report.questions.map((q) => (
+                <QuestionCard key={q.key} question={q} />
+              ))}
+            </div>
+            <div className="xl:sticky xl:top-20 xl:self-start">
+              <QuestionSummary questions={report.questions} />
+            </div>
           </div>
         </section>
       )}
@@ -177,6 +184,11 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
       </div>
 
       {/* ---- sources ---- */}
+      <SectionHeading
+        eyebrow="Go deeper"
+        title="Sources and further reading"
+        description="Every figure above traces back to one of these filings."
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         <FilingsList filings={data.filings} />
         <div className="space-y-4">

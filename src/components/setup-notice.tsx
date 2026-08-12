@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "@/components/ui";
 import type { ScreenStatus } from "@/lib/screener";
 
@@ -55,9 +56,9 @@ export function SetupNotice({
 
       <p className="mt-5 border-t border-border pt-4 text-sm text-muted">
         Individual stock pages need none of this — try{" "}
-        <a href="/stock/AAPL" className="text-accent underline">
+        <Link href="/stock/AAPL" className="text-accent underline">
           /stock/AAPL
-        </a>{" "}
+        </Link>{" "}
         right now.
       </p>
     </Card>

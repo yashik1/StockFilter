@@ -16,11 +16,20 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
-    const current = document.documentElement.dataset.theme as Theme | undefined;
-    setTheme(
-      current ??
-        (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
-    );
+    // Deferred to a microtask so the state update does not run synchronously
+    // inside the effect, which React flags as a cascading render.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const current = document.documentElement.dataset.theme as Theme | undefined;
+      setTheme(
+        current ??
+          (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function toggle() {

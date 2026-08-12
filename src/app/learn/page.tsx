@@ -119,8 +119,9 @@ const SCORES: Entry[] = [
 export default function LearnPage() {
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">What the numbers mean</h1>
+      <header className="pt-1">
+        <p className="eyebrow">Reference</p>
+        <h1 className="mt-1 display text-3xl font-bold sm:text-4xl">What the numbers mean</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           Every term StockFilter uses, explained without assuming you have read a
           balance sheet before. Nothing here is advice — it is just vocabulary.

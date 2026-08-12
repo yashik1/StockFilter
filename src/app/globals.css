@@ -1,129 +1,173 @@
 @import "tailwindcss";
 
 /*
- * Light palette is defined on bare :root so it applies with no theme attribute
- * present. Dark is redefined twice: under prefers-color-scheme for viewers on
- * "system", and under [data-theme="dark"] so the manual toggle wins either way.
+ * Design tokens.
+ *
+ * Light is defined on bare :root so it applies with no theme attribute present.
+ * Dark is declared twice — under prefers-color-scheme for viewers on "system",
+ * and under [data-theme="dark"] so the manual toggle wins in both directions.
  */
 :root {
-  --background: #f8fafc;
+  /* Surfaces: three levels of elevation rather than one flat card colour, so
+     nesting reads as depth instead of more borders. */
+  --background: #f7f8fa;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --foreground: #0f172a;
-  --muted: #64748b;
-  --muted-strong: #475569;
+  --surface-2: #f1f3f7;
+  --surface-3: #e7eaf0;
+  --border: #e3e7ee;
+  --border-strong: #c9d0dc;
 
-  --accent: #2563eb;
+  /* Ink */
+  --foreground: #0d1220;
+  --muted-strong: #475063;
+  --muted: #6b7488;
+  --faint: #9aa1b1;
+
+  --accent: #3056d3;
+  --accent-hover: #2544b0;
   --accent-fg: #ffffff;
-  --accent-soft: #dbeafe;
+  --accent-soft: #e8edfd;
 
-  /* Ratings. Deliberately not pure red/green: these need to stay legible for
-     the ~8% of men with red-green colour vision deficiency, so the good tone
-     leans teal and the poor tone leans crimson, and every rating is also
-     labelled in text rather than relying on colour alone. */
-  --good: #0d9488;
-  --good-soft: #ccfbf1;
-  --good-fg: #115e59;
-  --fair: #d97706;
-  --fair-soft: #fef3c7;
-  --fair-fg: #92400e;
-  --poor: #dc2626;
-  --poor-soft: #fee2e2;
-  --poor-fg: #991b1b;
-  --unknown: #94a3b8;
-  --unknown-soft: #f1f5f9;
-  --unknown-fg: #475569;
+  /* Status. Not pure red/green: the good tone leans teal so the pair stays
+     separable under red-green colour vision deficiency, and every rating is
+     also labelled in text so colour is never the only channel. */
+  --good: #0f9b7a;
+  --good-soft: #dcf5ee;
+  --good-fg: #08614c;
+  --fair: #c77700;
+  --fair-soft: #fdf0d9;
+  --fair-fg: #7d4b00;
+  --poor: #d13a3a;
+  --poor-soft: #fce8e8;
+  --poor-fg: #8f2323;
+  --unknown: #98a0b0;
+  --unknown-soft: #eef0f4;
+  --unknown-fg: #59616f;
 
-  --up: #059669;
-  --down: #dc2626;
+  --up: #0f9b7a;
+  --down: #d13a3a;
 
+  /* Categorical series, validated with the data-viz palette checker:
+     all slots pass the lightness band, chroma floor, CVD separation
+     (worst adjacent ΔE 12.5 protan), normal-vision floor and 3:1 contrast. */
+  --series-1: #2563eb;
+  --series-2: #d97706;
+  --series-3: #0d9488;
+  --series-4: #c026d3;
+
+  --radius-sm: 0.5rem;
   --radius: 0.75rem;
-  --shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
-  --shadow-lg: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 6px -2px rgb(15 23 42 / 0.05);
+  --radius-lg: 1rem;
+
+  --shadow-sm: 0 1px 2px 0 rgb(13 18 32 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(13 18 32 / 0.07), 0 1px 2px -1px rgb(13 18 32 / 0.04);
+  --shadow-lg: 0 8px 24px -6px rgb(13 18 32 / 0.12), 0 2px 6px -2px rgb(13 18 32 / 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #0b1120;
-    --surface: #111827;
-    --surface-2: #1e293b;
-    --border: #1e293b;
-    --border-strong: #334155;
-    --foreground: #f1f5f9;
-    --muted: #94a3b8;
-    --muted-strong: #cbd5e1;
+    --background: #0a0e17;
+    --surface: #121824;
+    --surface-2: #1a2130;
+    --surface-3: #232b3d;
+    --border: #222b3b;
+    --border-strong: #38425a;
 
-    --accent: #3b82f6;
-    --accent-fg: #ffffff;
-    --accent-soft: #1e3a8a;
+    --foreground: #eef1f7;
+    --muted-strong: #b8c0d0;
+    --muted: #8992a5;
+    --faint: #6a7386;
 
-    --good: #2dd4bf;
-    --good-soft: #134e4a;
-    --good-fg: #99f6e4;
-    --fair: #fbbf24;
-    --fair-soft: #451a03;
-    --fair-fg: #fde68a;
-    --poor: #f87171;
-    --poor-soft: #450a0a;
-    --poor-fg: #fecaca;
-    --unknown: #64748b;
-    --unknown-soft: #1e293b;
-    --unknown-fg: #cbd5e1;
+    --accent: #5b82f6;
+    --accent-hover: #7396f8;
+    --accent-fg: #0a0e17;
+    --accent-soft: #1c2b52;
 
-    --up: #34d399;
-    --down: #f87171;
+    --good: #2fc79e;
+    --good-soft: #10382e;
+    --good-fg: #86e8cd;
+    --fair: #e0a020;
+    --fair-soft: #3a2a08;
+    --fair-fg: #f5cd7e;
+    --poor: #f06a6a;
+    --poor-soft: #3d1618;
+    --poor-fg: #f7b2b2;
+    --unknown: #6a7386;
+    --unknown-soft: #1a2130;
+    --unknown-fg: #aab2c2;
 
-    --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 0 rgb(0 0 0 / 0.2);
-    --shadow-lg: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 6px -2px rgb(0 0 0 / 0.3);
+    --up: #2fc79e;
+    --down: #f06a6a;
+
+    /* Same hues, stepped for the dark surface rather than reused unchanged. */
+    --series-1: #5b8def;
+    --series-2: #e08a3c;
+    --series-3: #2bb39a;
+    --series-4: #cf5fe0;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
   }
 }
 
 :root[data-theme="dark"] {
-  --background: #0b1120;
-  --surface: #111827;
-  --surface-2: #1e293b;
-  --border: #1e293b;
-  --border-strong: #334155;
-  --foreground: #f1f5f9;
-  --muted: #94a3b8;
-  --muted-strong: #cbd5e1;
+  --background: #0a0e17;
+  --surface: #121824;
+  --surface-2: #1a2130;
+  --surface-3: #232b3d;
+  --border: #222b3b;
+  --border-strong: #38425a;
 
-  --accent: #3b82f6;
-  --accent-fg: #ffffff;
-  --accent-soft: #1e3a8a;
+  --foreground: #eef1f7;
+  --muted-strong: #b8c0d0;
+  --muted: #8992a5;
+  --faint: #6a7386;
 
-  --good: #2dd4bf;
-  --good-soft: #134e4a;
-  --good-fg: #99f6e4;
-  --fair: #fbbf24;
-  --fair-soft: #451a03;
-  --fair-fg: #fde68a;
-  --poor: #f87171;
-  --poor-soft: #450a0a;
-  --poor-fg: #fecaca;
-  --unknown: #64748b;
-  --unknown-soft: #1e293b;
-  --unknown-fg: #cbd5e1;
+  --accent: #5b82f6;
+  --accent-hover: #7396f8;
+  --accent-fg: #0a0e17;
+  --accent-soft: #1c2b52;
 
-  --up: #34d399;
-  --down: #f87171;
+  --good: #2fc79e;
+  --good-soft: #10382e;
+  --good-fg: #86e8cd;
+  --fair: #e0a020;
+  --fair-soft: #3a2a08;
+  --fair-fg: #f5cd7e;
+  --poor: #f06a6a;
+  --poor-soft: #3d1618;
+  --poor-fg: #f7b2b2;
+  --unknown: #6a7386;
+  --unknown-soft: #1a2130;
+  --unknown-fg: #aab2c2;
 
-  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 0 rgb(0 0 0 / 0.2);
-  --shadow-lg: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 6px -2px rgb(0 0 0 / 0.3);
+  --up: #2fc79e;
+  --down: #f06a6a;
+
+  --series-1: #5b8def;
+  --series-2: #e08a3c;
+  --series-3: #2bb39a;
+  --series-4: #cf5fe0;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-muted-strong: var(--muted-strong);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
   --color-good: var(--good);
@@ -140,6 +184,10 @@
   --color-unknown-fg: var(--unknown-fg);
   --color-up: var(--up);
   --color-down: var(--down);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --radius-card: var(--radius);
@@ -148,19 +196,45 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Tabular figures keep price and metric columns from jittering as they update. */
+/* Tabular figures stop price and metric columns jittering as values update. */
 .tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
 }
 
-/* Wide content (tables, charts) scrolls inside its own container so the page
-   body never scrolls horizontally on mobile. */
+/* Large numerals read better slightly tightened. */
+.display {
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section eyebrow: small, wide-tracked, quiet. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Wide content scrolls inside its own container so the page body never
+   scrolls horizontally on a phone. */
 .scroll-x {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Keyboard focus stays visible everywhere without painting a ring on mouse
+   clicks. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -169,5 +243,6 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

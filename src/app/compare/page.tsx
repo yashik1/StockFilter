@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CompareChart } from "@/components/compare-chart";
-import { Badge, Card, CardHeader, Change, RatingBadge } from "@/components/ui";
+import { Badge, Card, CardHeader, Change, NotReported, RatingBadge, SectionHeading } from "@/components/ui";
 import { loadComparison, MAX_COMPARE, parseSymbols, type CompareItem } from "@/lib/compare";
 import { money, multiple, percent, price as fmtPrice } from "@/lib/format";
 import type { Rating } from "@/lib/scoring/types";
@@ -36,10 +36,12 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Compare</h1>
-        <p className="mt-1 text-sm text-muted">
-          Put up to {MAX_COMPARE} companies or ETFs side by side.
+      <header className="pt-1">
+        <p className="eyebrow">Side by side</p>
+        <h1 className="mt-1 display text-3xl font-bold sm:text-4xl">Compare</h1>
+        <p className="mt-1.5 text-sm text-muted">
+          Put up to {MAX_COMPARE} companies or ETFs next to each other — health, valuation,
+          growth and performance.
         </p>
       </header>
 
@@ -155,7 +157,7 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
             />
           </div>
         ) : (
-          <span className="text-muted">—</span>
+          <NotReported />
         ),
     },
     {
@@ -168,8 +170,8 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
             label={`${i.report.score.toFixed(1)}/10`}
           />
         ) : (
-          <span className="text-xs text-muted">
-            {i.type === "etf" ? "n/a for funds" : "—"}
+          <span className="text-xs text-faint">
+            {i.type === "etf" ? "n/a for funds" : "not reported"}
           </span>
         ),
     },
@@ -209,7 +211,7 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
       render: (i) =>
         i.report?.piotroski.maxScore
           ? `${i.report.piotroski.score}/${i.report.piotroski.maxScore}`
-          : <span className="text-muted">—</span>,
+          : <NotReported />,
     },
     {
       label: "Bankruptcy risk",
@@ -218,8 +220,12 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
         i.report?.altman.value ? (
           <span className="capitalize">{i.report.altman.value.zone}</span>
         ) : (
-          <span className="text-xs text-muted">
-            {i.sector === "financial" ? "n/a for banks" : i.type === "etf" ? "n/a for funds" : "—"}
+          <span className="text-xs text-faint">
+            {i.sector === "financial"
+              ? "n/a for banks"
+              : i.type === "etf"
+                ? "n/a for funds"
+                : "not reported"}
           </span>
         ),
     },
@@ -227,16 +233,22 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
 
   return (
     <div className="scroll-x">
-      <table className="w-full min-w-[40rem] text-sm">
+      <table className="w-full min-w-[42rem] text-sm">
         <thead>
-          <tr className="border-b border-border">
-            <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-muted">
+          <tr className="border-b border-border bg-surface-2/50">
+            <th
+              scope="col"
+              className="sticky left-0 z-10 bg-surface px-5 py-3 text-left text-xs font-medium text-muted"
+            >
               Metric
             </th>
             {items.map((i) => (
               <th key={i.symbol} scope="col" className="px-4 py-3 text-left">
-                <Link href={`/stock/${encodeURIComponent(i.symbol)}`} className="block">
-                  <span className="font-semibold">{i.symbol}</span>
+                <Link
+                  href={`/stock/${encodeURIComponent(i.symbol)}`}
+                  className="block transition-colors hover:text-accent"
+                >
+                  <span className="text-base font-bold tracking-tight">{i.symbol}</span>
                   <span className="block max-w-[12rem] truncate text-xs font-normal text-muted">
                     {i.name}
                   </span>
@@ -257,10 +269,10 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
             </tr>
           )}
           {rows.map((row) => (
-            <tr key={row.label} className="transition-colors hover:bg-surface-2">
+            <tr key={row.label} className="group transition-colors hover:bg-surface-2/60">
               <th
                 scope="row"
-                className="px-5 py-3 text-left text-xs font-medium text-muted"
+                className="sticky left-0 z-10 bg-surface px-5 py-2.5 text-left text-xs font-medium text-muted transition-colors group-hover:bg-surface-2/60"
                 title={row.hint}
               >
                 {row.label}
@@ -272,7 +284,7 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
                 )}
               </th>
               {items.map((i) => (
-                <td key={i.symbol} className="px-4 py-3">
+                <td key={i.symbol} className="px-4 py-2.5">
                   {row.render(i)}
                 </td>
               ))}

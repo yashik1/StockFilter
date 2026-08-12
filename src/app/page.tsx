@@ -59,17 +59,18 @@ export default async function HomePage() {
   return (
     <div className="space-y-10">
       {/* ---- hero ---- */}
-      <section className="pt-6 text-center">
-        <h1 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
+      <section className="pt-8 text-center sm:pt-12">
+        <p className="eyebrow">Plain-English company research</p>
+        <h1 className="display mx-auto mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">
           Understand any company without reading a balance sheet
         </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-base text-muted">
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted">
           StockFilter reads a company&apos;s official filings and tells you, in plain
           English, whether it makes money, whether it&apos;s growing, and whether it owes
           more than it can handle — with a link to every source.
         </p>
 
-        <div className="mx-auto mt-6 max-w-xl">
+        <div className="mx-auto mt-7 max-w-xl">
           <SearchBox />
         </div>
 
@@ -95,9 +96,11 @@ export default async function HomePage() {
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
           {STEPS.map((s) => (
-            <Card key={s.title} className="p-5">
-              <s.icon aria-hidden className="size-5 text-accent" />
-              <h3 className="mt-3 text-sm font-semibold">{s.title}</h3>
+            <Card key={s.title} className="p-5" interactive>
+              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-accent-soft">
+                <s.icon aria-hidden className="size-4.5 text-accent" />
+              </span>
+              <h3 className="mt-3 text-[0.9375rem] font-semibold tracking-tight">{s.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.body}</p>
             </Card>
           ))}
@@ -108,7 +111,8 @@ export default async function HomePage() {
       <section aria-labelledby="healthiest-heading">
         <div className="mb-3 flex items-end justify-between gap-4">
           <div>
-            <h2 id="healthiest-heading" className="text-lg font-semibold tracking-tight">
+            <p className="eyebrow">Ranked from the filings</p>
+            <h2 id="healthiest-heading" className="mt-1 text-lg font-semibold tracking-tight">
               Financially healthiest right now
             </h2>
             <p className="text-sm text-muted">
@@ -127,7 +131,7 @@ export default async function HomePage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {healthiest.rows.map((r) => (
               <Link key={r.symbol} href={`/stock/${encodeURIComponent(r.symbol)}`}>
-                <Card className="h-full p-4 transition-colors hover:border-accent/50">
+                <Card className="h-full p-4" interactive>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold">{r.symbol}</p>

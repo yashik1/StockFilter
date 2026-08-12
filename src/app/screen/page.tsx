@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SetupNotice } from "@/components/setup-notice";
-import { Badge, Card, EmptyState, RatingBadge } from "@/components/ui";
+import { Badge, Card, EmptyState, MeterBar, NotReported, RatingBadge } from "@/components/ui";
 import { money, multiple, percent } from "@/lib/format";
 import type { Rating } from "@/lib/scoring/types";
 import {
@@ -73,10 +73,11 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Screener</h1>
-        <p className="mt-1 text-sm text-muted">
-          Filter companies by how their finances actually look — not just by price.
+      <header className="pt-1">
+        <p className="eyebrow">Find companies</p>
+        <h1 className="mt-1 display text-3xl font-bold sm:text-4xl">Screener</h1>
+        <p className="mt-1.5 text-sm text-muted">
+          Filter by how the finances actually look — not just by price.
         </p>
       </header>
 
@@ -93,10 +94,10 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
               <Link
                 key={key}
                 href={active ? "/screen" : `/screen?preset=${key}`}
-                className={`rounded-[var(--radius)] border p-4 transition-colors ${
+                className={`rounded-[var(--radius)] border p-4 shadow-[var(--shadow-sm)] transition-all ${
                   active
-                    ? "border-accent bg-accent-soft"
-                    : "border-border bg-surface hover:border-accent/50"
+                    ? "border-accent bg-accent-soft ring-1 ring-accent/20"
+                    : "border-border bg-surface hover:border-border-strong hover:shadow-[var(--shadow)]"
                 }`}
               >
                 <p className={`text-sm font-semibold ${active ? "text-accent" : ""}`}>
@@ -223,8 +224,8 @@ function ResultsTable({ rows }: { rows: ScreenRow[] }) {
     <div className="scroll-x">
       <table className="w-full min-w-[52rem] text-sm">
         <thead>
-          <tr className="border-b border-border text-left text-xs text-muted">
-            <th scope="col" className="px-5 py-2 font-medium">Company</th>
+          <tr className="border-b border-border bg-surface-2/50 text-left text-xs text-muted">
+            <th scope="col" className="px-5 py-2.5 font-medium">Company</th>
             <th scope="col" className="px-3 py-2 font-medium">Health</th>
             <th scope="col" className="px-3 py-2 text-right font-medium">Market value</th>
             <th scope="col" className="px-3 py-2 text-right font-medium">P/E</th>
@@ -238,8 +239,11 @@ function ResultsTable({ rows }: { rows: ScreenRow[] }) {
           {rows.map((r) => (
             <tr key={r.symbol} className="transition-colors hover:bg-surface-2">
               <td className="px-5 py-3">
-                <Link href={`/stock/${encodeURIComponent(r.symbol)}`} className="block">
-                  <span className="font-semibold">{r.symbol}</span>
+                <Link
+                  href={`/stock/${encodeURIComponent(r.symbol)}`}
+                  className="block transition-colors hover:text-accent"
+                >
+                  <span className="text-[0.9375rem] font-bold tracking-tight">{r.symbol}</span>
                   {r.country === "CA" && (
                     <span className="ml-1.5 text-[10px] text-muted">CA</span>
                   )}
@@ -249,17 +253,25 @@ function ResultsTable({ rows }: { rows: ScreenRow[] }) {
                 </Link>
               </td>
               <td className="px-3 py-3">
-                <RatingBadge
-                  rating={healthRating(r.healthScore)}
-                  label={r.healthScore != null ? `${r.healthScore.toFixed(1)}/10` : "—"}
-                />
+                <div className="flex w-28 flex-col gap-1.5">
+                  <RatingBadge
+                    rating={healthRating(r.healthScore)}
+                    label={r.healthScore != null ? `${r.healthScore.toFixed(1)}/10` : "no data"}
+                  />
+                  <MeterBar
+                    value={r.healthScore}
+                    max={10}
+                    rating={healthRating(r.healthScore)}
+                    label={`Health ${r.healthScore ?? "unknown"} out of 10`}
+                  />
+                </div>
               </td>
               <td className="tnum px-3 py-3 text-right">{money(r.marketCap)}</td>
               <td className="tnum px-3 py-3 text-right">{multiple(r.peRatio)}</td>
               <td className="tnum px-3 py-3 text-right">{percent(r.revenueGrowth)}</td>
               <td className="tnum px-3 py-3 text-right">{percent(r.netMargin)}</td>
               <td className="tnum px-3 py-3 text-right">
-                {r.fScore != null ? `${r.fScore}/${r.fScoreMax ?? 9}` : "—"}
+                {r.fScore != null ? `${r.fScore}/${r.fScoreMax ?? 9}` : <NotReported />}
               </td>
               <td className="px-3 py-3">
                 <div className="flex flex-wrap gap-1">

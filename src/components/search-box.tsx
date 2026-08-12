@@ -32,13 +32,17 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
   useEffect(() => {
     const q = query.trim();
     if (q.length < 1) {
-      setResults([]);
-      setLoading(false);
-      return;
+      // Cleared asynchronously so the update is not applied synchronously
+      // within the effect body.
+      const reset = setTimeout(() => {
+        setResults([]);
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(reset);
     }
 
-    setLoading(true);
     const timer = setTimeout(async () => {
+      setLoading(true);
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
