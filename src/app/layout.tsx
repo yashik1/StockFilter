@@ -123,6 +123,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               Always check the linked source filings and speak to a licensed adviser
               before making financial decisions.
             </p>
+            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Link href="/terms" className="underline hover:text-foreground">
+                Terms &amp; privacy
+              </Link>
+              <Link href="/learn" className="underline hover:text-foreground">
+                How the scores work
+              </Link>
+              <a
+                className="underline hover:text-foreground"
+                href="https://github.com/yashik1/StockFilter"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Source code
+              </a>
+            </p>
+
             <p className="mt-3">
               Fundamentals and filings from{" "}
               <a

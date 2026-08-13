@@ -200,6 +200,26 @@ and **SHOP** (us-gaap, untagged liabilities, mid-history concept switch).
 
 ---
 
+## International coverage
+
+Coverage beyond the US and Canadian cross-listings is a data problem, not a code
+one. What exists, and why each was or was not adopted:
+
+| Source | Cost | Covers | Status |
+| --- | --- | --- | --- |
+| **SEC EDGAR** | free, no key | US + Canadian cross-listed | **In use.** Clean JSON facts API, no quota |
+| **Yahoo Finance** | free | Worldwide, prices + fundamentals | **Opt-in.** No official API; terms restrict automated use |
+| **Alpha Vantage** | free (25/day) | Worldwide | **In use** as on-demand fallback |
+| **EODHD** | ~$100/mo | 60+ exchanges | Implemented, dormant — one env var away |
+| **SEDAR+** (Canada) | — | Canadian filings | **No API.** The CSA calls one "a longer-term objective" |
+| **EDINET** (Japan) | free key | Japanese filings | Viable, not built — needs a J-GAAP normalizer |
+| **Companies House** (UK) | free key | UK filings | Viable, not built — iXBRL documents, not a facts API |
+
+The two national regulators are genuinely free and officially open, and are the
+natural way to extend coverage without paying. Neither offers anything like
+SEC's `companyfacts` endpoint, so each needs its own taxonomy mapping — which is
+why Yahoo covers more ground for far less work today.
+
 ## Data sources
 
 Fundamentals and filings from [SEC EDGAR](https://www.sec.gov/search-filings/edgar-application-programming-interfaces).
