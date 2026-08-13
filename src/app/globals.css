@@ -1,158 +1,166 @@
 @import "tailwindcss";
 
 /*
- * Design tokens.
+ * VOLTAGE — see docs/theme-voltage.md
  *
- * Light is defined on bare :root so it applies with no theme attribute present.
- * Dark is declared twice — under prefers-color-scheme for viewers on "system",
- * and under [data-theme="dark"] so the manual toggle wins in both directions.
+ * Light lives on bare :root so it applies with no theme stamp present. Dark is
+ * declared twice: under prefers-color-scheme for viewers on "system", and under
+ * [data-theme="dark"] so the manual toggle wins in both directions.
+ *
+ * Categorical series colours were checked with the data-viz palette validator,
+ * not chosen by eye. Both modes pass the lightness band, chroma floor, adjacent
+ * CVD separation, the normal-vision floor and 3:1 contrast on their own surface.
  */
 :root {
-  /* Surfaces: three levels of elevation rather than one flat card colour, so
-     nesting reads as depth instead of more borders. */
-  --background: #f7f8fa;
+  /* Neutrals carry a faint violet cast so they read as chosen rather than
+     inherited grey, and sit with the accent instead of fighting it. */
+  --background: #f7f7fb;
   --surface: #ffffff;
-  --surface-2: #f1f3f7;
-  --surface-3: #e7eaf0;
-  --border: #e3e7ee;
-  --border-strong: #c9d0dc;
+  --surface-2: #f1f1f8;
+  --surface-3: #e6e6f2;
+  --border: #e3e3f0;
+  --border-strong: #cbcbe0;
 
-  /* Ink */
-  --foreground: #0d1220;
-  --muted-strong: #475063;
-  --muted: #6b7488;
-  --faint: #9aa1b1;
+  --foreground: #0c0b14;
+  --muted-strong: #46445c;
+  --muted: #6f6d87;
+  --faint: #9997ae;
 
-  --accent: #3056d3;
-  --accent-hover: #2544b0;
+  --accent: #6d3ff5;
+  --accent-hover: #5a2fe0;
   --accent-fg: #ffffff;
-  --accent-soft: #e8edfd;
+  --accent-soft: #efeaff;
+  /* The gradient's second stop. Used only on the wordmark and hero waveform,
+     so it stays a signature rather than wallpaper. */
+  --arc: #0891b2;
 
-  /* Status. Not pure red/green: the good tone leans teal so the pair stays
-     separable under red-green colour vision deficiency, and every rating is
-     also labelled in text so colour is never the only channel. */
-  --good: #0f9b7a;
-  --good-soft: #dcf5ee;
-  --good-fg: #08614c;
-  --fair: #c77700;
+  /* Status is deliberately separate from the accent hue. Good leans teal and
+     weak leans pink so the pair survives red-green colour vision deficiency,
+     and every rating is also labelled in words. */
+  --good: #00916d;
+  --good-soft: #dcf7ee;
+  --good-fg: #00614a;
+  --fair: #b06a00;
   --fair-soft: #fdf0d9;
   --fair-fg: #7d4b00;
-  --poor: #d13a3a;
-  --poor-soft: #fce8e8;
-  --poor-fg: #8f2323;
-  --unknown: #98a0b0;
-  --unknown-soft: #eef0f4;
-  --unknown-fg: #59616f;
+  --poor: #d62b6b;
+  --poor-soft: #fde8ef;
+  --poor-fg: #96154a;
+  --unknown: #9997ae;
+  --unknown-soft: #f1f1f8;
+  --unknown-fg: #56546b;
 
-  --up: #0f9b7a;
-  --down: #d13a3a;
+  --up: #00916d;
+  --down: #d62b6b;
 
-  /* Categorical series, validated with the data-viz palette checker:
-     all slots pass the lightness band, chroma floor, CVD separation
-     (worst adjacent ΔE 12.5 protan), normal-vision floor and 3:1 contrast. */
-  --series-1: #2563eb;
-  --series-2: #d97706;
-  --series-3: #0d9488;
-  --series-4: #c026d3;
+  --series-1: #6d3ff5;
+  --series-2: #009b7e;
+  --series-3: #b06a00;
+  --series-4: #d62b6b;
 
   --radius-sm: 0.5rem;
-  --radius: 0.75rem;
-  --radius-lg: 1rem;
+  --radius: 0.875rem;
+  --radius-lg: 1.125rem;
 
-  --shadow-sm: 0 1px 2px 0 rgb(13 18 32 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(13 18 32 / 0.07), 0 1px 2px -1px rgb(13 18 32 / 0.04);
-  --shadow-lg: 0 8px 24px -6px rgb(13 18 32 / 0.12), 0 2px 6px -2px rgb(13 18 32 / 0.06);
+  --shadow-sm: 0 1px 2px 0 rgb(12 11 20 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(12 11 20 / 0.07), 0 1px 2px -1px rgb(12 11 20 / 0.04);
+  --shadow-lg: 0 10px 30px -12px rgb(12 11 20 / 0.16), 0 2px 8px -2px rgb(12 11 20 / 0.06);
+  --glow: 0 0 0 1px rgb(109 63 245 / 0.14), 0 10px 30px -12px rgb(109 63 245 / 0.28);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #0a0e17;
-    --surface: #121824;
-    --surface-2: #1a2130;
-    --surface-3: #232b3d;
-    --border: #222b3b;
-    --border-strong: #38425a;
+    --background: #08070f;
+    --surface: #12111d;
+    --surface-2: #1b1a2b;
+    --surface-3: #252439;
+    --border: #252438;
+    --border-strong: #3b3956;
 
-    --foreground: #eef1f7;
-    --muted-strong: #b8c0d0;
-    --muted: #8992a5;
-    --faint: #6a7386;
+    --foreground: #f4f3fb;
+    --muted-strong: #b9b7ce;
+    --muted: #8d8ba6;
+    --faint: #6a6883;
 
-    --accent: #5b82f6;
-    --accent-hover: #7396f8;
-    --accent-fg: #0a0e17;
-    --accent-soft: #1c2b52;
+    --accent: #8b5cff;
+    --accent-hover: #a37dff;
+    --accent-fg: #08070f;
+    --accent-soft: #1e1640;
+    --arc: #22d3ee;
 
-    --good: #2fc79e;
-    --good-soft: #10382e;
-    --good-fg: #86e8cd;
-    --fair: #e0a020;
+    --good: #00d9a3;
+    --good-soft: #0a3a2e;
+    --good-fg: #7ff0cd;
+    --fair: #ffb224;
     --fair-soft: #3a2a08;
-    --fair-fg: #f5cd7e;
-    --poor: #f06a6a;
-    --poor-soft: #3d1618;
-    --poor-fg: #f7b2b2;
-    --unknown: #6a7386;
-    --unknown-soft: #1a2130;
-    --unknown-fg: #aab2c2;
+    --fair-fg: #f7d089;
+    --poor: #ff5c72;
+    --poor-soft: #3d1620;
+    --poor-fg: #ffb3bd;
+    --unknown: #6a6883;
+    --unknown-soft: #1b1a2b;
+    --unknown-fg: #aeacc4;
 
-    --up: #2fc79e;
-    --down: #f06a6a;
+    --up: #00d9a3;
+    --down: #ff5c72;
 
-    /* Same hues, stepped for the dark surface rather than reused unchanged. */
-    --series-1: #5b8def;
-    --series-2: #e08a3c;
-    --series-3: #2bb39a;
-    --series-4: #cf5fe0;
+    /* Same four hues, stepped for the dark surface rather than reused. */
+    --series-1: #7d5cf6;
+    --series-2: #12a594;
+    --series-3: #bd780c;
+    --series-4: #e5568a;
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.5);
+    --glow: 0 0 0 1px rgb(139 92 255 / 0.22), 0 12px 40px -14px rgb(139 92 255 / 0.45);
   }
 }
 
 :root[data-theme="dark"] {
-  --background: #0a0e17;
-  --surface: #121824;
-  --surface-2: #1a2130;
-  --surface-3: #232b3d;
-  --border: #222b3b;
-  --border-strong: #38425a;
+  --background: #08070f;
+  --surface: #12111d;
+  --surface-2: #1b1a2b;
+  --surface-3: #252439;
+  --border: #252438;
+  --border-strong: #3b3956;
 
-  --foreground: #eef1f7;
-  --muted-strong: #b8c0d0;
-  --muted: #8992a5;
-  --faint: #6a7386;
+  --foreground: #f4f3fb;
+  --muted-strong: #b9b7ce;
+  --muted: #8d8ba6;
+  --faint: #6a6883;
 
-  --accent: #5b82f6;
-  --accent-hover: #7396f8;
-  --accent-fg: #0a0e17;
-  --accent-soft: #1c2b52;
+  --accent: #8b5cff;
+  --accent-hover: #a37dff;
+  --accent-fg: #08070f;
+  --accent-soft: #1e1640;
+  --arc: #22d3ee;
 
-  --good: #2fc79e;
-  --good-soft: #10382e;
-  --good-fg: #86e8cd;
-  --fair: #e0a020;
+  --good: #00d9a3;
+  --good-soft: #0a3a2e;
+  --good-fg: #7ff0cd;
+  --fair: #ffb224;
   --fair-soft: #3a2a08;
-  --fair-fg: #f5cd7e;
-  --poor: #f06a6a;
-  --poor-soft: #3d1618;
-  --poor-fg: #f7b2b2;
-  --unknown: #6a7386;
-  --unknown-soft: #1a2130;
-  --unknown-fg: #aab2c2;
+  --fair-fg: #f7d089;
+  --poor: #ff5c72;
+  --poor-soft: #3d1620;
+  --poor-fg: #ffb3bd;
+  --unknown: #6a6883;
+  --unknown-soft: #1b1a2b;
+  --unknown-fg: #aeacc4;
 
-  --up: #2fc79e;
-  --down: #f06a6a;
+  --up: #00d9a3;
+  --down: #ff5c72;
 
-  --series-1: #5b8def;
-  --series-2: #e08a3c;
-  --series-3: #2bb39a;
-  --series-4: #cf5fe0;
+  --series-1: #7d5cf6;
+  --series-2: #12a594;
+  --series-3: #bd780c;
+  --series-4: #e5568a;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 8px 24px -6px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.5);
+  --glow: 0 0 0 1px rgb(139 92 255 / 0.22), 0 12px 40px -14px rgb(139 92 255 / 0.45);
 }
 
 @theme inline {
@@ -170,6 +178,7 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-arc: var(--arc);
   --color-good: var(--good);
   --color-good-soft: var(--good-soft);
   --color-good-fg: var(--good-fg);
@@ -208,33 +217,59 @@ body {
 
 /* Large numerals read better slightly tightened. */
 .display {
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
+  line-height: 1.02;
 }
 
 /* Section eyebrow: small, wide-tracked, quiet. */
 .eyebrow {
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
 }
 
-/* Wide content scrolls inside its own container so the page body never
-   scrolls horizontally on a phone. */
+/* The signature gradient. Reserved for the wordmark and the hero waveform. */
+.voltage-text {
+  background: linear-gradient(135deg, var(--accent), var(--arc));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.voltage-fill {
+  background: linear-gradient(135deg, var(--accent), var(--arc));
+}
+
+/* Wide content scrolls inside its own container so the page body never scrolls
+   horizontally on a phone. */
 .scroll-x {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
 
-/* Keyboard focus stays visible everywhere without painting a ring on mouse
-   clicks. */
+/* Keyboard focus stays visible without painting a ring on mouse clicks. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/* The hero waveform draws itself once on load — grounded in both "voltage" and
+   the subject's own instrument, the price chart. */
+@keyframes voltage-trace {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.wave-trace {
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: voltage-trace 2.2s ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -244,5 +279,9 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .wave-trace {
+    stroke-dashoffset: 0;
   }
 }

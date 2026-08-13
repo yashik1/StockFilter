@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
-import { LineChart } from "lucide-react";
 import "./globals.css";
+import { BoltMark } from "@/components/waveform";
 import { SearchBox } from "@/components/search-box";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -50,8 +50,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col font-sans">
         <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-            <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
-              <LineChart className="size-5 text-accent" aria-hidden />
+            <Link
+              href="/"
+              className="flex shrink-0 items-center gap-2.5 text-[0.9375rem] font-bold tracking-tight"
+            >
+              <BoltMark />
               <span>StockFilter</span>
             </Link>
 
