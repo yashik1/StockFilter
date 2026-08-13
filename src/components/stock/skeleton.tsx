@@ -6,8 +6,14 @@ import { Card } from "@/components/ui";
  * That request takes a couple of seconds against SEC EDGAR, and a blank screen
  * for that long reads as a broken page rather than a loading one. The skeleton
  * mirrors the real layout so nothing jumps when the content lands.
+ *
+ * Deliberately a component rather than a route-level loading.tsx. A loading
+ * file wraps the whole route in a Suspense boundary, which commits the HTTP
+ * response before the page runs — so an unknown ticker rendered the correct
+ * 404 page under a 200 status. Placing the boundary inside the page keeps the
+ * skeleton while leaving the status code correct.
  */
-export default function StockLoading() {
+export function StockSkeleton() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading company financials…</span>

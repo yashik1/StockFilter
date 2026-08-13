@@ -165,29 +165,7 @@ export class TwelveDataProvider implements MarketDataProvider {
   }
 
   async searchSymbols(query: string, limit = 10): Promise<SymbolSearchResult[]> {
-    // symbol_search is public and does not consume credits.
-    const res = await fetch(
-      `${BASE}/symbol_search?symbol=${encodeURIComponent(query)}&outputsize=${limit}`,
-      { next: { revalidate: 3600 } },
-    );
-    if (!res.ok) return [];
-
-    const json = (await res.json()) as {
-      data?: {
-        symbol: string;
-        instrument_name: string;
-        exchange: string;
-        instrument_type?: string;
-        country?: string;
-      }[];
-    };
-    return (json.data ?? []).slice(0, limit).map((d) => ({
-      symbol: d.symbol,
-      name: d.instrument_name,
-      exchange: d.exchange,
-      cik: null,
-      type: classifyInstrumentType(d.instrument_type),
-    }));
+    return searchGlobalSymbols(query, limit);
   }
 
   /**
@@ -217,6 +195,57 @@ export class TwelveDataProvider implements MarketDataProvider {
   }
 
   async getFilings(_symbol: string, _limit?: number): Promise<Filing[]> {
+    return [];
+  }
+}
+
+/**
+ * Searches the worldwide symbol directory.
+ *
+ * Deliberately a standalone function rather than a provider method, because
+ * `symbol_search` needs no API key — it returns listing metadata, not market
+ * data. That makes it usable regardless of which price plan is configured, and
+ * it is the only free way to answer "what is this ticker?" for a company
+ * outside SEC coverage, such as a TSX-only listing.
+ *
+ * Note that finding a symbol here does not mean its prices are available: the
+ * free price plan covers US equities only.
+ */
+export async function searchGlobalSymbols(
+  query: string,
+  limit = 10,
+): Promise<SymbolSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  try {
+    const res = await fetch(
+      `${BASE}/symbol_search?symbol=${encodeURIComponent(trimmed)}&outputsize=${Math.min(limit * 3, 30)}`,
+      { next: { revalidate: 3600 } },
+    );
+    if (!res.ok) return [];
+
+    const json = (await res.json()) as {
+      status?: string;
+      data?: {
+        symbol: string;
+        instrument_name: string;
+        exchange: string;
+        instrument_type?: string;
+        country?: string;
+      }[];
+    };
+    if (json.status === "error") return [];
+
+    return (json.data ?? []).slice(0, limit).map((d) => ({
+      symbol: d.symbol,
+      name: d.instrument_name,
+      exchange: d.exchange || null,
+      country: d.country || null,
+      cik: null,
+      type: classifyInstrumentType(d.instrument_type),
+    }));
+  } catch {
     return [];
   }
 }

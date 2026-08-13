@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils";
 interface Result {
   symbol: string;
   name: string;
+  exchange?: string | null;
+  country?: string | null;
+  /** False for listings outside SEC coverage — findable, but not scoreable. */
+  supported?: boolean;
 }
 
 /**
@@ -139,12 +143,31 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
                 onMouseEnter={() => setActive(i)}
                 onClick={() => go(r.symbol)}
                 className={cn(
-                  "flex w-full items-baseline gap-3 px-3 py-2 text-left text-sm",
+                  "flex w-full items-center gap-3 px-3 py-2 text-left text-sm",
                   i === active ? "bg-surface-2" : "hover:bg-surface-2",
                 )}
               >
                 <span className="w-16 shrink-0 font-semibold">{r.symbol}</span>
-                <span className="truncate text-muted">{r.name}</span>
+                <span className="min-w-0 flex-1 truncate text-muted">{r.name}</span>
+                {/* Naming the exchange up front explains why a foreign listing
+                    will not carry scores, before the click rather than after. */}
+                {r.exchange && (
+                  <span
+                    className={cn(
+                      "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                      r.supported === false
+                        ? "bg-surface-3 text-faint"
+                        : "bg-surface-2 text-muted",
+                    )}
+                    title={
+                      r.supported === false
+                        ? `Listed on ${r.exchange} — outside SEC filings, so no financial scores`
+                        : undefined
+                    }
+                  >
+                    {r.exchange}
+                  </span>
+                )}
               </button>
             </li>
           ))}

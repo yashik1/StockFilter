@@ -10,6 +10,11 @@ import { RecordVisit, WatchButton } from "@/components/watchlist";
 import { Badge, Card, CardHeader, EmptyState, SectionHeading } from "@/components/ui";
 import { fieldValue } from "@/lib/fundamentals/normalize";
 import { getStockPageData, yearlySeries } from "@/lib/stock-data";
+import { Suspense } from "react";
+import { StockSkeleton } from "@/components/stock/skeleton";
+import { UnsupportedListing } from "@/components/stock/unsupported";
+import { resolveUnsupported } from "@/lib/symbol-resolver";
+import { cikForSymbol } from "@/lib/providers/sec-edgar";
 
 export const revalidate = 900;
 
@@ -18,6 +23,7 @@ export async function generateMetadata({
 }: PageProps<"/stock/[symbol]">): Promise<Metadata> {
   const { symbol } = await params;
   const upper = decodeURIComponent(symbol).toUpperCase();
+
   const title = `${upper} — financial health in plain English`;
   const description = `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`;
 
@@ -29,14 +35,36 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Resolves the ticker before anything streams, then hands off.
+ *
+ * The existence check has to happen outside the Suspense boundary: once
+ * streaming begins the response status is already committed, and a notFound()
+ * after that renders the right page under a 200. The lookup itself is cheap —
+ * the EDGAR ticker map is memoised for the life of the process.
+ */
 export default async function StockPage({ params }: PageProps<"/stock/[symbol]">) {
   const { symbol } = await params;
   const upper = decodeURIComponent(symbol).toUpperCase();
 
-  const data = await getStockPageData(upper);
+  const cik = await cikForSymbol(upper).catch(() => null);
+  if (!cik) {
+    // Real ticker, foreign exchange: explain it. Unknown everywhere: a genuine typo.
+    const unsupported = await resolveUnsupported(upper).catch(() => null);
+    if (unsupported) return <UnsupportedListing info={unsupported} />;
+    notFound();
+  }
 
-  // Nothing at all resolved — the ticker does not exist in EDGAR.
-  if (!data.profile && !data.fundamentals) notFound();
+  return (
+    <Suspense fallback={<StockSkeleton />}>
+      <StockBody symbol={upper} />
+    </Suspense>
+  );
+}
+
+/** The slow half: filings, prices and news. Streams behind the skeleton. */
+async function StockBody({ symbol: upper }: { symbol: string }) {
+  const data = await getStockPageData(upper);
 
   const { profile, fundamentals, quote, report, sector, marketCap } = data;
   const latest = fundamentals?.annual[0];

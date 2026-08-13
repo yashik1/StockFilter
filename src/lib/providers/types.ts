@@ -103,6 +103,12 @@ export interface SymbolSearchResult {
   exchange: string | null;
   cik: string | null;
   type?: InstrumentType;
+  country?: string | null;
+  /**
+   * False when the symbol exists but this deployment cannot analyse it — a
+   * listing outside SEC coverage, with no filings to score.
+   */
+  supported?: boolean;
 }
 
 /**

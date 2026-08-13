@@ -3,7 +3,7 @@ import { eodhd } from "./eodhd";
 import { finnhub } from "./finnhub";
 import { cikForSymbol, secEdgar } from "./sec-edgar";
 import { tiingo } from "./tiingo";
-import { twelveData } from "./twelvedata";
+import { searchGlobalSymbols, twelveData } from "./twelvedata";
 import {
   fetchBarsWithFailover,
   fetchQuoteWithFailover,
@@ -108,20 +108,48 @@ class FreeStackProvider implements MarketDataProvider {
    * VTI, VOO, IWM and ARKK cannot be found there at all. Without the second
    * source those symbols would be unreachable through search.
    */
+  /**
+   * Searches EDGAR first, then tops up from the worldwide directory.
+   *
+   * The second lookup needs no API key, so it always runs. Without it a real
+   * ticker on a foreign exchange — ATZ on the TSX, say — returns nothing at all
+   * and reads as a typo. Those results are flagged unsupported rather than
+   * hidden, because knowing the company exists and why it is unavailable beats
+   * silence.
+   */
   async searchSymbols(query: string, limit = 10): Promise<SymbolSearchResult[]> {
     const fromEdgar = await secEdgar.searchSymbols(query, limit).catch(() => []);
-    if (fromEdgar.length >= limit || !twelveData.isConfigured()) return fromEdgar;
+    if (fromEdgar.length >= limit) {
+      return fromEdgar.map((r) => ({ ...r, supported: true, type: r.type ?? ("stock" as const) }));
+    }
 
     const seen = new Set(fromEdgar.map((r) => r.symbol.toUpperCase()));
-    const fromTwelve = await twelveData
-      .searchSymbols(query, limit)
-      .catch(() => [] as SymbolSearchResult[]);
+    const worldwide = await searchGlobalSymbols(query, limit).catch(
+      () => [] as SymbolSearchResult[],
+    );
 
-    return [
-      // EDGAR results carry a CIK and therefore full fundamentals, so they rank first.
-      ...fromEdgar.map((r) => ({ ...r, type: r.type ?? ("stock" as const) })),
-      ...fromTwelve.filter((r) => !seen.has(r.symbol.toUpperCase())),
-    ].slice(0, limit);
+    const merged = [
+      ...fromEdgar.map((r) => ({ ...r, supported: true, type: r.type ?? ("stock" as const) })),
+      ...worldwide
+        .filter((r) => !seen.has(r.symbol.toUpperCase()))
+        .map((r) => ({ ...r, supported: false })),
+    ];
+
+    // Rank by how well the symbol itself matches, then prefer results we can
+    // actually score. Without this an EDGAR name-substring hit outranks an
+    // exact ticker match from the worldwide directory — searching "ATZ" put
+    // "DATZ WORLD HOLDINGS" above Aritzia.
+    const q = query.trim().toUpperCase();
+    const rank = (r: SymbolSearchResult) => {
+      const sym = r.symbol.toUpperCase();
+      if (sym === q) return 0;
+      if (sym.startsWith(q)) return 1;
+      return 2;
+    };
+
+    return merged
+      .sort((a, b) => rank(a) - rank(b) || Number(b.supported) - Number(a.supported))
+      .slice(0, limit);
   }
 
   /**
