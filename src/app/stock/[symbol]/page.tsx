@@ -6,10 +6,8 @@ import { FundamentalsChart, type TrendSeries } from "@/components/stock/fundamen
 import { FilingsList, NewsList, PeersList, ResearchLinks } from "@/components/stock/links";
 import { QuestionCard, QuestionSummary, VerdictCard } from "@/components/stock/verdict";
 import { PriceChart } from "@/components/price-chart";
-import { Badge, Card, CardHeader, Change, EmptyState, SectionHeading } from "@/components/ui";
-import { money, price as fmtPrice } from "@/lib/format";
+import { Badge, Card, CardHeader, EmptyState, SectionHeading } from "@/components/ui";
 import { fieldValue } from "@/lib/fundamentals/normalize";
-import type { PriceFreshness } from "@/lib/providers/types";
 import { getStockPageData, yearlySeries } from "@/lib/stock-data";
 
 export const revalidate = 900;
@@ -24,20 +22,6 @@ export async function generateMetadata({
     description: `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`,
   };
 }
-
-/** Label explaining exactly how fresh a price is, so nothing is implied. */
-const FRESHNESS: Record<PriceFreshness, { label: string; hint: string }> = {
-  "realtime-iex": {
-    label: "Real-time (IEX)",
-    hint: "Live trades from the IEX exchange, which covers part of total US volume.",
-  },
-  "delayed-15min": {
-    label: "15-min delayed",
-    hint: "Consolidated market data, delayed 15 minutes.",
-  },
-  "end-of-day": { label: "End of day", hint: "Last closing price." },
-  unknown: { label: "Delayed", hint: "Freshness unknown." },
-};
 
 export default async function StockPage({ params }: PageProps<"/stock/[symbol]">) {
   const { symbol } = await params;
@@ -81,31 +65,16 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
           </p>
         </div>
 
-        <div className="text-right">
-          {quote?.price != null ? (
-            <>
-              <p className="display text-3xl font-bold">{fmtPrice(quote.price)}</p>
-              <div className="flex items-center justify-end gap-2">
-                <Change value={quote.change} percent={quote.changePercent} />
-                <Badge title={FRESHNESS[quote.freshness].hint}>
-                  {FRESHNESS[quote.freshness].label}
-                </Badge>
-              </div>
-            </>
-          ) : (
-            <Badge title="Add TWELVEDATA_API_KEY to show live prices.">
-              Price unavailable
-            </Badge>
-          )}
-          {marketCap != null && (
-            <p className="mt-1 text-xs text-muted">Market value {money(marketCap)}</p>
-          )}
-        </div>
       </header>
 
       {/* ---- verdict ---- */}
       {report ? (
-        <VerdictCard report={report} companyName={profile?.name ?? upper} />
+        <VerdictCard
+          report={report}
+          companyName={profile?.name ?? upper}
+          quote={quote}
+          marketCap={marketCap}
+        />
       ) : data.instrumentType === "etf" ? (
         // A fund holds other assets rather than running a business, so there is
         // no balance sheet to score. Saying that plainly is more useful than an

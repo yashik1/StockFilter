@@ -210,10 +210,38 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
       )}
 
       {result.status === "ok" && result.rows.length === 0 && (
-        <EmptyState
-          title="No companies match these filters"
-          description="Try relaxing a threshold, or reset and start from a preset."
-        />
+        <Card>
+          {result.missingData ? (
+            // This preset can never match until the data it needs exists, so
+            // saying "no companies match" would send people to adjust filters
+            // that were never the problem.
+            <EmptyState
+              title="This screen needs price data"
+              description={`"${filters.preset ? PRESETS[filters.preset].label : "This screen"}" needs ${result.missingData.needs}. No company in the database has that yet, because no price source was configured when the data was loaded. Add a free TWELVEDATA_API_KEY or FINNHUB_API_KEY, then run the ingest again — every other screen works without it.`}
+              action={
+                <Link
+                  href="/screen?preset=healthy"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg"
+                >
+                  Try &ldquo;Financially healthy&rdquo; instead
+                </Link>
+              }
+            />
+          ) : (
+            <EmptyState
+              title="No companies match these filters"
+              description="Every filter applied, but nothing cleared them all. Try relaxing a threshold, or reset and start from a preset."
+              action={
+                <Link
+                  href="/screen"
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+                >
+                  Reset filters
+                </Link>
+              }
+            />
+          )}
+        </Card>
       )}
     </div>
   );

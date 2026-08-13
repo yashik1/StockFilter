@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CompareChart } from "@/components/compare-chart";
-import { Badge, Card, CardHeader, Change, NotReported, RatingBadge, SectionHeading } from "@/components/ui";
+import { Badge, Card, CardHeader, Change, NotReported, RatingBadge } from "@/components/ui";
 import { loadComparison, MAX_COMPARE, parseSymbols, type CompareItem } from "@/lib/compare";
 import { money, multiple, percent, price as fmtPrice } from "@/lib/format";
 import type { Rating } from "@/lib/scoring/types";

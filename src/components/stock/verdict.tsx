@@ -1,7 +1,23 @@
 import type { HealthReport, Question } from "@/lib/scoring/health";
+import type { PriceFreshness, Quote } from "@/lib/providers/types";
 import type { Rating } from "@/lib/scoring/types";
-import { Card, MeterBar, Metric, RatingBadge } from "@/components/ui";
+import { Badge, Card, Change, MeterBar, Metric, RatingBadge } from "@/components/ui";
+import { money, price as fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Exactly how fresh a price is, so nothing is implied. */
+const FRESHNESS: Record<PriceFreshness, { label: string; hint: string }> = {
+  "realtime-iex": {
+    label: "Live",
+    hint: "Real-time trade data from the exchange feed.",
+  },
+  "delayed-15min": {
+    label: "15-min delayed",
+    hint: "Consolidated market data, delayed 15 minutes.",
+  },
+  "end-of-day": { label: "At close", hint: "Last closing price." },
+  unknown: { label: "Delayed", hint: "Freshness unknown." },
+};
 
 function scoreTone(score: number): Rating {
   if (score >= 7.5) return "good";
@@ -20,9 +36,13 @@ function scoreTone(score: number): Rating {
 export function VerdictCard({
   report,
   companyName,
+  quote,
+  marketCap,
 }: {
   report: HealthReport;
   companyName: string;
+  quote?: Quote | null;
+  marketCap?: number | null;
 }) {
   const score = report.score;
   const tone = score == null ? "unknown" : scoreTone(score);
@@ -54,8 +74,40 @@ export function VerdictCard({
             </div>
           </div>
 
+          {/* Price, next to the score — the two figures people check first. */}
+          <div className="flex flex-col gap-1 border-t border-border pt-4 lg:ml-auto lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <p className="eyebrow">Share price</p>
+            {quote?.price != null ? (
+              <>
+                <p className="display text-3xl font-bold leading-none">
+                  {fmtPrice(quote.price)}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Change value={quote.change} percent={quote.changePercent} />
+                  <Badge title={FRESHNESS[quote.freshness].hint}>
+                    {FRESHNESS[quote.freshness].label}
+                  </Badge>
+                </div>
+                {quote.previousClose != null && (
+                  <p className="tnum text-xs text-muted">
+                    Previous close {fmtPrice(quote.previousClose)}
+                    {marketCap != null && ` · ${money(marketCap)} market value`}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold text-muted">Unavailable</p>
+                <p className="max-w-[16rem] text-xs text-muted">
+                  Live prices need a free Twelve Data or Finnhub key. The figures here come
+                  from filings and need none.
+                </p>
+              </>
+            )}
+          </div>
+
           {/* Model scores */}
-          <dl className="grid grid-cols-3 gap-4 border-t border-border pt-4 lg:ml-auto lg:w-auto lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <dl className="grid grid-cols-3 gap-4 border-t border-border pt-4 lg:w-auto lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
             <Metric
               label="Piotroski"
               value={

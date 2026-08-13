@@ -34,6 +34,26 @@ export const PRESETS = {
 
 export type PresetKey = keyof typeof PRESETS;
 
+/**
+ * Columns each preset cannot work without.
+ *
+ * Several are derived from market capitalisation, which is only populated when a
+ * price source was configured at ingest time. Without one, every P/E and
+ * dividend yield in the table is null and those presets match nothing at all —
+ * which looked identical to "no company qualifies". Declaring the dependency
+ * lets the UI say which it is.
+ */
+const PRESET_REQUIRES: Partial<Record<PresetKey, { column: string; needs: string }>> = {
+  "cheap-profitable": {
+    column: "pe_ratio",
+    needs: "a share price, to compare against profits",
+  },
+  dividend: {
+    column: "dividend_yield",
+    needs: "a share price, to express dividends as a yield",
+  },
+};
+
 export const SORTS = {
   health: { label: "Healthiest first", column: scores.healthScore, dir: "desc" },
   "market-cap": { label: "Largest first", column: scores.marketCap, dir: "desc" },
@@ -100,6 +120,11 @@ export interface ScreenResult {
   total: number;
   /** Safe error detail for the UI. Never contains credentials. */
   detail?: string;
+  /**
+   * Set when a preset returned nothing because the data it needs was never
+   * populated, rather than because no company qualified.
+   */
+  missingData?: { needs: string };
 }
 
 /**
@@ -262,11 +287,25 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
       .orderBy(orderBy)
       .limit(limit);
 
-    return {
-      status: rows.length === 0 ? "empty" : "ok",
-      rows,
-      total: rows.length,
-    };
+    if (rows.length > 0) {
+      return { status: "ok", rows, total: rows.length };
+    }
+
+    // Distinguish "nothing qualifies" from "this preset can never match,
+    // because the column it filters on is empty for every company".
+    const requirement = filters.preset ? PRESET_REQUIRES[filters.preset] : undefined;
+    if (requirement) {
+      const [populated] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(scores)
+        .where(sql`${sql.identifier(requirement.column)} IS NOT NULL`);
+
+      if ((populated?.count ?? 0) === 0) {
+        return { status: "ok", rows: [], total: 0, missingData: { needs: requirement.needs } };
+      }
+    }
+
+    return { status: "empty", rows: [], total: 0 };
   } catch (err) {
     const { status, detail } = classifyDbError(err);
     return { status, rows: [], total: 0, detail };

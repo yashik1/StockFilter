@@ -84,7 +84,7 @@ function content(status: Exclude<ScreenStatus, "ok">): {
           {
             title: "Point the app at it",
             body:
-              "On Railway, add this to the app service's Variables tab — the reference syntax keeps traffic on the internal network. Locally, put the public connection string in .env.local.",
+              "Add this to the app service's Variables tab. The reference syntax keeps traffic on Railway's internal network, which is free and needs no public access. Locally, use the public connection string in .env.local.",
             code: "DATABASE_URL = ${{Postgres.DATABASE_URL}}",
           },
           { title: "Create the tables", body: "Runs the committed SQL schema.", code: "npm run db:migrate" },
@@ -126,7 +126,7 @@ function content(status: Exclude<ScreenStatus, "ok">): {
           {
             title: "Check which hostname you are using",
             body:
-              "A host ending in .railway.internal only resolves inside Railway. From your laptop, Vercel, or GitHub Actions you need the public one: Postgres service → Settings → Networking → Public Access, then use DATABASE_PUBLIC_URL.",
+              "A host ending in .railway.internal only resolves inside Railway — which is what you want for the deployed app. From your laptop or from GitHub Actions you need the public one instead: Postgres service → Settings → Networking → Public Access, then use DATABASE_PUBLIC_URL.",
           },
           {
             title: "Confirm the credentials",

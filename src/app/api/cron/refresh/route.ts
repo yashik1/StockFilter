@@ -3,25 +3,21 @@ import { isDatabaseConfigured } from "@/lib/db";
 import { getStaleSymbols, ingestSymbols } from "@/lib/ingest";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+
 
 /**
- * How many symbols one invocation refreshes.
+ * How many of the stalest symbols one invocation refreshes.
  *
- * Sized to finish inside the function timeout. Each symbol costs two EDGAR
- * calls plus a market cap lookup, and the ingest runs four at a time with a
- * small delay to stay under the SEC's 10 req/s fair-use limit.
- *
- * The whole universe therefore refreshes over several days on Vercel alone.
- * For a nightly full pass, run `scripts/ingest.ts` from GitHub Actions instead
- * (see .github/workflows/ingest.yml) — Vercel Hobby crons fire only once a day
- * and cannot run long enough to cover everything.
+ * Overridable with ?limit= so a Railway cron can pass a larger batch — Railway
+ * imposes no function timeout, unlike the serverless platform this was
+ * originally sized for. `npm run ingest` remains the way to refresh everything
+ * in one go.
  */
-const BATCH_SIZE = 60;
+const DEFAULT_BATCH = 100;
 
 export async function GET(request: Request) {
-  // Vercel signs cron invocations with CRON_SECRET. Reject anything else so the
-  // endpoint cannot be used to burn the SEC rate limit from outside.
+  // Reject anything without the shared secret so the endpoint cannot be used
+  // to burn the SEC rate limit from outside.
   const secret = process.env.CRON_SECRET;
   if (secret) {
     const auth = request.headers.get("authorization");
@@ -38,7 +34,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const symbols = await getStaleSymbols(BATCH_SIZE);
+    const requested = Number(new URL(request.url).searchParams.get("limit"));
+    const batch = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 1000) : DEFAULT_BATCH;
+
+    const symbols = await getStaleSymbols(batch);
     if (symbols.length === 0) {
       return NextResponse.json({
         ok: true,

@@ -129,22 +129,49 @@ live SEC data and covered by tests:
 
 ### Scheduling
 
-The nightly refresh runs on **GitHub Actions** (`.github/workflows/ingest.yml`). Vercel
-Hobby crons fire only once a day *and* their functions time out well before several
-hundred companies finish; Actions has neither limit. The Vercel cron
-(`/api/cron/refresh`) remains as a fallback that refreshes the stalest slice each day.
+The nightly refresh runs on **GitHub Actions** (`.github/workflows/ingest.yml`), which
+has no runtime limit and is free for public repos. Point its `DATABASE_URL` secret at
+the database's **public** connection string, since Actions runs outside Railway's
+network.
+
+`/api/cron/refresh` refreshes the stalest slice on demand and takes an optional
+`?limit=`. Trigger it from a Railway cron service if you would rather keep everything
+on one platform:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/refresh?limit=200"
+```
 
 ---
 
 ## Deploying
 
-**Vercel** (app): import the repo, then add `DATABASE_URL`, `CRON_SECRET`,
-`SEC_USER_AGENT` and any optional keys in project settings.
+Everything runs on **Railway** — the app and Postgres as two services in one project.
 
-**Railway** (database): New → Database → PostgreSQL, copy the connection string into
-Vercel and into your GitHub repo secrets so the nightly ingest can reach it.
+1. **Postgres**: New → Database → PostgreSQL.
+2. **App**: New → GitHub Repo → this repository.
+3. On the app service's **Variables**, set `DATABASE_URL` to Railway's reference
+   syntax so traffic stays on the internal network — free, and no public access
+   needed:
 
-For the scheduled refresh, add the same secrets under **Settings → Secrets → Actions**.
+   ```
+   DATABASE_URL = ${{Postgres.DATABASE_URL}}
+   ```
+
+4. Add `SEC_USER_AGENT`, `CRON_SECRET`, and whichever price keys you want.
+5. Create the tables and load the data, from inside the container:
+
+   ```bash
+   railway ssh -s StockFilter -- npm run db:migrate
+   railway ssh -s StockFilter -- npm run ingest
+   ```
+
+`/api/health` reports what the running app can actually see — whether the database
+is reachable, which tables exist, row counts, and whether the price providers work.
+Check it first when something looks empty.
+
+For the scheduled refresh on GitHub Actions, add the same secrets under
+**Settings → Secrets → Actions**, using the database's **public** URL there.
 
 ---
 

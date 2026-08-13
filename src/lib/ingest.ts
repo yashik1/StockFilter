@@ -298,8 +298,9 @@ export async function ingestSymbols(
 /**
  * Returns the symbols whose scores are most out of date.
  *
- * Used by the Vercel cron, which must finish inside the platform's function
- * timeout and so refreshes the stalest slice each day rather than everything.
+ * Used by the refresh endpoint, which processes a bounded slice per call so a
+ * single request cannot run for an unbounded time. `npm run ingest` refreshes
+ * everything in one pass.
  */
 export async function getStaleSymbols(limit: number): Promise<string[]> {
   const db = getDb();

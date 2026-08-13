@@ -1,9 +1,11 @@
 name: Nightly ingest
 
-# GitHub Actions is the primary scheduler for the full universe refresh.
-# Vercel Hobby crons fire only once a day and their functions time out long
-# before several hundred companies can be processed; Actions has neither limit
-# and is free for public repositories.
+# GitHub Actions is the scheduler for the full universe refresh: no runtime
+# limit, and free for public repositories.
+#
+# It runs outside Railway's private network, so its DATABASE_URL secret must be
+# the database's PUBLIC connection string — the internal .railway.internal host
+# will not resolve here.
 on:
   schedule:
     # 06:15 UTC, after US filings and end-of-day prices have settled.
