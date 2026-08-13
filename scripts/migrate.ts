@@ -9,7 +9,7 @@
  *   npm run db:migrate
  */
 import "dotenv/config";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
@@ -18,6 +18,7 @@ const ALREADY_EXISTS = new Set([
   "42P07", // duplicate_table
   "42710", // duplicate_object (index, constraint)
   "42P16", // invalid_table_definition, e.g. re-adding a primary key
+  "42701", // duplicate_column, from re-running an ADD COLUMN migration
 ]);
 
 async function main() {
@@ -31,16 +32,29 @@ async function main() {
     process.exit(1);
   }
 
-  const sqlPath = join(process.cwd(), "drizzle", "0000_init.sql");
-  const file = readFileSync(sqlPath, "utf8");
+  // Every migration, in filename order — not just the first. Each statement is
+  // individually tolerant of "already exists", so re-running is safe and a
+  // partially-applied schema catches up rather than needing a reset.
+  const dir = join(process.cwd(), "drizzle");
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
 
-  // drizzle-kit separates statements with this marker.
-  const statements = file
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  if (files.length === 0) {
+    console.error("No .sql migrations found in drizzle/.");
+    process.exit(1);
+  }
 
-  console.log(`Applying ${statements.length} statements from drizzle/0000_init.sql`);
+  const statements = files.flatMap((file) =>
+    readFileSync(join(dir, file), "utf8")
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+
+  console.log(`Applying ${statements.length} statements from ${files.length} migration(s):`);
+  for (const f of files) console.log(`  ${f}`);
+  console.log();
 
   const sql = postgres(url, { max: 1, connect_timeout: 15, prepare: false });
 

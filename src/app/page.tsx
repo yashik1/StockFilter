@@ -3,6 +3,8 @@ import { ArrowRight, FileSearch, ListFilter, Sparkles } from "lucide-react";
 import { SearchBox } from "@/components/search-box";
 import { Waveform } from "@/components/waveform";
 import { WatchlistPanel } from "@/components/watchlist";
+import { MarketOverview, MarketSetupHint } from "@/components/market-overview";
+import { getMarketSnapshot, hasMarketData } from "@/lib/market";
 import { Badge, Card, CardHeader, RatingBadge } from "@/components/ui";
 import { money, percent } from "@/lib/format";
 import { providerStatus } from "@/lib/providers";
@@ -52,9 +54,10 @@ function healthRating(score: number | null): Rating {
 }
 
 export default async function HomePage() {
-  const [healthiest, universeCount] = await Promise.all([
+  const [healthiest, universeCount, market] = await Promise.all([
     getHealthiest(6),
     getUniverseCount(),
+    getMarketSnapshot(5),
   ]);
   const status = providerStatus();
 
@@ -110,6 +113,12 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {hasMarketData(market) ? (
+        <MarketOverview snapshot={market} />
+      ) : (
+        universeCount != null && universeCount > 0 && <MarketSetupHint />
+      )}
 
       <WatchlistPanel />
 

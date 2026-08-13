@@ -3,9 +3,10 @@ import { getDb } from "./db";
 import { companies, financials, ingestRuns, scores } from "./db/schema";
 import { fieldValue } from "./fundamentals/normalize";
 import type { CanonicalField, NormalizedFundamentals } from "./fundamentals/types";
-import { finnhub, secEdgar, twelveData } from "./providers";
+import { finnhub, getProvider, secEdgar, twelveData } from "./providers";
 import { cikForSymbol } from "./providers/sec-edgar";
 import { sectorFromSic } from "./scoring/applicability";
+import { displaySectorFromSic } from "./scoring/sectors";
 import { buildHealthReport } from "./scoring/health";
 import { div } from "./scoring/math";
 import { isCanadian } from "./universe";
@@ -115,6 +116,7 @@ export async function ingestSymbol(symbol: string): Promise<void> {
       sicCode: profile?.sicCode ?? null,
       sicDescription: profile?.sicDescription ?? null,
       sectorKind: sector,
+      displaySector: displaySectorFromSic(profile?.sicCode),
       industry: finnhubProfile?.industry ?? profile?.sicDescription ?? null,
       logoUrl: finnhubProfile?.logo ?? null,
       website: finnhubProfile?.website ?? null,
@@ -130,6 +132,7 @@ export async function ingestSymbol(symbol: string): Promise<void> {
         sicCode: profile?.sicCode ?? null,
         sicDescription: profile?.sicDescription ?? null,
         sectorKind: sector,
+        displaySector: displaySectorFromSic(profile?.sicCode),
         industry: finnhubProfile?.industry ?? profile?.sicDescription ?? null,
         logoUrl: finnhubProfile?.logo ?? null,
         website: finnhubProfile?.website ?? null,
@@ -313,4 +316,68 @@ export async function getStaleSymbols(limit: number): Promise<string[]> {
     .limit(limit);
 
   return rows.map((r) => r.symbol);
+}
+
+
+/**
+ * Refreshes the stored quote for a list of symbols.
+ *
+ * Kept separate from the fundamentals ingest because the two move at completely
+ * different speeds: filings change quarterly, prices change constantly. Running
+ * this on its own means the movers list and the sector heatmap can be current
+ * without re-reading every annual report.
+ *
+ * Concurrency is lower than the fundamentals pass because this hits the price
+ * providers rather than SEC EDGAR, and the free plans there are the tighter
+ * constraint — Finnhub allows 60 requests a minute.
+ */
+export async function refreshQuotes(
+  symbols: string[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ updated: number; failed: number; errors: string[] }> {
+  const db = getDb();
+  const errors: string[] = [];
+  let updated = 0;
+  let done = 0;
+
+  const companyRows = await db
+    .select({ id: companies.id, symbol: companies.symbol })
+    .from(companies);
+  const idBySymbol = new Map(companyRows.map((r) => [r.symbol, r.id]));
+
+  await mapLimit(symbols, 2, async (symbol) => {
+    const upper = symbol.toUpperCase();
+    const companyId = idBySymbol.get(upper);
+    if (!companyId) {
+      onProgress?.(++done, symbols.length);
+      return;
+    }
+
+    try {
+      const quote = await getProvider().getQuote(upper);
+      if (quote?.price != null) {
+        await db
+          .update(scores)
+          .set({
+            price: quote.price,
+            changePercent: quote.changePercent,
+            priceUpdatedAt: new Date(),
+          })
+          .where(eq(scores.companyId, companyId));
+        updated++;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`${upper}: ${message}`);
+      // A rate limit will hit every remaining symbol too, so stop rather than
+      // grinding through hundreds of guaranteed failures.
+      if (/rate limit|quota|credits|429/i.test(message)) {
+        throw new Error(`Stopped after ${updated} updates — ${message}`);
+      }
+    } finally {
+      onProgress?.(++done, symbols.length);
+    }
+  });
+
+  return { updated, failed: errors.length, errors };
 }

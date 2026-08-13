@@ -17,7 +17,8 @@
     "build:fixtures": "tsx scripts/build-fixtures.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:check": "tsx scripts/check-db.ts",
-    "universe:audit": "tsx scripts/audit-universe.ts"
+    "universe:audit": "tsx scripts/audit-universe.ts",
+    "quotes": "tsx scripts/refresh-quotes.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

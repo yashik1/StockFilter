@@ -20,6 +20,8 @@ there accounting red flags — and links every figure back to the filing it came
   applied only where they are valid (see [Honest scoring](#honest-scoring)).
 - **Price charts** filterable by minute, 5/15 minutes, hour, day and week.
 - **A screener** that filters hundreds of companies on financial health, not just price.
+- **Market movers and sector performance**, plus peer comparison on any stock chart.
+- **Saved companies and recent history**, kept in your browser with no account.
 - **Every source linked** — 10-K, 10-Q, 8-K and 40-F filings straight from SEC EDGAR.
 
 Coverage is US companies plus Canadian companies cross-listed on US exchanges.
@@ -58,12 +60,20 @@ stored rather than fetched live.
 #    and put the connection string in .env.local as DATABASE_URL
 
 # 2. Create the tables
-npm run db:push
+npm run db:migrate
 
 # 3. Load companies and compute scores (try a small batch first)
 npm run ingest -- --limit 25
 npm run ingest
+
+# 4. Load quotes, for movers and the sector heatmap
+npm run quotes
 ```
+
+The two jobs are separate on purpose: filings change quarterly, prices change
+constantly. Run `ingest` nightly and `quotes` as often as your price plan allows —
+Finnhub's free tier permits 60 requests a minute, so the full universe takes about
+ten minutes.
 
 ---
 

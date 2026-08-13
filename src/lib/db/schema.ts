@@ -27,8 +27,11 @@ export const companies = pgTable(
     country: text("country"),
     sicCode: text("sic_code"),
     sicDescription: text("sic_description"),
-    /** financial | real-estate | manufacturing | other */
+    /** financial | real-estate | manufacturing | other — gates which scoring
+        models apply. Deliberately coarse; not for display. */
     sectorKind: text("sector_kind").notNull().default("other"),
+    /** Familiar market sector for grouping and the heatmap. */
+    displaySector: text("display_sector").notNull().default("Other"),
     industry: text("industry"),
     logoUrl: text("logo_url"),
     website: text("website"),
@@ -40,6 +43,7 @@ export const companies = pgTable(
   (t) => [
     uniqueIndex("companies_symbol_idx").on(t.symbol),
     index("companies_sector_idx").on(t.sectorKind),
+    index("companies_display_sector_idx").on(t.displaySector),
   ],
 );
 
@@ -136,6 +140,15 @@ export const scores = pgTable(
     debtToEquity: doublePrecision("debt_to_equity"),
     currentRatio: doublePrecision("current_ratio"),
 
+    /**
+     * Latest quote, refreshed separately from the nightly fundamentals pass.
+     * Movers and the sector heatmap read these rather than fanning out to a
+     * price API per symbol, which no free tier would sustain.
+     */
+    price: doublePrecision("price"),
+    changePercent: doublePrecision("change_percent"),
+    priceUpdatedAt: timestamp("price_updated_at", { withTimezone: true }),
+
     /** Cached plain-English question output, so pages render without recompute. */
     questions: jsonb("questions"),
     headline: text("headline"),
@@ -147,6 +160,7 @@ export const scores = pgTable(
     index("scores_market_cap_idx").on(t.marketCap),
     index("scores_pe_idx").on(t.peRatio),
     index("scores_f_idx").on(t.fScore),
+    index("scores_change_idx").on(t.changePercent),
   ],
 );
 

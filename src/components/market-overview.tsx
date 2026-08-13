@@ -1,0 +1,205 @@
+import Link from "next/link";
+import { TrendingDown, TrendingUp } from "lucide-react";
+import { Card, SectionHeading } from "@/components/ui";
+import { price as fmtPrice, signedPercent } from "@/lib/format";
+import type { MarketSnapshot, Mover, SectorPerformance } from "@/lib/market";
+
+/**
+ * Today's movers and sector performance.
+ *
+ * Both read stored quotes rather than calling a price API per company, so the
+ * dashboard stays instant. That makes the data as fresh as the last refresh
+ * rather than live, which the timestamp states outright instead of implying
+ * real time.
+ */
+export function MarketOverview({ snapshot }: { snapshot: MarketSnapshot }) {
+  const { gainers, losers, sectors, asOf, covered } = snapshot;
+
+  return (
+    <section aria-labelledby="market-heading">
+      <SectionHeading
+        eyebrow="Market"
+        title="How things moved"
+        description={
+          asOf
+            ? `Across ${covered} companies, as of ${asOf.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}.`
+            : `Across ${covered} companies.`
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <MoverList
+          id="market-heading"
+          title="Biggest risers"
+          tone="up"
+          movers={gainers}
+          empty="No gainers in the latest refresh."
+        />
+        <MoverList
+          title="Biggest fallers"
+          tone="down"
+          movers={losers}
+          empty="Nothing fell in the latest refresh."
+        />
+        <SectorHeatmap sectors={sectors} />
+      </div>
+    </section>
+  );
+}
+
+function MoverList({
+  id,
+  title,
+  tone,
+  movers,
+  empty,
+}: {
+  id?: string;
+  title: string;
+  tone: "up" | "down";
+  movers: Mover[];
+  empty: string;
+}) {
+  const Icon = tone === "up" ? TrendingUp : TrendingDown;
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+        <Icon aria-hidden className={tone === "up" ? "size-4 text-up" : "size-4 text-down"} />
+        <h3 id={id} className="text-[0.9375rem] font-semibold tracking-tight">
+          {title}
+        </h3>
+      </div>
+
+      {movers.length === 0 ? (
+        <p className="px-5 py-8 text-center text-sm text-muted">{empty}</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {movers.map((m) => (
+            <li key={m.symbol}>
+              <Link
+                href={`/stock/${encodeURIComponent(m.symbol)}`}
+                className="flex items-center justify-between gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold tracking-tight">{m.symbol}</p>
+                  <p className="max-w-[11rem] truncate text-xs text-muted">{m.name}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p
+                    className={`tnum text-sm font-semibold ${
+                      (m.changePercent ?? 0) >= 0 ? "text-up" : "text-down"
+                    }`}
+                  >
+                    {signedPercent(m.changePercent)}
+                  </p>
+                  <p className="tnum text-xs text-muted">{fmtPrice(m.price)}</p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Sector performance as a diverging bar.
+ *
+ * A grid of coloured tiles is the conventional "heatmap", but colour alone
+ * encodes the value there and small differences become unreadable. A bar
+ * anchored at zero encodes magnitude by length as well as direction by colour,
+ * and the number is printed beside it, so nothing depends on hue.
+ */
+function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
+  const widest = Math.max(0.0001, ...sectors.map((s) => Math.abs(s.averageChange)));
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="border-b border-border px-5 py-3.5">
+        <h3 className="text-[0.9375rem] font-semibold tracking-tight">By sector</h3>
+        <p className="mt-1 text-xs text-muted">Average move across each sector</p>
+      </div>
+
+      {sectors.length === 0 ? (
+        <p className="px-5 py-8 text-center text-sm text-muted">
+          Not enough companies with prices yet to compare sectors.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {sectors.map((s) => {
+            const positive = s.averageChange >= 0;
+            const width = (Math.abs(s.averageChange) / widest) * 50;
+
+            return (
+              <li key={s.sector} className="px-5 py-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-xs font-medium">{s.sector}</span>
+                  <span
+                    className={`tnum shrink-0 text-xs font-semibold ${
+                      positive ? "text-up" : "text-down"
+                    }`}
+                  >
+                    {signedPercent(s.averageChange)}
+                  </span>
+                </div>
+
+                {/* Bars grow outward from a shared centre line, so direction is
+                    readable without relying on colour. */}
+                <div
+                  className="relative mt-1 h-1.5 w-full rounded-full bg-surface-3"
+                  role="img"
+                  aria-label={`${s.sector}: ${signedPercent(s.averageChange)} across ${s.companyCount} companies`}
+                >
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-0 left-1/2 w-px bg-border-strong"
+                  />
+                  <span
+                    aria-hidden
+                    className={`absolute inset-y-0 rounded-full ${positive ? "bg-up" : "bg-down"}`}
+                    style={
+                      positive
+                        ? { left: "50%", width: `${width}%` }
+                        : { right: "50%", width: `${width}%` }
+                    }
+                  />
+                </div>
+
+                <p className="mt-1 text-[11px] text-faint">
+                  {s.companyCount} companies
+                  {s.leader && ` · largest ${s.leader}`}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/** Shown when quotes have never been refreshed. */
+export function MarketSetupHint() {
+  return (
+    <Card className="p-5">
+      <h3 className="text-sm font-semibold">Movers and sectors need price data</h3>
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
+        These read stored quotes rather than calling a price API for every company on
+        each page view, which no free plan would sustain. Load them once with the
+        command below, then schedule it as often as you like.
+      </p>
+      <pre className="scroll-x mt-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs">
+        <code>npm run quotes</code>
+      </pre>
+      <p className="mt-2 text-xs text-muted">
+        Needs a free Finnhub or Twelve Data key. Everything else on this page works
+        without one.
+      </p>
+    </Card>
+  );
+}

@@ -5,7 +5,7 @@ import { BalanceSheetVisual } from "@/components/stock/balance-sheet";
 import { FundamentalsChart, type TrendSeries } from "@/components/stock/fundamentals-chart";
 import { FilingsList, NewsList, PeersList, ResearchLinks } from "@/components/stock/links";
 import { QuestionCard, QuestionSummary, VerdictCard } from "@/components/stock/verdict";
-import { PriceChart } from "@/components/price-chart";
+import { PricePanel } from "@/components/stock/peer-chart";
 import { RecordVisit, WatchButton } from "@/components/watchlist";
 import { Badge, Card, CardHeader, EmptyState, SectionHeading } from "@/components/ui";
 import { fieldValue } from "@/lib/fundamentals/normalize";
@@ -119,10 +119,14 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
       <Card>
         <CardHeader
           title="Price history"
-          subtitle="Filter by minute, hour, day or week"
+          subtitle={
+            data.peers.length > 0
+              ? "Filter by minute, hour, day or week — or compare against peers"
+              : "Filter by minute, hour, day or week"
+          }
         />
         <div className="p-5">
-          <PriceChart symbol={upper} />
+          <PricePanel symbol={upper} peers={data.peers} />
         </div>
       </Card>
 
