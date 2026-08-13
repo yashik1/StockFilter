@@ -200,6 +200,32 @@ describe("health report", () => {
     }
   });
 
+  // A Canadian filer reports CAD. Labelling those amounts with a bare "$" reads
+  // as US dollars, which is wrong by roughly a third.
+  it("labels amounts in the currency the statements were filed in", () => {
+    const cad = {
+      ...aapl,
+      annual: aapl.annual.map((period) => ({
+        ...period,
+        facts: Object.fromEntries(
+          Object.entries(period.facts).map(([k, f]) => [k, { ...f!, unit: "CAD" }]),
+        ) as typeof period.facts,
+      })),
+    };
+
+    const report = buildHealthReport(cad, AAPL_SECTOR, null);
+    const profitable = report.questions.find((q) => q.key === "profitable")!;
+    expect(profitable.answer).toContain("C$");
+    expect(profitable.answer).not.toMatch(/(?<!C)\$\d/);
+  });
+
+  it("uses a plain dollar sign for US filers", () => {
+    const report = buildHealthReport(aapl, AAPL_SECTOR, null);
+    const profitable = report.questions.find((q) => q.key === "profitable")!;
+    expect(profitable.answer).toMatch(/\$\d/);
+    expect(profitable.answer).not.toContain("C$");
+  });
+
   it("degrades honestly when nothing was reported", () => {
     const empty = { cik: "0", entityName: "Empty Co", taxonomy: "us-gaap" as const, annual: [], missingFields: [] };
     const report = buildHealthReport(empty, "other", null);

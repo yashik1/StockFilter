@@ -2,6 +2,7 @@ import { fieldValue } from "./fundamentals/normalize";
 import type { NormalizedFundamentals } from "./fundamentals/types";
 import { getInstrumentType, getPeers, getProvider } from "./providers";
 import { alphaVantage } from "./providers/alphavantage";
+import { yahoo } from "./providers/yahoo";
 import type { CompanyProfile, Filing, InstrumentType, NewsItem, Quote } from "./providers/types";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
@@ -75,6 +76,14 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
         .catch(() => null);
       reportingCurrency = fallbackFundamentals?.annual[0]?.facts.assets?.unit ?? null;
     }
+  }
+
+  // Yahoo last, and only when explicitly enabled. It has the widest free
+  // coverage of the fallbacks but no official API, so it is never reached
+  // unless the operator has opted in.
+  if (!fundamentals?.annual.length && !fallbackFundamentals && yahoo.isConfigured()) {
+    fallbackFundamentals = await yahoo.getFundamentals(upper).catch(() => null);
+    reportingCurrency = fallbackFundamentals?.annual[0]?.facts.assets?.unit ?? null;
   }
 
   const resolvedFundamentals = fundamentals?.annual.length ? fundamentals : fallbackFundamentals;

@@ -3,6 +3,7 @@ import { eodhd } from "./eodhd";
 import { finnhub } from "./finnhub";
 import { cikForSymbol, secEdgar } from "./sec-edgar";
 import { tiingo } from "./tiingo";
+import { yahoo } from "./yahoo";
 import { searchGlobalSymbols, twelveData } from "./twelvedata";
 import {
   fetchBarsWithFailover,
@@ -183,8 +184,12 @@ class FreeStackProvider implements MarketDataProvider {
  * more headroom than Twelve Data's 8, and its key is already needed for news.
  * Tiingo backs up daily and weekly history, where its limits are counted per
  * hour rather than per minute.
+ *
+ * Yahoo sits last and only runs when explicitly enabled, because it has no
+ * official API and its terms restrict automated use — see yahoo.ts. When it is
+ * enabled it is the only one of these that covers non-US exchanges for free.
  */
-const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo];
+const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo, yahoo];
 
 /** Summarises a total failure across every provider. */
 function describeFailure(attempts: { provider: string; error: string }[]): string {
@@ -230,7 +235,7 @@ export function providerStatus() {
     activeProvider: global ? eodhd.name : freeStack.name,
     coverage: global ? "worldwide" : "US and Canadian cross-listed",
     fundamentals: true,
-    charts: global || twelveData.isConfigured() || tiingo.isConfigured(),
+    charts: global || twelveData.isConfigured() || tiingo.isConfigured() || yahoo.isConfigured(),
     news: global || finnhub.isConfigured(),
     priceSources: PRICE_SOURCES.filter((s) => s.isConfigured()).map((s) => s.name),
     missing: [
@@ -241,5 +246,5 @@ export function providerStatus() {
   };
 }
 
-export { secEdgar, twelveData, finnhub, tiingo, eodhd };
+export { secEdgar, twelveData, finnhub, tiingo, yahoo, eodhd };
 export * from "./types";
