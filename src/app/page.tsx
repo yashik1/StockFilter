@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, FileSearch, ListFilter, Sparkles } from "lucide-react";
 import { SearchBox } from "@/components/search-box";
 import { Waveform } from "@/components/waveform";
+import { WatchlistPanel } from "@/components/watchlist";
 import { Badge, Card, CardHeader, RatingBadge } from "@/components/ui";
 import { money, percent } from "@/lib/format";
 import { providerStatus } from "@/lib/providers";
@@ -109,6 +110,8 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <WatchlistPanel />
 
       {/* ---- healthiest companies (needs the database) ---- */}
       <section aria-labelledby="healthiest-heading">

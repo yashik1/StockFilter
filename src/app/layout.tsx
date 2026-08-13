@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -9,14 +9,41 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const DESCRIPTION =
+  "Understand any company's financial health without reading a balance sheet. " +
+  "Plain-English answers, sourced directly from regulatory filings.";
+
 export const metadata: Metadata = {
   title: {
     default: "StockFilter — Company financials in plain English",
     template: "%s · StockFilter",
   },
-  description:
-    "Understand any company's financial health without reading a balance sheet. " +
-    "Plain-English answers, sourced directly from regulatory filings.",
+  description: DESCRIPTION,
+  applicationName: "StockFilter",
+  // Shared links previously previewed as a bare URL with no title or summary.
+  openGraph: {
+    type: "website",
+    siteName: "StockFilter",
+    title: "StockFilter — Company financials in plain English",
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary",
+    title: "StockFilter — Company financials in plain English",
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Matches the canvas token in each theme, so the mobile browser chrome does
+  // not sit on a colour the page never uses.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f7fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#08070f" },
+  ],
 };
 
 /**

@@ -6,6 +6,7 @@ import { FundamentalsChart, type TrendSeries } from "@/components/stock/fundamen
 import { FilingsList, NewsList, PeersList, ResearchLinks } from "@/components/stock/links";
 import { QuestionCard, QuestionSummary, VerdictCard } from "@/components/stock/verdict";
 import { PriceChart } from "@/components/price-chart";
+import { RecordVisit, WatchButton } from "@/components/watchlist";
 import { Badge, Card, CardHeader, EmptyState, SectionHeading } from "@/components/ui";
 import { fieldValue } from "@/lib/fundamentals/normalize";
 import { getStockPageData, yearlySeries } from "@/lib/stock-data";
@@ -17,9 +18,14 @@ export async function generateMetadata({
 }: PageProps<"/stock/[symbol]">): Promise<Metadata> {
   const { symbol } = await params;
   const upper = decodeURIComponent(symbol).toUpperCase();
+  const title = `${upper} — financial health in plain English`;
+  const description = `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`;
+
   return {
-    title: `${upper} — financial health in plain English`,
-    description: `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`,
+    title,
+    description,
+    openGraph: { title: `${title} · StockFilter`, description, type: "article" },
+    twitter: { card: "summary", title: `${title} · StockFilter`, description },
   };
 }
 
@@ -65,7 +71,10 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
           </p>
         </div>
 
+        <WatchButton symbol={upper} name={profile?.name ?? fundamentals?.entityName} />
       </header>
+
+      <RecordVisit symbol={upper} name={profile?.name ?? fundamentals?.entityName} />
 
       {/* ---- verdict ---- */}
       {report ? (
