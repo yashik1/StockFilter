@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
-import { providerStatus, twelveData } from "@/lib/providers";
+import { getProvider, providerStatus, twelveData } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +66,7 @@ export async function GET() {
       database,
       providers: providerStatus(),
       priceData: await probePriceProvider(),
+      search: await probeSearch(),
       checkedInMs: Date.now() - started,
     },
     {
@@ -73,6 +74,40 @@ export async function GET() {
       headers: { "Cache-Control": "no-store" },
     },
   );
+}
+
+/**
+ * Checks that search can find a company outside SEC coverage.
+ *
+ * Worth its own probe because it is the one capability that depends on no API
+ * key at all, so "it returns nothing" almost always means the deployment is
+ * running code from before worldwide search existed, rather than a
+ * misconfiguration. ATZ is used as the canary: a real TSX-only ticker that SEC
+ * EDGAR will never have.
+ */
+async function probeSearch(): Promise<Record<string, unknown>> {
+  try {
+    const results = await getProvider().searchSymbols("ATZ", 8);
+    const foreign = results.find((r) => r.symbol.toUpperCase() === "ATZ");
+
+    return {
+      worldwideSearch: foreign ? "working" : "not working",
+      results: results.length,
+      foundForeignListing: Boolean(foreign),
+      example: foreign
+        ? `${foreign.symbol} — ${foreign.name} (${foreign.exchange ?? "?"})`
+        : null,
+      note: foreign
+        ? "Worldwide search is live; foreign tickers resolve."
+        : "ATZ did not resolve. This deployment is most likely running a build " +
+          "from before worldwide search was added — redeploy from main.",
+    };
+  } catch (err) {
+    return {
+      worldwideSearch: "error",
+      error: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    };
+  }
 }
 
 /**
