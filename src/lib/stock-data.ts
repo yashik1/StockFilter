@@ -15,6 +15,14 @@ export interface StockPageData {
   fundamentals: NormalizedFundamentals | null;
   quote: Quote | null;
   news: NewsItem[];
+  /**
+   * Why the news list is empty, when it is.
+   *
+   * "no key set" and "the key was refused" and "nothing has been written about
+   * this company lately" are different situations with different remedies, and
+   * an empty array cannot tell them apart.
+   */
+  newsStatus: { state: "ok" | "not-configured" | "failed"; message: string | null };
   filings: Filing[];
   peers: string[];
   sector: SectorKind;
@@ -50,7 +58,13 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       provider.getProfile(upper).catch(() => null),
       provider.getFundamentals(upper).catch(() => null),
       provider.getQuote(upper).catch(() => null),
-      provider.getNews(upper, 12).catch(() => []),
+      provider.getNews(upper, 12).then(
+        (items) => ({ items, error: null as string | null }),
+        (err: unknown) => ({
+          items: [] as NewsItem[],
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      ),
       provider.getFilings(upper, 20).catch(() => []),
       getPeers(upper).catch(() => []),
       getInstrumentType(upper).catch(() => "unknown" as InstrumentType),
@@ -122,7 +136,8 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     profile,
     fundamentals: resolvedFundamentals,
     quote,
-    news,
+    news: news.items,
+    newsStatus: describeNews(news.error),
     filings,
     peers,
     sector,
@@ -136,6 +151,18 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     ),
     reportingCurrency,
   };
+}
+
+/** Turns whatever the news provider threw into something the page can explain. */
+function describeNews(error: string | null): StockPageData["newsStatus"] {
+  if (!error) return { state: "ok", message: null };
+
+  // The provider names its own missing variables, so a setup gap is told apart
+  // from a key that exists and was refused.
+  if (/not configured|FINNHUB_API_KEY/i.test(error)) {
+    return { state: "not-configured", message: error };
+  }
+  return { state: "failed", message: error };
 }
 
 /** Extracts a yearly series of one canonical field, oldest first, for charting. */

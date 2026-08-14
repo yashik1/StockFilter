@@ -88,7 +88,20 @@ export class FinnhubProvider implements MarketDataProvider {
       this.url("/company-news", { symbol, from: fmt(from), to: fmt(to) }),
       { next: { revalidate: 900 } },
     );
-    if (!res.ok) return [];
+
+    // A refused key, an exhausted allowance and a company with nothing written
+    // about it all used to return an empty list, so the page could only guess
+    // at which — and it guessed "no key", which is the one case the reader can
+    // do something about and the one that is usually wrong.
+    if (!res.ok) {
+      throw new Error(
+        res.status === 401 || res.status === 403
+          ? "Finnhub rejected the API key. Check FINNHUB_API_KEY is the key itself, not the webhook secret."
+          : res.status === 429
+            ? "Finnhub's free allowance is used up for the moment. It resets shortly."
+            : `Finnhub returned HTTP ${res.status}.`,
+      );
+    }
 
     const items = (await res.json()) as {
       id?: number;

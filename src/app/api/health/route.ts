@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
-import { getProvider, providerStatus, twelveData, yahoo } from "@/lib/providers";
+import { finnhub, getProvider, providerStatus, twelveData, yahoo } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +101,7 @@ export async function GET() {
       database,
       providers: providerStatus(),
       priceData: await probePriceProvider(),
+      news: await probeNews(),
       search: await probeSearch(),
       yahooFallback: await yahoo.probe(),
       checkedInMs: Date.now() - started,
@@ -110,6 +111,45 @@ export async function GET() {
       headers: { "Cache-Control": "no-store" },
     },
   );
+}
+
+/**
+ * Whether Finnhub actually answers with a key set.
+ *
+ * "News needs a key" was shown whenever the list came back empty, including to
+ * operators who had set one — because a refused key and a quiet month produced
+ * the same empty array. AMAT is a large, heavily covered company, so an empty
+ * result here points at the key or the plan rather than at the company.
+ */
+async function probeNews(): Promise<Record<string, unknown>> {
+  if (!finnhub.isConfigured()) {
+    return {
+      configured: false,
+      note: "FINNHUB_API_KEY is not set, so the news panel stays empty.",
+    };
+  }
+
+  try {
+    const items = await finnhub.getNews("AMAT", 5);
+    return {
+      configured: true,
+      working: items.length > 0,
+      articlesReturned: items.length,
+      note:
+        items.length > 0
+          ? "News is working."
+          : "The key was accepted but Finnhub returned no articles for AMAT in the " +
+            "last 30 days, which is unusual for a company this size — the key may be " +
+            "on a plan that excludes company news.",
+    };
+  } catch (err) {
+    return {
+      configured: true,
+      working: false,
+      articlesReturned: 0,
+      note: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 /**

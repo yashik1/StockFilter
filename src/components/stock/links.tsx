@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ExternalLink, FileText } from "lucide-react";
 import type { Filing, NewsItem } from "@/lib/providers/types";
+import type { StockPageData } from "@/lib/stock-data";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { LocalTime } from "@/components/local-time";
 
@@ -65,15 +66,41 @@ export function FilingsList({ filings }: { filings: Filing[] }) {
   );
 }
 
-export function NewsList({ news, symbol }: { news: NewsItem[]; symbol: string }) {
+export function NewsList({
+  news,
+  symbol,
+  status = { state: "ok", message: null },
+}: {
+  news: NewsItem[];
+  symbol: string;
+  status?: StockPageData["newsStatus"];
+}) {
+  // Telling a reader who has already set a key to go and set a key sends them
+  // to fix something that is not broken. Each case gets its own wording, and
+  // the quiet one — a company simply not in the news this month — is stated as
+  // the unremarkable thing it is rather than dressed up as a setup problem.
+  const empty =
+    status.state === "not-configured"
+      ? {
+          title: "News needs a key",
+          description:
+            "Headlines come from Finnhub. A free key is an email signup — set FINNHUB_API_KEY to turn this on. Everything else on this page works without one.",
+        }
+      : status.state === "failed"
+        ? {
+            title: "News could not be loaded",
+            description: `${status.message ?? "The news provider did not respond."} Every other figure on this page comes from SEC EDGAR and is unaffected.`,
+          }
+        : {
+            title: "Nothing in the last 30 days",
+            description: `No articles have been published about ${symbol} in the past month. Its filings are listed alongside, and they are the more reliable record anyway.`,
+          };
+
   return (
     <Card>
       <CardHeader title="Recent news" subtitle="Coverage from the last 30 days" />
       {news.length === 0 ? (
-        <EmptyState
-          title="No news available"
-          description={`No recent articles for ${symbol}. News needs a free Finnhub API key — set FINNHUB_API_KEY to enable it.`}
-        />
+        <EmptyState title={empty.title} description={empty.description} />
       ) : (
         <ul className="divide-y divide-border">
           {news.map((n) => (
