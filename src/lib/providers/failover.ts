@@ -6,9 +6,18 @@ import type { Bar, Quote, Timeframe } from "./types";
  * Every free tier has a ceiling, so relying on one makes charts break the moment
  * it is reached. Requests fall through the chain until a provider answers.
  *
- * Rate-limit and quota failures are treated as "try the next one"; a provider
- * that simply has no data for a symbol is a real answer and ends the search, so
- * an unknown ticker does not burn every provider's quota in turn.
+ * Every failure moves to the next provider, including "this symbol has no data".
+ * That last one used to end the search, on the reasoning that an unknown ticker
+ * should not burn every provider's quota in turn. It was wrong: the providers
+ * cover different markets, so "no data" describes one provider's universe and
+ * never the symbol. Twelve Data's free tier is US-focused and has nothing for a
+ * Toronto-listed fund like XEQT, while Yahoo — the last link, and the only one
+ * with real coverage outside the US — was never reached, which defeated the
+ * reason it is in the chain at all.
+ *
+ * The cost of getting this wrong in the other direction is small and bounded: a
+ * genuinely bogus ticker makes one request per provider, on the failure path
+ * only, and the outcome is cached.
  */
 
 export interface PriceSource {
@@ -26,13 +35,6 @@ export interface FailoverResult<T> {
   source: string | null;
   /** Providers that failed, and why. */
   attempts: { provider: string; error: string }[];
-}
-
-/** Errors that mean "this provider is temporarily unavailable", not "no data". */
-function isRetryable(message: string): boolean {
-  return /rate limit|quota|credit|limit reached|429|too many|timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(
-    message,
-  );
 }
 
 /**
@@ -115,13 +117,12 @@ export async function fetchBarsWithFailover(
         writeCache(key, result, barsTtl(timeframe));
         return result;
       }
-      // An empty but successful response is a real answer: the symbol has no
-      // data for this window. Trying other providers would not change that.
+      // An empty response says this provider has nothing for the symbol, which
+      // is a statement about its coverage rather than about the symbol.
       attempts.push({ provider: source.name, error: "returned no bars" });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       attempts.push({ provider: source.name, error: message });
-      if (!isRetryable(message)) break;
     }
   }
 
@@ -152,11 +153,9 @@ export async function fetchQuoteWithFailover(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       attempts.push({ provider: source.name, error: message });
-      if (!isRetryable(message)) break;
     }
   }
 
   return { value: null, source: null, attempts };
 }
 
-export { isRetryable };

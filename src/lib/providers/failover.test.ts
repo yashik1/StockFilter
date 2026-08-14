@@ -3,7 +3,6 @@ import {
   clearPriceCache,
   fetchBarsWithFailover,
   fetchQuoteWithFailover,
-  isRetryable,
   type PriceSource,
 } from "./failover";
 import type { Bar, Quote, Timeframe } from "./types";
@@ -49,27 +48,6 @@ const to = new Date("2024-02-01T00:00:00Z");
 
 beforeEach(() => clearPriceCache());
 
-describe("retryable classification", () => {
-  it("treats limits and transport faults as retryable", () => {
-    for (const m of [
-      "Twelve Data rate limit reached",
-      "quota exceeded",
-      "You have run out of API credits",
-      "HTTP 429",
-      "fetch failed",
-      "ETIMEDOUT",
-    ]) {
-      expect(isRetryable(m), m).toBe(true);
-    }
-  });
-
-  it("does not retry a genuine data or auth problem", () => {
-    for (const m of ["Twelve Data has no data for XYZ", "rejected the API key", "HTTP 500"]) {
-      expect(isRetryable(m), m).toBe(false);
-    }
-  });
-});
-
 describe("bars failover", () => {
   it("uses the first provider that answers", async () => {
     const a = source("A", { bars: [BAR] });
@@ -91,15 +69,32 @@ describe("bars failover", () => {
     expect(result.attempts[0]).toMatchObject({ provider: "A" });
   });
 
-  // A bad key would fail on every provider, so burning the rest achieves
-  // nothing except consuming their quotas too.
-  it("stops on a non-retryable failure", async () => {
-    const a = source("A", { bars: new Error("rejected the API key") });
-    const b = source("B", { bars: [BAR] });
+  // The bug that hid XEQT. Twelve Data reports an uncovered symbol by throwing
+  // "has no data", which used to end the chain — so Yahoo, the only provider
+  // with coverage outside the US, was never asked about a Toronto listing.
+  it("asks the next provider when one has no data for the symbol", async () => {
+    const usOnly = source("Twelve Data", {
+      bars: new Error("Twelve Data has no data for XEQT."),
+    });
+    const worldwide = source("Yahoo Finance", { bars: [BAR] });
 
-    const result = await fetchBarsWithFailover([a, b], "AAPL", "1Day", from, to);
-    expect(result.value).toEqual([]);
-    expect(b.barCalls).toBe(0);
+    const result = await fetchBarsWithFailover(
+      [usOnly, worldwide], "XEQT", "1Day", from, to,
+    );
+
+    expect(worldwide.barCalls).toBe(1);
+    expect(result.source).toBe("Yahoo Finance");
+    expect(result.value).toEqual([BAR]);
+  });
+
+  it("keeps going past any failure, whatever its kind", async () => {
+    const a = source("A", { bars: new Error("rejected the API key") });
+    const b = source("B", { bars: [] });
+    const c = source("C", { bars: [BAR] });
+
+    const result = await fetchBarsWithFailover([a, b, c], "AAPL", "1Day", from, to);
+    expect(result.source).toBe("C");
+    expect(result.attempts.map((x) => x.provider)).toEqual(["A", "B"]);
   });
 
   it("skips providers that cannot serve the timeframe", async () => {
@@ -168,6 +163,16 @@ describe("quote failover", () => {
 
     const result = await fetchQuoteWithFailover([a, b], "AAPL");
     expect(result.source).toBe("B");
+  });
+
+  it("asks the next provider when one has no data for the symbol", async () => {
+    const usOnly = source("Twelve Data", {
+      quote: new Error("Twelve Data has no data for XEQT."),
+    });
+    const worldwide = source("Yahoo Finance", { quote: QUOTE });
+
+    const result = await fetchQuoteWithFailover([usOnly, worldwide], "XEQT");
+    expect(result.source).toBe("Yahoo Finance");
   });
 
   it("returns null when no provider can answer", async () => {

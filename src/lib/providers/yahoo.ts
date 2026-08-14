@@ -146,6 +146,35 @@ export function yahooSymbol(symbol: string, exchange?: string | null): string {
   return match ? `${upper}${match[1]}` : upper;
 }
 
+/**
+ * Finds the exchange-qualified Yahoo symbol for a bare ticker.
+ *
+ * The lookup goes through the worldwide symbol search, which knows that XEQT
+ * trades in Toronto, and the exchange is then mapped to Yahoo's suffix. Results
+ * are memoised for the life of the process because a listing's exchange does
+ * not change, and this sits on the path of every foreign chart request.
+ *
+ * Returns null when the symbol is unknown, so the caller can stop rather than
+ * guess at a suffix.
+ */
+const symbolCache = new Map<string, string | null>();
+
+async function resolveYahooSymbol(symbol: string): Promise<string | null> {
+  const upper = symbol.toUpperCase();
+  if (upper.includes(".")) return upper;
+
+  const cached = symbolCache.get(upper);
+  if (cached !== undefined) return cached;
+
+  const { searchGlobalSymbols } = await import("./twelvedata");
+  const listings = await searchGlobalSymbols(upper, 6).catch(() => []);
+  const listing = listings.find((l) => l.symbol.toUpperCase() === upper);
+
+  const resolved = listing ? yahooSymbol(upper, listing.exchange) : null;
+  symbolCache.set(upper, resolved);
+  return resolved;
+}
+
 export class YahooProvider {
   readonly name = "Yahoo Finance";
 
@@ -245,6 +274,26 @@ export class YahooProvider {
   async getBars(symbol: string, timeframe: Timeframe, from: Date, to: Date): Promise<Bar[]> {
     if (!this.isConfigured()) return [];
 
+    const bars = await this.barsFor(symbol, timeframe, from, to);
+    if (bars.length > 0) return bars;
+
+    // Yahoo keys a listing by its exchange: the Toronto quote for XEQT is
+    // XEQT.TO, and the bare ticker is simply Not Found. Nothing upstream knows
+    // the exchange — the chain passes whatever the reader typed — so it is
+    // resolved here, and only after the plain symbol has already failed, which
+    // keeps US lookups to a single request.
+    const suffixed = await resolveYahooSymbol(symbol);
+    if (!suffixed || suffixed === symbol.toUpperCase()) return [];
+
+    return this.barsFor(suffixed, timeframe, from, to);
+  }
+
+  private async barsFor(
+    symbol: string,
+    timeframe: Timeframe,
+    from: Date,
+    to: Date,
+  ): Promise<Bar[]> {
     const params = new URLSearchParams({
       interval: INTERVALS[timeframe],
       period1: String(Math.floor(from.getTime() / 1000)),
@@ -285,6 +334,17 @@ export class YahooProvider {
   async getQuote(symbol: string): Promise<Quote | null> {
     if (!this.isConfigured()) return null;
 
+    const direct = await this.quoteFor(symbol);
+    if (direct) return direct;
+
+    // Same exchange-suffix problem as the bars above.
+    const suffixed = await resolveYahooSymbol(symbol);
+    if (!suffixed || suffixed === symbol.toUpperCase()) return null;
+
+    return this.quoteFor(suffixed);
+  }
+
+  private async quoteFor(symbol: string): Promise<Quote | null> {
     try {
       const res = await fetch(
         `${CHART}/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
