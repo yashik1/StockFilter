@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Agent worktrees hold a second checkout of this same repository, so
+    // linting them reports every warning twice under a path that does not
+    // exist on any other machine.
+    ".claude/**",
   ]),
 ]);
 

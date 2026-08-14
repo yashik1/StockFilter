@@ -7,6 +7,40 @@ export const dynamic = "force-dynamic";
 
 const TABLES = ["companies", "financials", "scores", "price_cache", "ingest_runs"];
 
+/** When this process started — a deploy that never restarted never picked up new code. */
+const STARTED_AT = new Date().toISOString();
+
+/**
+ * Which commit is actually serving this request.
+ *
+ * "Is the deployment running the code I just pushed?" has cost this project
+ * several debugging rounds in both directions — time spent hunting a bug that
+ * was already fixed, and time spent trusting a fix that was never live. Nothing
+ * in the app could answer it from the outside, so it stayed a guess.
+ *
+ * Railway injects the commit it built from; other hosts use their own name for
+ * it, so several are read before giving up. Only the short SHA is exposed,
+ * which is what a public repository already shows.
+ */
+function buildInfo(): Record<string, unknown> {
+  const sha =
+    process.env.RAILWAY_GIT_COMMIT_SHA ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.SOURCE_COMMIT ||
+    process.env.GIT_COMMIT ||
+    null;
+
+  return {
+    commit: sha ? sha.slice(0, 7) : "unknown",
+    branch: process.env.RAILWAY_GIT_BRANCH || process.env.VERCEL_GIT_COMMIT_REF || null,
+    startedAt: STARTED_AT,
+    uptimeSeconds: Math.round(process.uptime()),
+    note:
+      "Compare `commit` against the newest commit on the repository. If it is " +
+      "behind, the deployment has not rebuilt and any recent fix is not live yet.",
+  };
+}
+
 /**
  * Reports what the *running application* can actually see.
  *
@@ -63,6 +97,7 @@ export async function GET() {
     {
       status: status.state,
       message: status.message,
+      build: buildInfo(),
       database,
       providers: providerStatus(),
       priceData: await probePriceProvider(),
