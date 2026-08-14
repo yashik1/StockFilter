@@ -31,7 +31,7 @@ export default function ErrorBoundary({
   return (
     <div className="mx-auto max-w-2xl py-14">
       <p className="eyebrow">Something broke</p>
-      <h1 className="display mt-3 text-3xl font-bold sm:text-4xl">
+      <h1 className="font-display mt-3 text-4xl sm:text-5xl">
         {rateLimited ? "We've hit a data limit" : "That didn't load"}
       </h1>
 

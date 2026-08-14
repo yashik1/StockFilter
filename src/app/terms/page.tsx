@@ -22,7 +22,7 @@ export default function TermsPage() {
     <div className="mx-auto max-w-3xl">
       <header className="pt-1">
         <p className="eyebrow">The rules</p>
-        <h1 className="display mt-1 text-3xl font-bold sm:text-4xl">
+        <h1 className="font-display mt-2 text-4xl sm:text-5xl">
           Terms of use &amp; privacy
         </h1>
         <p className="mt-2 text-sm text-muted">Last updated {updated}</p>

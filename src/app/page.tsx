@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, FileSearch, ListFilter, Sparkles } from "lucide-react";
-import { SearchBox } from "@/components/search-box";
-import { Waveform } from "@/components/waveform";
+import { ArrowRight } from "lucide-react";
+import { TranslationHero } from "@/components/translation-hero";
 import { WatchlistPanel } from "@/components/watchlist";
 import { MarketOverview, MarketSetupHint } from "@/components/market-overview";
 import { getMarketSnapshot, hasMarketData } from "@/lib/market";
@@ -12,39 +11,6 @@ import type { Rating } from "@/lib/scoring/types";
 import { getHealthiest, getUniverseCount } from "@/lib/screener";
 
 export const dynamic = "force-dynamic";
-
-/** Well-known tickers so a first-time visitor has somewhere to click. */
-const EXAMPLES = [
-  { symbol: "AAPL", name: "Apple" },
-  { symbol: "MSFT", name: "Microsoft" },
-  { symbol: "NVDA", name: "Nvidia" },
-  { symbol: "RY", name: "Royal Bank of Canada" },
-  { symbol: "SHOP", name: "Shopify" },
-  { symbol: "KO", name: "Coca-Cola" },
-  { symbol: "TSLA", name: "Tesla" },
-  { symbol: "ENB", name: "Enbridge" },
-];
-
-const STEPS = [
-  {
-    icon: FileSearch,
-    title: "Read the filings so you don't have to",
-    body:
-      "Every figure comes straight from a company's official annual report on SEC EDGAR — not a summary, not a scraped estimate.",
-  },
-  {
-    icon: Sparkles,
-    title: "Turn the numbers into sentences",
-    body:
-      "Instead of a debt-to-equity ratio, you get: “For every $1 it owes, it owns $1.80 in assets.”",
-  },
-  {
-    icon: ListFilter,
-    title: "Compare hundreds at once",
-    body:
-      "The screener filters companies on financial health, so you can find sound businesses without reading a single balance sheet.",
-  },
-];
 
 function healthRating(score: number | null): Rating {
   if (score == null) return "unknown";
@@ -63,56 +29,7 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-10">
-      {/* ---- hero ---- */}
-      <section className="pt-8 text-center sm:pt-12">
-        <p className="eyebrow">Plain-English company research</p>
-        <h1 className="display mx-auto mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">
-          Understand any company without reading a balance sheet
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted">
-          StockFilter reads a company&apos;s official filings and tells you, in plain
-          English, whether it makes money, whether it&apos;s growing, and whether it owes
-          more than it can handle — with a link to every source.
-        </p>
-
-        <div className="mx-auto mt-7 max-w-xl">
-          <SearchBox />
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-xs text-muted">Try:</span>
-          {EXAMPLES.map((e) => (
-            <Link
-              key={e.symbol}
-              href={`/stock/${e.symbol}`}
-              className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium transition-colors hover:border-accent hover:text-accent"
-            >
-              {e.symbol}
-              <span className="ml-1.5 font-normal text-muted">{e.name}</span>
-            </Link>
-          ))}
-        </div>
-
-        <Waveform className="mt-10 h-16 w-full" />
-      </section>
-
-      {/* ---- how it works ---- */}
-      <section aria-labelledby="how-heading">
-        <h2 id="how-heading" className="sr-only">
-          How it works
-        </h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {STEPS.map((s) => (
-            <Card key={s.title} className="p-5" interactive>
-              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-accent-soft">
-                <s.icon aria-hidden className="size-4.5 text-accent" />
-              </span>
-              <h3 className="mt-3 text-[0.9375rem] font-semibold tracking-tight">{s.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.body}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
+      <TranslationHero />
 
       {hasMarketData(market) ? (
         <MarketOverview snapshot={market} />

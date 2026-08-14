@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
 /*
- * VOLTAGE — see docs/theme-voltage.md
+ * LEDGER — an editorial treatment for a reading tool.
+ *
+ * Warm paper and warm off-black rather than cool slate, because the product is
+ * read like a publication rather than operated like a dashboard. Burnt amber
+ * carries interaction; status keeps its own separate hues so meaning and brand
+ * never blur.
  *
  * Light lives on bare :root so it applies with no theme stamp present. Dark is
  * declared twice: under prefers-color-scheme for viewers on "system", and under
@@ -12,155 +17,154 @@
  * CVD separation, the normal-vision floor and 3:1 contrast on their own surface.
  */
 :root {
-  /* Neutrals carry a faint violet cast so they read as chosen rather than
-     inherited grey, and sit with the accent instead of fighting it. */
-  --background: #f7f7fb;
+  /* Warm paper rather than a cool grey — a financial publication reads as
+     printed, not as a dashboard. */
+  --background: #f7f5f2;
   --surface: #ffffff;
-  --surface-2: #f1f1f8;
-  --surface-3: #e6e6f2;
-  --border: #e3e3f0;
-  --border-strong: #cbcbe0;
+  --surface-2: #f2efea;
+  --surface-3: #e7e2da;
+  --border: #e3ded5;
+  --border-strong: #c9c2b6;
 
-  --foreground: #0c0b14;
-  --muted-strong: #46445c;
-  --muted: #6f6d87;
-  --faint: #9997ae;
+  --foreground: #16150f;
+  --muted-strong: #4a4740;
+  --muted: #736f66;
+  --faint: #a09a8f;
 
-  --accent: #6d3ff5;
-  --accent-hover: #5a2fe0;
+  /* Burnt amber: the product's job is clarity, and amber reads as insight
+     rather than as "buy", which green would imply in a tool that never
+     recommends anything. */
+  --accent: #a35d00;
+  --accent-hover: #8a4e00;
   --accent-fg: #ffffff;
-  --accent-soft: #efeaff;
-  /* The gradient's second stop. Used only on the wordmark and hero waveform,
-     so it stays a signature rather than wallpaper. */
-  --arc: #0891b2;
+  --accent-soft: #fbf0df;
 
-  /* Status is deliberately separate from the accent hue. Good leans teal and
-     weak leans pink so the pair survives red-green colour vision deficiency,
-     and every rating is also labelled in words. */
-  --good: #00916d;
-  --good-soft: #dcf7ee;
-  --good-fg: #00614a;
-  --fair: #b06a00;
-  --fair-soft: #fdf0d9;
-  --fair-fg: #7d4b00;
-  --poor: #d62b6b;
-  --poor-soft: #fde8ef;
-  --poor-fg: #96154a;
-  --unknown: #9997ae;
-  --unknown-soft: #f1f1f8;
-  --unknown-fg: #56546b;
+  /* Status stays separate from the accent. "Mixed" is a neutral slate rather
+     than amber — it is genuinely neutral, not a warning, and sharing the
+     accent's hue would blur the two meanings. */
+  --good: #00806e;
+  --good-soft: #dcf3ee;
+  --good-fg: #005647;
+  --fair: #5d6673;
+  --fair-soft: #eceef1;
+  --fair-fg: #3f4650;
+  --poor: #b3243f;
+  --poor-soft: #fce8ec;
+  --poor-fg: #86142c;
+  --unknown: #a09a8f;
+  --unknown-soft: #f2efea;
+  --unknown-fg: #5b564e;
 
-  --up: #00916d;
-  --down: #d62b6b;
+  --up: #00806e;
+  --down: #b3243f;
 
-  --series-1: #6d3ff5;
-  --series-2: #009b7e;
-  --series-3: #b06a00;
-  --series-4: #d62b6b;
+  --series-1: #a35d00;
+  --series-2: #00937f;
+  --series-3: #5148d8;
+  --series-4: #c42a68;
 
-  --radius-sm: 0.5rem;
-  --radius: 0.875rem;
-  --radius-lg: 1.125rem;
+  --radius-sm: 0.375rem;
+  --radius: 0.625rem;
+  --radius-lg: 0.875rem;
 
-  --shadow-sm: 0 1px 2px 0 rgb(12 11 20 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(12 11 20 / 0.07), 0 1px 2px -1px rgb(12 11 20 / 0.04);
-  --shadow-lg: 0 10px 30px -12px rgb(12 11 20 / 0.16), 0 2px 8px -2px rgb(12 11 20 / 0.06);
-  --glow: 0 0 0 1px rgb(109 63 245 / 0.14), 0 10px 30px -12px rgb(109 63 245 / 0.28);
+  --shadow-sm: 0 1px 2px 0 rgb(22 21 15 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(22 21 15 / 0.08), 0 1px 2px -1px rgb(22 21 15 / 0.04);
+  --shadow-lg: 0 10px 30px -12px rgb(22 21 15 / 0.16), 0 2px 8px -2px rgb(22 21 15 / 0.06);
+  --glow: 0 0 0 1px rgb(163 93 0 / 0.16), 0 10px 30px -12px rgb(163 93 0 / 0.24);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #08070f;
-    --surface: #12111d;
-    --surface-2: #1b1a2b;
-    --surface-3: #252439;
-    --border: #252438;
-    --border-strong: #3b3956;
+    /* Warm off-black, not slate: a hint of brown keeps it from reading cold. */
+    --background: #121214;
+    --surface: #1a1a1d;
+    --surface-2: #232326;
+    --surface-3: #2e2e32;
+    --border: #2a2a2e;
+    --border-strong: #43434a;
 
-    --foreground: #f4f3fb;
-    --muted-strong: #b9b7ce;
-    --muted: #8d8ba6;
-    --faint: #6a6883;
+    --foreground: #f5f3ef;
+    --muted-strong: #c2beb6;
+    --muted: #928d84;
+    --faint: #6b6760;
 
-    --accent: #8b5cff;
-    --accent-hover: #a37dff;
-    --accent-fg: #08070f;
-    --accent-soft: #1e1640;
-    --arc: #22d3ee;
+    --accent: #e0a458;
+    --accent-hover: #edb771;
+    --accent-fg: #121214;
+    --accent-soft: #33260f;
 
-    --good: #00d9a3;
-    --good-soft: #0a3a2e;
-    --good-fg: #7ff0cd;
-    --fair: #ffb224;
-    --fair-soft: #3a2a08;
-    --fair-fg: #f7d089;
-    --poor: #ff5c72;
-    --poor-soft: #3d1620;
-    --poor-fg: #ffb3bd;
-    --unknown: #6a6883;
-    --unknown-soft: #1b1a2b;
-    --unknown-fg: #aeacc4;
+    --good: #2fbfa2;
+    --good-soft: #0d332c;
+    --good-fg: #86e5d0;
+    --fair: #8b95a5;
+    --fair-soft: #262a31;
+    --fair-fg: #c3cad6;
+    --poor: #ef5f78;
+    --poor-soft: #3a141f;
+    --poor-fg: #f8b0be;
+    --unknown: #6b6760;
+    --unknown-soft: #232326;
+    --unknown-fg: #b0aba2;
 
-    --up: #00d9a3;
-    --down: #ff5c72;
+    --up: #2fbfa2;
+    --down: #ef5f78;
 
-    /* Same four hues, stepped for the dark surface rather than reused. */
-    --series-1: #7d5cf6;
+    --series-1: #c47d0e;
     --series-2: #12a594;
-    --series-3: #bd780c;
-    --series-4: #e5568a;
+    --series-3: #6d6ff0;
+    --series-4: #d9538a;
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.35);
-    --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.5);
-    --glow: 0 0 0 1px rgb(139 92 255 / 0.22), 0 12px 40px -14px rgb(139 92 255 / 0.45);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.55), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.5);
+    --glow: 0 0 0 1px rgb(224 164 88 / 0.24), 0 12px 40px -14px rgb(224 164 88 / 0.4);
   }
 }
 
 :root[data-theme="dark"] {
-  --background: #08070f;
-  --surface: #12111d;
-  --surface-2: #1b1a2b;
-  --surface-3: #252439;
-  --border: #252438;
-  --border-strong: #3b3956;
+  /* Warm off-black, not slate: a hint of brown keeps it from reading cold. */
+  --background: #121214;
+  --surface: #1a1a1d;
+  --surface-2: #232326;
+  --surface-3: #2e2e32;
+  --border: #2a2a2e;
+  --border-strong: #43434a;
 
-  --foreground: #f4f3fb;
-  --muted-strong: #b9b7ce;
-  --muted: #8d8ba6;
-  --faint: #6a6883;
+  --foreground: #f5f3ef;
+  --muted-strong: #c2beb6;
+  --muted: #928d84;
+  --faint: #6b6760;
 
-  --accent: #8b5cff;
-  --accent-hover: #a37dff;
-  --accent-fg: #08070f;
-  --accent-soft: #1e1640;
-  --arc: #22d3ee;
+  --accent: #e0a458;
+  --accent-hover: #edb771;
+  --accent-fg: #121214;
+  --accent-soft: #33260f;
 
-  --good: #00d9a3;
-  --good-soft: #0a3a2e;
-  --good-fg: #7ff0cd;
-  --fair: #ffb224;
-  --fair-soft: #3a2a08;
-  --fair-fg: #f7d089;
-  --poor: #ff5c72;
-  --poor-soft: #3d1620;
-  --poor-fg: #ffb3bd;
-  --unknown: #6a6883;
-  --unknown-soft: #1b1a2b;
-  --unknown-fg: #aeacc4;
+  --good: #2fbfa2;
+  --good-soft: #0d332c;
+  --good-fg: #86e5d0;
+  --fair: #8b95a5;
+  --fair-soft: #262a31;
+  --fair-fg: #c3cad6;
+  --poor: #ef5f78;
+  --poor-soft: #3a141f;
+  --poor-fg: #f8b0be;
+  --unknown: #6b6760;
+  --unknown-soft: #232326;
+  --unknown-fg: #b0aba2;
 
-  --up: #00d9a3;
-  --down: #ff5c72;
+  --up: #2fbfa2;
+  --down: #ef5f78;
 
-  --series-1: #7d5cf6;
+  --series-1: #c47d0e;
   --series-2: #12a594;
-  --series-3: #bd780c;
-  --series-4: #e5568a;
+  --series-3: #6d6ff0;
+  --series-4: #d9538a;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.35);
-  --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.5);
-  --glow: 0 0 0 1px rgb(139 92 255 / 0.22), 0 12px 40px -14px rgb(139 92 255 / 0.45);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.55), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.5);
+  --glow: 0 0 0 1px rgb(224 164 88 / 0.24), 0 12px 40px -14px rgb(224 164 88 / 0.4);
 }
 
 @theme inline {
@@ -178,7 +182,6 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
-  --color-arc: var(--arc);
   --color-good: var(--good);
   --color-good-soft: var(--good-soft);
   --color-good-fg: var(--good-fg);
@@ -197,8 +200,9 @@
   --color-series-2: var(--series-2);
   --color-series-3: var(--series-3);
   --color-series-4: var(--series-4);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
   --radius-card: var(--radius);
 }
 
@@ -208,39 +212,61 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Tabular figures stop price and metric columns jittering as values update. */
+/* Every figure in the interface goes through this, so numbers are always mono
+   and always tabular. */
 .tnum {
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
-/* Large numerals read better slightly tightened. */
+/* Large headline numerals — the health score, a share price. */
 .display {
-  letter-spacing: -0.035em;
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
   line-height: 1.02;
 }
 
 /* Section eyebrow: small, wide-tracked, quiet. */
 .eyebrow {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
 }
 
-/* The signature gradient. Reserved for the wordmark and the hero waveform. */
-.voltage-text {
-  background: linear-gradient(135deg, var(--accent), var(--arc));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Running prose gets a comfortable measure — roughly 65 characters, which is
+   where continuous text stays easiest to read. */
+.prose-measure {
+  max-width: 34rem;
 }
 
-.voltage-fill {
-  background: linear-gradient(135deg, var(--accent), var(--arc));
+/*
+ * Editorial type.
+ *
+ * The serif carries headlines. Restraint matters: used everywhere it turns
+ * decorative, so it is confined to page and section titles and to the
+ * translated sentences, which are the thing worth reading.
+ */
+.font-display {
+  font-family: var(--font-serif), ui-serif, Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+/* Figures, tickers and percentages. Tabular so columns align and a price
+   cannot jitter by a pixel as it updates. */
+.font-data {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
 }
 
 /* Wide content scrolls inside its own container so the page body never scrolls

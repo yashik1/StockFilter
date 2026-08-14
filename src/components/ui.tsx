@@ -67,7 +67,7 @@ export function SectionHeading({
     <div className="mb-3 flex items-end justify-between gap-4">
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow mb-1">{eyebrow}</p>}
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        <h2 className="font-display text-xl">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}

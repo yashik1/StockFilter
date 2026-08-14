@@ -1,13 +1,43 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { BoltMark } from "@/components/waveform";
 import { SearchBox } from "@/components/search-box";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+/**
+ * Three faces, each with one job.
+ *
+ * A warm serif carries headlines, which is what gives a financial publication
+ * its authority — the product is read, not operated, so the type is most of the
+ * interface. A crisp sans handles running text. Figures, tickers and
+ * percentages sit in a mono with tabular numerals, so columns align and a
+ * price cannot jitter as it updates.
+ *
+ * Self-hosted by next/font: no third-party request on page load, and no chance
+ * of a silent fallback if a CDN is unreachable.
+ */
+const serif = Newsreader({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const sans = Inter({
+  variable: "--font-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const mono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
 
 const DESCRIPTION =
   "Understand any company's financial health without reading a balance sheet. " +
@@ -68,7 +98,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

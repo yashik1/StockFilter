@@ -63,7 +63,7 @@ export function VerdictCard({
             <ScoreDial score={score} tone={tone} />
             <div className="min-w-0">
               <p className="eyebrow">Financial health</p>
-              <p className="mt-1 text-xl font-semibold leading-snug tracking-tight sm:text-2xl">
+              <p className="font-display mt-1.5 text-2xl sm:text-[1.75rem]">
                 {report.headline}
               </p>
               <p className="mt-1.5 text-xs text-muted">
@@ -236,7 +236,7 @@ export function QuestionCard({ question }: { question: Question }) {
             <RatingBadge rating={question.rating} />
           </div>
 
-          <p className="px-5 pb-4 pt-2 text-sm leading-relaxed text-muted-strong">
+          <p className="px-5 pb-4 pt-2 text-[0.9375rem] leading-relaxed text-muted-strong">
             {question.answer}
           </p>
         </div>

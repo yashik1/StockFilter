@@ -19,7 +19,7 @@ export function UnsupportedListing({ info }: { info: UnsupportedSymbol }) {
   return (
     <div className="mx-auto max-w-3xl py-10">
       <p className="eyebrow">Outside our coverage</p>
-      <h1 className="display mt-3 text-3xl font-bold sm:text-4xl">
+      <h1 className="font-display mt-3 text-4xl sm:text-5xl">
         {name ?? symbol}
       </h1>
 

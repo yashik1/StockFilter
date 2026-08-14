@@ -13,7 +13,7 @@ export default function NotFound() {
   return (
     <div className="mx-auto max-w-2xl py-14 text-center">
       <p className="eyebrow">Nothing here</p>
-      <h1 className="display mt-3 text-3xl font-bold sm:text-4xl">
+      <h1 className="font-display mt-3 text-4xl sm:text-5xl">
         We couldn&apos;t find that one
       </h1>
       <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted">

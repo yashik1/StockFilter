@@ -75,7 +75,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
     <div className="space-y-5">
       <header className="pt-1">
         <p className="eyebrow">Find companies</p>
-        <h1 className="mt-1 display text-3xl font-bold sm:text-4xl">Screener</h1>
+        <h1 className="font-display mt-2 text-4xl sm:text-5xl">Screener</h1>
         <p className="mt-1.5 text-sm text-muted">
           Filter by how the finances actually look — not just by price.
         </p>

@@ -57,7 +57,7 @@ export function BoltMark({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
-      className={`voltage-fill inline-flex items-center justify-center rounded-lg text-white ${className ?? "size-7"}`}
+      className={`inline-flex items-center justify-center rounded-md bg-accent text-accent-fg ${className ?? "size-7"}`}
     >
       <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" focusable="false">
         <path d="M13 2 L4.5 13.5 H10.5 L9.5 22 L19 10.5 H13 Z" />
