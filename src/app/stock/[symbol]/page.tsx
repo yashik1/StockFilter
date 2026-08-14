@@ -7,6 +7,9 @@ import { FilingsList, NewsList, PeersList, ResearchLinks } from "@/components/st
 import { QuestionCard, QuestionSummary, VerdictCard } from "@/components/stock/verdict";
 import { PricePanel } from "@/components/stock/peer-chart";
 import { RecordVisit, WatchButton } from "@/components/watchlist";
+import { StrengthsAndRisks, WhatItDoes } from "@/components/stock/orientation";
+import { buildBusinessSummary } from "@/lib/scoring/business";
+import { buildHighlights } from "@/lib/scoring/highlights";
 import { Badge, Card, CardHeader, EmptyState, SectionHeading } from "@/components/ui";
 import { fieldValue } from "@/lib/fundamentals/normalize";
 import { getStockPageData, yearlySeries } from "@/lib/stock-data";
@@ -85,6 +88,18 @@ async function StockBody({
   const { profile, fundamentals, quote, report, sector, marketCap } = data;
   const latest = fundamentals?.annual[0];
 
+  // Orientation before analysis: what the business is, then what the filings
+  // show going well and going badly.
+  const currency = data.reportingCurrency ?? "USD";
+  const business = buildBusinessSummary(
+    profile?.name ?? unsupported?.name ?? fundamentals?.entityName ?? upper,
+    profile?.sicCode,
+    fundamentals,
+    currency,
+  );
+  const highlights =
+    fundamentals && report ? buildHighlights(fundamentals, report, sector, currency) : null;
+
   const trends: TrendSeries[] = [
     { key: "revenue", label: "Revenue", data: yearlySeries(fundamentals, "revenue"), format: "money", kind: "bar" },
     { key: "netIncome", label: "Profit", data: yearlySeries(fundamentals, "netIncome"), format: "money", kind: "bar" },
@@ -131,6 +146,8 @@ async function StockBody({
         name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
       />
 
+      {business && <WhatItDoes summary={business} />}
+
       {/* ---- verdict ---- */}
       {report ? (
         <VerdictCard
@@ -169,6 +186,8 @@ async function StockBody({
           />
         </Card>
       )}
+
+      {highlights && <StrengthsAndRisks highlights={highlights} />}
 
       {/* ---- price chart ---- */}
       <Card>

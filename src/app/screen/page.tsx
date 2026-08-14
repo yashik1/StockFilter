@@ -127,21 +127,21 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
             value={filters.minHealth}
             placeholder="0–10"
             step="0.5"
-            hint="Composite of profitability, growth, debt and accounting quality."
+            hint="One score out of 10 combining profit, growth, debt and accounting quality."
           />
           <NumberField
             label="Max P/E"
             name="maxPe"
             value={filters.maxPe}
             placeholder="e.g. 20"
-            hint="Price paid per dollar of annual profit. Lower is cheaper."
+            hint="Years of current profit it would take to earn back the share price. Lower is cheaper."
           />
           <NumberField
             label="Min F-Score"
             name="minFScore"
             value={filters.minFScore}
             placeholder="0–9"
-            hint="Piotroski score. 7 or more indicates improving fundamentals."
+            hint="Nine checks of financial strength. 7 or more means most things are improving."
           />
           <NumberField
             label="Min revenue growth"
@@ -149,14 +149,14 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
             value={filters.minGrowth}
             placeholder="0.15 = 15%"
             step="0.05"
-            hint="Year-over-year sales growth, as a decimal."
+            hint="Sales growth on last year, written as a decimal — 0.15 means 15% growth."
           />
           <NumberField
             label="Min market value"
             name="minMarketCap"
             value={filters.minMarketCap}
             placeholder="e.g. 1000000000"
-            hint="Total value of all shares, in dollars."
+            hint="What the whole company is worth at today's share price."
           />
 
           <div>

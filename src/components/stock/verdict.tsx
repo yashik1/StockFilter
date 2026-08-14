@@ -115,7 +115,7 @@ export function VerdictCard({
                   ? `${report.piotroski.score}/${report.piotroski.maxScore}`
                   : "—"
               }
-              hint="Nine checks of financial strength. Higher is stronger."
+              hint="Nine yes-or-no checks of whether the finances improved this year. More is better."
             />
             <Metric
               label={
