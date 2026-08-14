@@ -5,6 +5,7 @@ import { alphaVantage } from "./providers/alphavantage";
 import { yahoo, yahooSymbol } from "./providers/yahoo";
 import { searchGlobalSymbols } from "./providers/twelvedata";
 import type { CompanyProfile, Filing, InstrumentType, NewsItem, Quote } from "./providers/types";
+import { ProviderNotConfiguredError } from "./providers/types";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
 import { resolveType } from "./compare";
@@ -59,10 +60,10 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       provider.getFundamentals(upper).catch(() => null),
       provider.getQuote(upper).catch(() => null),
       provider.getNews(upper, 12).then(
-        (items) => ({ items, error: null as string | null }),
+        (items) => ({ items, error: null as Error | null }),
         (err: unknown) => ({
           items: [] as NewsItem[],
-          error: err instanceof Error ? err.message : String(err),
+          error: err instanceof Error ? err : new Error(String(err)),
         }),
       ),
       provider.getFilings(upper, 20).catch(() => []),
@@ -153,16 +154,22 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
   };
 }
 
-/** Turns whatever the news provider threw into something the page can explain. */
-function describeNews(error: string | null): StockPageData["newsStatus"] {
+/**
+ * Turns whatever the news provider threw into something the page can explain.
+ *
+ * Sorted by the error's type rather than by reading its text. Matching on the
+ * message looked equivalent and was not: the message for a *refused* key names
+ * the variable to go and check, so a substring test for "FINNHUB_API_KEY"
+ * classified a rejected key as an absent one and told an operator who had set
+ * one to go and set it.
+ */
+export function describeNews(error: Error | null): StockPageData["newsStatus"] {
   if (!error) return { state: "ok", message: null };
 
-  // The provider names its own missing variables, so a setup gap is told apart
-  // from a key that exists and was refused.
-  if (/not configured|FINNHUB_API_KEY/i.test(error)) {
-    return { state: "not-configured", message: error };
+  if (error instanceof ProviderNotConfiguredError) {
+    return { state: "not-configured", message: error.message };
   }
-  return { state: "failed", message: error };
+  return { state: "failed", message: error.message };
 }
 
 /** Extracts a yearly series of one canonical field, oldest first, for charting. */
