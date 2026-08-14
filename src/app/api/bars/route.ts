@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProvider } from "@/lib/providers";
+import { getBarsWithSource } from "@/lib/providers";
 import { eodhd, twelveData } from "@/lib/providers";
 import type { Timeframe } from "@/lib/providers/types";
 
@@ -55,9 +55,9 @@ export async function GET(request: Request) {
   const from = new Date(to.getTime() - days * 86_400_000);
 
   try {
-    const bars = await getProvider().getBars(symbol, timeframe, from, to);
+    const { bars, source } = await getBarsWithSource(symbol, timeframe, from, to);
     return NextResponse.json(
-      { bars, timeframe, symbol },
+      { bars, timeframe, symbol, source },
       {
         headers: {
           "Cache-Control": `public, s-maxage=${timeframe === "1Min" ? 60 : 300}, stale-while-revalidate=600`,

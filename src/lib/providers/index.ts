@@ -43,13 +43,7 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getBars(symbol: string, timeframe: Timeframe, from: Date, to: Date): Promise<Bar[]> {
-    const result = await fetchBarsWithFailover(PRICE_SOURCES, symbol, timeframe, from, to);
-    if (result.value.length === 0 && result.attempts.length > 0) {
-      // Every provider failed. Report why rather than returning an empty chart,
-      // which reads as "this symbol has no history".
-      throw new Error(describeFailure(result.attempts));
-    }
-    return result.value;
+    return (await getBarsWithSource(symbol, timeframe, from, to)).bars;
   }
 
   async getQuote(symbol: string): Promise<Quote | null> {
@@ -198,6 +192,29 @@ class FreeStackProvider implements MarketDataProvider {
  * enabled it is the only one of these that covers non-US exchanges for free.
  */
 const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo, yahoo];
+
+/**
+ * Bars plus the name of the provider that supplied them.
+ *
+ * Which provider answered is not a detail: they disagree. A ticker can name
+ * different securities on different exchanges, so a chart is only interpretable
+ * alongside where it came from — the same principle as linking every figure on
+ * a company page back to its filing.
+ */
+export async function getBarsWithSource(
+  symbol: string,
+  timeframe: Timeframe,
+  from: Date,
+  to: Date,
+): Promise<{ bars: Bar[]; source: string | null }> {
+  const result = await fetchBarsWithFailover(PRICE_SOURCES, symbol, timeframe, from, to);
+  if (result.value.length === 0 && result.attempts.length > 0) {
+    // Every provider failed. Report why rather than returning an empty chart,
+    // which reads as "this symbol has no history".
+    throw new Error(describeFailure(result.attempts));
+  }
+  return { bars: result.value, source: result.source };
+}
 
 /** Summarises a total failure across every provider. */
 function describeFailure(attempts: { provider: string; error: string }[]): string {
