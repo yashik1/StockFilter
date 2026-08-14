@@ -149,6 +149,94 @@ export function yahooSymbol(symbol: string, exchange?: string | null): string {
 export class YahooProvider {
   readonly name = "Yahoo Finance";
 
+  /**
+   * Makes one real request and reports exactly what came back.
+   *
+   * Necessary because these endpoints behave differently depending on where the
+   * request originates: Yahoo filters by IP reputation, and a datacentre
+   * address — which is what any hosting platform gives you — can be refused
+   * where a home connection is not. That failure is invisible from a developer
+   * machine, so the deployment has to be able to answer for itself.
+   */
+  async probe(): Promise<{
+    enabled: boolean;
+    reachable: boolean;
+    httpStatus: number | null;
+    periodsReturned: number;
+    note: string;
+  }> {
+    if (!this.isConfigured()) {
+      return {
+        enabled: false,
+        reachable: false,
+        httpStatus: null,
+        periodsReturned: 0,
+        note: "ENABLE_YAHOO_FALLBACK is not set to \"true\" on this deployment.",
+      };
+    }
+
+    const params = new URLSearchParams({
+      symbol: "ATZ.TO",
+      type: "annualTotalRevenue",
+      period1: "1500000000",
+      period2: String(Math.floor(Date.now() / 1000) + 86400),
+    });
+
+    try {
+      const res = await fetch(`${TIMESERIES}/ATZ.TO?${params}`, {
+        headers: HEADERS,
+        // Never cached: a probe reporting a stale success would defeat its
+        // entire purpose.
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        return {
+          enabled: true,
+          reachable: false,
+          httpStatus: res.status,
+          periodsReturned: 0,
+          note:
+            res.status === 401 || res.status === 403
+              ? "Yahoo refused the request. It filters by IP reputation, and hosting " +
+                "platforms use datacentre addresses that are commonly blocked. The same " +
+                "request usually succeeds from a home connection, which is why this can " +
+                "work locally and fail once deployed."
+              : res.status === 429
+                ? "Yahoo is rate limiting this address."
+                : `Yahoo returned HTTP ${res.status}.`,
+        };
+      }
+
+      const json = (await res.json()) as YahooTimeseries;
+      const series = json.timeseries?.result?.[0];
+      const points = series?.annualTotalRevenue;
+      const count = Array.isArray(points) ? points.length : 0;
+
+      return {
+        enabled: true,
+        reachable: true,
+        httpStatus: res.status,
+        periodsReturned: count,
+        note:
+          count > 0
+            ? "Yahoo is reachable and returning data from this deployment."
+            : "Yahoo answered but returned no figures, which may mean the response " +
+              "shape has changed.",
+      };
+    } catch (err) {
+      return {
+        enabled: true,
+        reachable: false,
+        httpStatus: null,
+        periodsReturned: 0,
+        note: `Could not reach Yahoo: ${
+          err instanceof Error ? err.message : String(err)
+        }`.slice(0, 200),
+      };
+    }
+  }
+
   /** Deliberately requires an explicit opt-in rather than merely a key. */
   isConfigured(): boolean {
     return process.env.ENABLE_YAHOO_FALLBACK === "true";
@@ -254,6 +342,8 @@ export class YahooProvider {
         headers: HEADERS,
         next: { revalidate: 60 * 60 * 12 },
       });
+      // A refusal must not be cached, or one blocked request keeps the company
+      // empty for half a day after access is restored.
       if (!res.ok) return null;
 
       const json = (await res.json()) as YahooTimeseries;

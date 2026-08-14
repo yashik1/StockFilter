@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
-import { getProvider, providerStatus, twelveData } from "@/lib/providers";
+import { getProvider, providerStatus, twelveData, yahoo } from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,7 @@ export async function GET() {
       providers: providerStatus(),
       priceData: await probePriceProvider(),
       search: await probeSearch(),
+      yahooFallback: await yahoo.probe(),
       checkedInMs: Date.now() - started,
     },
     {
