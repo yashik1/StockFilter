@@ -69,7 +69,7 @@ export function buildHealthReport(
     profitabilityQuestion(f, amount),
     growthQuestion(f, p, fundamentals, amount),
     debtQuestion(f, altman, sector, amount),
-    valuationQuestion(f, marketCap, amount),
+    valuationQuestion(f, marketCap),
     accountingQuestion(beneish),
   ];
 
@@ -332,7 +332,10 @@ function debtQuestion(
   };
 }
 
-function valuationQuestion(f: Getter, marketCap: number | null, amount: Amount): Question {
+// Takes no currency formatter, unlike its siblings: every figure it reports is
+// a ratio of one money amount to another, so the units cancel and there is
+// nothing here to label.
+function valuationQuestion(f: Getter, marketCap: number | null): Question {
   const netIncome = f("netIncome");
   const equity = f("equity");
   const revenue = f("revenue");
