@@ -60,7 +60,7 @@ export function LocalTime({
  * than one that says which zone it is, and this is what a reader without
  * JavaScript keeps.
  */
-function serverFormat(date: Date, mode: string): string {
+export function serverFormat(date: Date, mode: string): string {
   if (Number.isNaN(date.getTime())) return "";
   const iso = date.toISOString();
 
@@ -76,19 +76,33 @@ function serverFormat(date: Date, mode: string): string {
   }
 }
 
-function localFormat(date: Date, mode: string, showZone: boolean): string {
+/**
+ * Exported so tests exercise this exact code.
+ *
+ * The previous tests kept their own copy of these rules, which meant they
+ * verified the copy and not the component — an invalid Intl option combination
+ * lived here through eight passing tests and only surfaced in a browser.
+ */
+export function localFormat(date: Date, mode: string, showZone: boolean): string {
   if (Number.isNaN(date.getTime())) return "";
 
   if (mode === "relative") return relative(date);
 
-  const options: Intl.DateTimeFormatOptions =
-    mode === "date"
+  // `dateStyle` and `timeStyle` are shorthands, and Intl forbids pairing either
+  // with an individual component — `timeZoneName` included. It rejects the
+  // combination with "Invalid option" rather than ignoring the conflict, so
+  // asking for a zone means spelling out every field by hand instead.
+  const options: Intl.DateTimeFormatOptions = showZone
+    ? {
+        ...(mode !== "time" && { year: "numeric", month: "short", day: "numeric" }),
+        ...(mode !== "date" && { hour: "numeric", minute: "2-digit" }),
+        timeZoneName: "short",
+      }
+    : mode === "date"
       ? { dateStyle: "medium" }
       : mode === "time"
         ? { timeStyle: "short" }
         : { dateStyle: "medium", timeStyle: "short" };
-
-  if (showZone) options.timeZoneName = "short";
 
   // `undefined` locale means the browser's own formatting conventions, so a
   // reader in Toronto and one in Berlin each see their usual order.

@@ -1,29 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { localFormat, serverFormat } from "./local-time";
 
 /**
  * Timestamps were formatted by whichever machine rendered them. Server
  * components run on the host, whose clock is UTC, so a reader in Vancouver saw
  * times shifted by seven or eight hours with nothing marking them as UTC.
  *
- * These cover the formatting rules directly, since the switch to local time can
- * only happen in a browser.
+ * These import the component's own formatters rather than restating them. An
+ * earlier version of this file kept its own copy of the rules, so it verified
+ * the copy while the real `localFormat` asked Intl for an impossible
+ * combination of options and threw on every dashboard load — eight tests
+ * passing against code that was never run.
  */
-
-/** Mirrors the server fallback in local-time.tsx. */
-function serverFormat(date: Date, mode: string): string {
-  if (Number.isNaN(date.getTime())) return "";
-  const iso = date.toISOString();
-  switch (mode) {
-    case "date":
-      return iso.slice(0, 10);
-    case "time":
-      return `${iso.slice(11, 16)} UTC`;
-    case "relative":
-      return iso.slice(0, 10);
-    default:
-      return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
-  }
-}
 
 /** Mirrors the chart tick formatter. */
 function localTick(time: number, intraday: boolean, timeZone?: string): string {
@@ -95,5 +83,55 @@ describe("chart tick formatting", () => {
     const lateUtc = Date.UTC(2026, 5, 15, 23, 30) / 1000;
     expect(localTick(lateUtc, false, "UTC")).toMatch(/Jun 15/);
     expect(localTick(lateUtc, false, "Asia/Tokyo")).toMatch(/Jun 16/);
+  });
+});
+
+/**
+ * Local formatting, which only ever runs in a browser.
+ *
+ * This is the path that broke the dashboard. `dateStyle` and `timeStyle` are
+ * shorthands, and Intl refuses to pair either with an individual component such
+ * as `timeZoneName` — it throws "Invalid option" rather than ignoring the
+ * conflict. Only the market overview passes `showZone`, and only when the
+ * database holds quotes, so the whole app rendered fine everywhere else while
+ * the one page that used it collapsed into the error boundary after hydration.
+ */
+describe("local formatting", () => {
+  const instant = new Date("2026-08-13T20:00:00Z");
+
+  it.each(["datetime", "date", "time"])(
+    "asks Intl for a valid combination in %s mode with a zone",
+    (mode) => {
+      expect(() => localFormat(instant, mode, true)).not.toThrow();
+      expect(localFormat(instant, mode, true)).not.toBe("");
+    },
+  );
+
+  it.each(["datetime", "date", "time", "relative"])(
+    "asks Intl for a valid combination in %s mode without a zone",
+    (mode) => {
+      expect(() => localFormat(instant, mode, false)).not.toThrow();
+    },
+  );
+
+  it("actually names the zone when one is asked for", () => {
+    // The point of showZone is that a reader can tell which clock they are
+    // reading, so an abbreviation has to survive into the output.
+    expect(localFormat(instant, "datetime", true)).toMatch(/[A-Z]{2,5}|GMT|UTC/);
+  });
+
+  it("keeps the date and the clock in datetime mode", () => {
+    const withZone = localFormat(instant, "datetime", true);
+    expect(withZone).toMatch(/\d{4}/);
+    expect(withZone).toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it("omits the clock in date mode and the date in time mode", () => {
+    expect(localFormat(instant, "date", true)).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(localFormat(instant, "time", true)).not.toMatch(/\d{4}/);
+  });
+
+  it("returns empty for an unparseable value rather than throwing", () => {
+    expect(localFormat(new Date("nonsense"), "datetime", true)).toBe("");
   });
 });
