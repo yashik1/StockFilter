@@ -43,15 +43,27 @@ function source(
   return s;
 }
 
+/** A daily series of `days` bars starting at `start`, oldest first. */
+function barsSpanning(start: Date, days: number): Bar[] {
+  return Array.from({ length: days }, (_, i) => ({
+    ...BAR,
+    time: Math.floor(start.getTime() / 1000) + i * 86_400,
+  }));
+}
+
 const from = new Date("2024-01-01T00:00:00Z");
+const monthEnd = new Date("2024-01-31T00:00:00Z");
+
+/** A series that covers the whole window, for tests not about coverage. */
+const FULL = barsSpanning(from, 30);
 const to = new Date("2024-02-01T00:00:00Z");
 
 beforeEach(() => clearPriceCache());
 
 describe("bars failover", () => {
   it("uses the first provider that answers", async () => {
-    const a = source("A", { bars: [BAR] });
-    const b = source("B", { bars: [BAR] });
+    const a = source("A", { bars: FULL });
+    const b = source("B", { bars: FULL });
 
     const result = await fetchBarsWithFailover([a, b], "AAPL", "1Day", from, to);
     expect(result.source).toBe("A");
@@ -61,10 +73,10 @@ describe("bars failover", () => {
   // The whole point of the chain.
   it("falls through when the first provider is rate limited", async () => {
     const a = source("A", { bars: new Error("Twelve Data rate limit reached") });
-    const b = source("B", { bars: [BAR] });
+    const b = source("B", { bars: FULL });
 
     const result = await fetchBarsWithFailover([a, b], "AAPL", "1Day", from, to);
-    expect(result.value).toEqual([BAR]);
+    expect(result.value).toEqual(FULL);
     expect(result.source).toBe("B");
     expect(result.attempts[0]).toMatchObject({ provider: "A" });
   });
@@ -76,7 +88,7 @@ describe("bars failover", () => {
     const usOnly = source("Twelve Data", {
       bars: new Error("Twelve Data has no data for XEQT."),
     });
-    const worldwide = source("Yahoo Finance", { bars: [BAR] });
+    const worldwide = source("Yahoo Finance", { bars: FULL });
 
     const result = await fetchBarsWithFailover(
       [usOnly, worldwide], "XEQT", "1Day", from, to,
@@ -84,13 +96,13 @@ describe("bars failover", () => {
 
     expect(worldwide.barCalls).toBe(1);
     expect(result.source).toBe("Yahoo Finance");
-    expect(result.value).toEqual([BAR]);
+    expect(result.value).toEqual(FULL);
   });
 
   it("keeps going past any failure, whatever its kind", async () => {
     const a = source("A", { bars: new Error("rejected the API key") });
     const b = source("B", { bars: [] });
-    const c = source("C", { bars: [BAR] });
+    const c = source("C", { bars: FULL });
 
     const result = await fetchBarsWithFailover([a, b, c], "AAPL", "1Day", from, to);
     expect(result.source).toBe("C");
@@ -99,10 +111,10 @@ describe("bars failover", () => {
 
   it("skips providers that cannot serve the timeframe", async () => {
     const daily = source("DailyOnly", {
-      bars: [BAR],
+      bars: FULL,
       supports: (tf) => tf === "1Day",
     });
-    const any = source("Any", { bars: [BAR] });
+    const any = source("Any", { bars: FULL });
 
     const result = await fetchBarsWithFailover([daily, any], "AAPL", "1Min", from, to);
     expect(daily.barCalls).toBe(0);
@@ -110,8 +122,8 @@ describe("bars failover", () => {
   });
 
   it("skips unconfigured providers without calling them", async () => {
-    const off = source("Off", { bars: [BAR], configured: false });
-    const on = source("On", { bars: [BAR] });
+    const off = source("Off", { bars: FULL, configured: false });
+    const on = source("On", { bars: FULL });
 
     const result = await fetchBarsWithFailover([off, on], "AAPL", "1Day", from, to);
     expect(off.barCalls).toBe(0);
@@ -127,8 +139,46 @@ describe("bars failover", () => {
     expect(result.attempts).toHaveLength(2);
   });
 
+  // Tiingo answers for a Toronto ETF with five days of a different security's
+  // prices, whatever window is asked for. Taking the first non-empty response
+  // charted the wrong company — worse than charting nothing.
+  it("passes over a provider that barely covers the requested window", async () => {
+    const thin = source("Tiingo", { bars: barsSpanning(from, 5) });
+    const full = source("Yahoo Finance", { bars: barsSpanning(from, 30) });
+
+    const result = await fetchBarsWithFailover(
+      [thin, full], "XEQT", "1Day", from, monthEnd,
+    );
+
+    expect(result.source).toBe("Yahoo Finance");
+    expect(result.attempts[0].error).toMatch(/covering \d+% of the window/);
+  });
+
+  // A company that listed last month genuinely has little history anywhere, and
+  // its chart still has to draw.
+  it("falls back to the widest partial answer when nobody covers the window", async () => {
+    const thinner = source("A", { bars: barsSpanning(from, 3) });
+    const wider = source("B", { bars: barsSpanning(from, 8) });
+
+    const result = await fetchBarsWithFailover(
+      [thinner, wider], "NEWCO", "1Day", from, monthEnd,
+    );
+
+    expect(result.source).toBe("B");
+    expect(result.value).toHaveLength(8);
+  });
+
+  it("keeps the first provider that does cover the window", async () => {
+    const full = source("A", { bars: barsSpanning(from, 30) });
+    const also = source("B", { bars: barsSpanning(from, 30) });
+
+    const result = await fetchBarsWithFailover([full, also], "SPY", "1Day", from, monthEnd);
+    expect(result.source).toBe("A");
+    expect(also.barCalls).toBe(0);
+  });
+
   it("serves a repeat request from cache without touching the network", async () => {
-    const a = source("A", { bars: [BAR] });
+    const a = source("A", { bars: FULL });
 
     await fetchBarsWithFailover([a], "AAPL", "1Day", from, to);
     await fetchBarsWithFailover([a], "AAPL", "1Day", from, to);

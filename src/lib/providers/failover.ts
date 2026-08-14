@@ -87,6 +87,36 @@ function barsTtl(timeframe: Timeframe): number {
   }
 }
 
+/**
+ * How much of the requested window a response actually spans, from 0 to 1.
+ *
+ * A provider that does not really carry a symbol may still answer rather than
+ * error — Tiingo returns five days for a Toronto ETF whatever window is asked
+ * for, and at prices belonging to a different security altogether. Taking the
+ * first non-empty response therefore risks charting the wrong company, which is
+ * worse than charting nothing, and nothing about a bare count reveals it.
+ *
+ * Coverage is measured rather than counted so it holds across every timeframe
+ * without a table of expected bars per interval.
+ */
+function coverage(bars: Bar[], from: Date, to: Date): number {
+  if (bars.length === 0) return 0;
+
+  const requested = to.getTime() - from.getTime();
+  if (requested <= 0) return 1;
+
+  // Bars carry epoch seconds and arrive oldest first.
+  const span = (bars[bars.length - 1].time - bars[0].time) * 1000;
+  return Math.min(1, Math.max(0, span / requested));
+}
+
+/**
+ * Coverage below this means the provider is answering about something other
+ * than what was asked for. Set low deliberately: a company that listed recently
+ * genuinely has little history, and the fallback below keeps its chart working.
+ */
+const MIN_COVERAGE = 0.5;
+
 export async function fetchBarsWithFailover(
   sources: PriceSource[],
   symbol: string,
@@ -103,6 +133,11 @@ export async function fetchBarsWithFailover(
 
   const attempts: { provider: string; error: string }[] = [];
 
+  // The best thin answer seen so far, kept in case nothing better turns up —
+  // a genuinely young listing has little history from any provider, and its
+  // chart should still draw.
+  let best: { bars: Bar[]; source: string; coverage: number } | null = null;
+
   for (const source of sources) {
     if (!source.isConfigured()) continue;
     if (source.supports && !source.supports(timeframe)) {
@@ -112,18 +147,40 @@ export async function fetchBarsWithFailover(
 
     try {
       const bars = await source.getBars(symbol, timeframe, from, to);
-      if (bars.length > 0) {
+
+      if (bars.length === 0) {
+        // An empty response says this provider has nothing for the symbol,
+        // which is a statement about its coverage rather than about the symbol.
+        attempts.push({ provider: source.name, error: "returned no bars" });
+        continue;
+      }
+
+      const covered = coverage(bars, from, to);
+      if (covered >= MIN_COVERAGE) {
         const result = { value: bars, source: source.name, attempts };
         writeCache(key, result, barsTtl(timeframe));
         return result;
       }
-      // An empty response says this provider has nothing for the symbol, which
-      // is a statement about its coverage rather than about the symbol.
-      attempts.push({ provider: source.name, error: "returned no bars" });
+
+      attempts.push({
+        provider: source.name,
+        error: `only ${bars.length} bars, covering ${Math.round(covered * 100)}% of the window`,
+      });
+      if (!best || covered > best.coverage) {
+        best = { bars, source: source.name, coverage: covered };
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       attempts.push({ provider: source.name, error: message });
     }
+  }
+
+  // Nobody covered the window. The widest of the partial answers beats an empty
+  // chart, and beats picking whichever provider happened to be listed first.
+  if (best) {
+    const result = { value: best.bars, source: best.source, attempts };
+    writeCache(key, result, barsTtl(timeframe));
+    return result;
   }
 
   return { value: [], source: null, attempts };
