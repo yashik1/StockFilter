@@ -13,7 +13,7 @@ import { getStockPageData, yearlySeries } from "@/lib/stock-data";
 import { Suspense } from "react";
 import { StockSkeleton } from "@/components/stock/skeleton";
 import { UnsupportedListing } from "@/components/stock/unsupported";
-import { resolveUnsupported } from "@/lib/symbol-resolver";
+import { resolveUnsupported, type UnsupportedSymbol } from "@/lib/symbol-resolver";
 import { cikForSymbol } from "@/lib/providers/sec-edgar";
 
 export const revalidate = 900;
@@ -48,23 +48,39 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
   const upper = decodeURIComponent(symbol).toUpperCase();
 
   const cik = await cikForSymbol(upper).catch(() => null);
+
+  // Absent from EDGAR. Resolve it here, before streaming, so a genuine typo can
+  // still answer 404 — but do not decide the page from that alone. A fallback
+  // provider may hold statements for this company, and short-circuiting to the
+  // coverage explainer here meant the fallback was never asked.
+  let unsupported: UnsupportedSymbol | null = null;
   if (!cik) {
-    // Real ticker, foreign exchange: explain it. Unknown everywhere: a genuine typo.
-    const unsupported = await resolveUnsupported(upper).catch(() => null);
-    if (unsupported) return <UnsupportedListing info={unsupported} />;
-    notFound();
+    unsupported = await resolveUnsupported(upper).catch(() => null);
+    if (!unsupported) notFound();
   }
 
   return (
     <Suspense fallback={<StockSkeleton />}>
-      <StockBody symbol={upper} />
+      <StockBody symbol={upper} unsupported={unsupported} />
     </Suspense>
   );
 }
 
 /** The slow half: filings, prices and news. Streams behind the skeleton. */
-async function StockBody({ symbol: upper }: { symbol: string }) {
+async function StockBody({
+  symbol: upper,
+  unsupported,
+}: {
+  symbol: string;
+  unsupported: UnsupportedSymbol | null;
+}) {
   const data = await getStockPageData(upper);
+
+  // Outside SEC coverage and no fallback produced statements either — only now
+  // is the coverage explainer the right answer.
+  if (unsupported && !data.fundamentals?.annual.length) {
+    return <UnsupportedListing info={unsupported} />;
+  }
 
   const { profile, fundamentals, quote, report, sector, marketCap } = data;
   const latest = fundamentals?.annual[0];
@@ -85,8 +101,12 @@ async function StockBody({ symbol: upper }: { symbol: string }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="display text-3xl font-bold sm:text-4xl">{upper}</h1>
-            {profile?.exchange && <Badge>{profile.exchange}</Badge>}
-            {profile?.country === "CA" && <Badge tone="accent">Canadian</Badge>}
+            {(profile?.exchange ?? unsupported?.exchange) && (
+              <Badge>{profile?.exchange ?? unsupported?.exchange}</Badge>
+            )}
+            {(profile?.country === "CA" || unsupported?.country === "Canada") && (
+              <Badge tone="accent">Canadian</Badge>
+            )}
             {sector === "financial" && (
               <Badge title="Some scoring models do not apply to financial companies.">
                 Financial sector
@@ -94,21 +114,28 @@ async function StockBody({ symbol: upper }: { symbol: string }) {
             )}
           </div>
           <p className="mt-1.5 text-sm text-muted">
-            {profile?.name ?? fundamentals?.entityName}
+            {profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
             {profile?.industry && ` · ${profile.industry}`}
+            {!profile && unsupported?.country && ` · ${unsupported.country}`}
           </p>
         </div>
 
-        <WatchButton symbol={upper} name={profile?.name ?? fundamentals?.entityName} />
+        <WatchButton
+          symbol={upper}
+          name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
+        />
       </header>
 
-      <RecordVisit symbol={upper} name={profile?.name ?? fundamentals?.entityName} />
+      <RecordVisit
+        symbol={upper}
+        name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
+      />
 
       {/* ---- verdict ---- */}
       {report ? (
         <VerdictCard
           report={report}
-          companyName={profile?.name ?? upper}
+          companyName={profile?.name ?? unsupported?.name ?? upper}
           quote={quote}
           marketCap={marketCap}
         />
