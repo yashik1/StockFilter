@@ -59,6 +59,85 @@ export function padCik(cik: string | number): string {
   return String(cik).replace(/\D/g, "").padStart(10, "0");
 }
 
+/**
+ * Normalized company facts, cached in this process.
+ *
+ * The `next: { revalidate }` directive below looks like it already covers this,
+ * but Next's data cache silently refuses any entry over 2MB, and companyfacts
+ * runs to 3.6MB for Apple and 4.7MB for Microsoft. So nothing was ever cached:
+ * every single stock page view redownloaded and reparsed several megabytes,
+ * costing roughly 10MB of heap and half a second before the page could render.
+ * Under concurrent traffic on a small container that is a real memory ceiling,
+ * not just a slow page.
+ *
+ * Caching the *normalized* result instead sidesteps the size limit entirely —
+ * it is a few kilobytes per company, holds only the fields the app actually
+ * reads, and skips the parse as well as the download on a repeat view.
+ */
+const FACTS_CACHE_MAX = 300;
+
+interface CachedFacts {
+  at: number;
+  value: NormalizedFundamentals | null;
+}
+
+const factsCache = new Map<string, CachedFacts>();
+const factsInflight = new Map<string, Promise<NormalizedFundamentals | null>>();
+
+function readFacts(cik: string): CachedFacts | null {
+  const hit = factsCache.get(cik);
+  if (!hit) return null;
+
+  if (Date.now() - hit.at > FACTS_TTL * 1000) {
+    factsCache.delete(cik);
+    return null;
+  }
+
+  // Refresh insertion order so the eviction below drops genuinely cold entries
+  // rather than merely old ones.
+  factsCache.delete(cik);
+  factsCache.set(cik, hit);
+  return hit;
+}
+
+function writeFacts(cik: string, value: NormalizedFundamentals | null): void {
+  factsCache.set(cik, { at: Date.now(), value });
+
+  // Bounded, because the universe is thousands of filers and this process is
+  // long-lived — an unbounded map here would just relocate the leak.
+  while (factsCache.size > FACTS_CACHE_MAX) {
+    const oldest = factsCache.keys().next().value;
+    if (oldest === undefined) break;
+    factsCache.delete(oldest);
+  }
+}
+
+async function fetchFactsByCik(cik: string): Promise<NormalizedFundamentals | null> {
+  try {
+    const res = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
+      headers: SEC_HEADERS,
+      next: { revalidate: FACTS_TTL },
+    });
+
+    // A 404 is a settled answer — this filer has no XBRL facts — so it is worth
+    // remembering. A 429 or a 5xx is SEC being busy, which must not be cached
+    // or one throttled moment would blank the company for half a day.
+    if (!res.ok) {
+      if (res.status === 404) writeFacts(cik, null);
+      return null;
+    }
+
+    const raw = (await res.json()) as SecCompanyFacts;
+    const normalized = normalizeCompanyFacts(raw);
+    writeFacts(cik, normalized);
+    return normalized;
+  } catch {
+    // A network failure is transient in the same way a 5xx is: return nothing
+    // for this view, and let the next one try again.
+    return null;
+  }
+}
+
 export async function cikForSymbol(symbol: string): Promise<string | null> {
   const map = await loadTickerMap();
   const upper = symbol.toUpperCase();
@@ -132,14 +211,17 @@ export class SecEdgarProvider implements MarketDataProvider {
   }
 
   async getFundamentalsByCik(cik: string): Promise<NormalizedFundamentals | null> {
-    const res = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
-      headers: SEC_HEADERS,
-      next: { revalidate: FACTS_TTL },
-    });
-    if (!res.ok) return null;
+    const cached = readFacts(cik);
+    if (cached) return cached.value;
 
-    const raw = (await res.json()) as SecCompanyFacts;
-    return normalizeCompanyFacts(raw);
+    // Concurrent viewers of the same company share one download rather than
+    // each pulling their own copy of a multi-megabyte file.
+    let inflight = factsInflight.get(cik);
+    if (!inflight) {
+      inflight = fetchFactsByCik(cik).finally(() => factsInflight.delete(cik));
+      factsInflight.set(cik, inflight);
+    }
+    return inflight;
   }
 
   async getProfile(symbol: string): Promise<CompanyProfile | null> {

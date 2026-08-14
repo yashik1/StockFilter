@@ -27,6 +27,8 @@ export default function ErrorBoundary({
   }, [error]);
 
   const rateLimited = /rate limit|quota|credits|429/i.test(error.message);
+  const redact = (message: string) =>
+    message.replace(/postgres(ql)?:\/\/\S+/gi, "[connection string]").slice(0, 300);
 
   return (
     <div className="mx-auto max-w-2xl py-14">
@@ -67,10 +69,26 @@ export default function ErrorBoundary({
           — it reports exactly what this deployment can reach: the database, its tables,
           and whether each price provider is responding.
         </p>
-        {error.digest && (
-          <p className="mt-3 font-mono text-xs text-faint">
-            Reference: {error.digest}
-          </p>
+        {/*
+          Without this the page said only "that didn't load", which is useless
+          to report and useless to debug — a screenshot of it carried no
+          information at all. A server failure is identified by its digest,
+          which ties the render to a line in the host's logs; a failure in the
+          browser has no digest but does keep its message, so show whichever
+          exists. Connection strings are stripped because a driver error
+          helpfully embeds the database password in its message.
+        */}
+        {(error.digest || error.message) && (
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-xs text-faint">
+              {error.digest
+                ? "Quote this reference — it matches an entry in the server log:"
+                : "This happened in the browser. The message was:"}
+            </p>
+            <p className="tnum mt-1 font-mono text-xs break-words text-muted">
+              {error.digest ?? redact(error.message)}
+            </p>
+          </div>
         )}
       </Card>
     </div>
