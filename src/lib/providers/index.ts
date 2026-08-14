@@ -21,6 +21,7 @@ import type {
   SymbolSearchResult,
   Timeframe,
 } from "./types";
+import { ProviderNotConfiguredError } from "./types";
 
 /**
  * Composes the free US/Canada stack into a single provider.
@@ -88,8 +89,13 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getNews(symbol: string, limit?: number): Promise<NewsItem[]> {
-    if (!finnhub.isConfigured()) return [];
-    return finnhub.getNews(symbol, limit).catch(() => []);
+    if (!finnhub.isConfigured()) {
+      throw new ProviderNotConfiguredError("Finnhub", ["FINNHUB_API_KEY"]);
+    }
+    // Deliberately not caught here. The caller tells a refused key apart from a
+    // month with no coverage and words the panel accordingly, which it cannot
+    // do if every failure arrives flattened into an empty list.
+    return finnhub.getNews(symbol, limit);
   }
 
   async getFilings(symbol: string, limit?: number): Promise<Filing[]> {
