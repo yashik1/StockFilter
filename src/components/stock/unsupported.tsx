@@ -85,14 +85,28 @@ export function UnsupportedListing({ info }: { info: UnsupportedSymbol }) {
       <Card className="mt-4 p-5">
         <h2 className="text-sm font-semibold">What would make this work</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted">
-          Worldwide fundamentals need a paid data plan. This app already supports one —
-          setting <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">EODHD_API_KEY</code>{" "}
-          switches it to 60+ exchanges with no other change. Until then, coverage is
-          US-listed companies plus the Canadian ones that also list in the US.
+          Two options, and the first is free. Setting{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">
+            ENABLE_YAHOO_FALLBACK=true
+          </code>{" "}
+          turns on a worldwide fallback that covers this listing — it is off by default
+          because Yahoo publishes no official API and restricts automated use, so
+          whether that suits your deployment is a judgement call rather than a technical
+          one.
         </p>
-        <Link href="/learn" className="mt-3 inline-block text-sm text-accent hover:underline">
-          More about where the data comes from →
-        </Link>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          For a documented, licensed source instead, setting{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">EODHD_API_KEY</code>{" "}
+          switches the whole app to 60+ exchanges with no other change.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-4">
+          <Link href="/learn" className="text-sm text-accent hover:underline">
+            Where the data comes from →
+          </Link>
+          <Link href="/terms" className="text-sm text-accent hover:underline">
+            Terms covering each source →
+          </Link>
+        </div>
       </Card>
 
       <div className="mt-8">

@@ -76,6 +76,76 @@ const SERIES: Partial<Record<CanonicalField, string>> = {
   sharesOutstanding: "annualOrdinarySharesNumber",
 };
 
+/**
+ * Exchange codes mapped to Yahoo's ticker suffixes.
+ *
+ * Yahoo keys every non-US listing by suffix — Aritzia is ATZ.TO, not ATZ, and
+ * the bare ticker returns nothing at all. The worldwide directory names the
+ * exchange, so the suffix can be derived rather than guessed.
+ */
+const EXCHANGE_SUFFIX: Record<string, string> = {
+  TSX: ".TO",
+  TSXV: ".V",
+  NEO: ".NE",
+  CSE: ".CN",
+  LSE: ".L",
+  LON: ".L",
+  FSX: ".F",
+  XETRA: ".DE",
+  EURONEXT: ".PA",
+  AMS: ".AS",
+  BRU: ".BR",
+  LIS: ".LS",
+  MIL: ".MI",
+  BME: ".MC",
+  SIX: ".SW",
+  STO: ".ST",
+  OSL: ".OL",
+  CPH: ".CO",
+  HEL: ".HE",
+  TSE: ".T",
+  JPX: ".T",
+  HKEX: ".HK",
+  ASX: ".AX",
+  NSE: ".NS",
+  BSE: ".BO",
+  KRX: ".KS",
+  SGX: ".SI",
+  TWSE: ".TW",
+  SSE: ".SS",
+  SZSE: ".SZ",
+  Bovespa: ".SA",
+  BMV: ".MX",
+  JSE: ".JO",
+  TASE: ".TA",
+};
+
+/**
+ * Builds the symbol Yahoo expects for a listing on a given exchange.
+ *
+ * US venues take the bare ticker; everything else needs its suffix. An
+ * unrecognised exchange falls back to the bare ticker rather than inventing a
+ * suffix, since a wrong one silently returns another company's data.
+ */
+export function yahooSymbol(symbol: string, exchange?: string | null): string {
+  const upper = symbol.toUpperCase();
+  if (upper.includes(".")) return upper;
+  if (!exchange) return upper;
+
+  const key = exchange.trim().toUpperCase();
+  const US = new Set(["NYSE", "NASDAQ", "NYSE ARCA", "AMEX", "BATS", "OTC", "US"]);
+  if (US.has(key)) return upper;
+
+  const direct = EXCHANGE_SUFFIX[key];
+  if (direct) return `${upper}${direct}`;
+
+  // Keys are compared case-insensitively so "Bovespa" matches too.
+  const match = Object.entries(EXCHANGE_SUFFIX).find(
+    ([code]) => code.toUpperCase() === key,
+  );
+  return match ? `${upper}${match[1]}` : upper;
+}
+
 export class YahooProvider {
   readonly name = "Yahoo Finance";
 

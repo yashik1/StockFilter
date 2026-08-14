@@ -2,7 +2,8 @@ import { fieldValue } from "./fundamentals/normalize";
 import type { NormalizedFundamentals } from "./fundamentals/types";
 import { getInstrumentType, getPeers, getProvider } from "./providers";
 import { alphaVantage } from "./providers/alphavantage";
-import { yahoo } from "./providers/yahoo";
+import { yahoo, yahooSymbol } from "./providers/yahoo";
+import { searchGlobalSymbols } from "./providers/twelvedata";
 import type { CompanyProfile, Filing, InstrumentType, NewsItem, Quote } from "./providers/types";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
@@ -82,7 +83,18 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
   // coverage of the fallbacks but no official API, so it is never reached
   // unless the operator has opted in.
   if (!fundamentals?.annual.length && !fallbackFundamentals && yahoo.isConfigured()) {
-    fallbackFundamentals = await yahoo.getFundamentals(upper).catch(() => null);
+    // Yahoo keys foreign listings by suffix — Aritzia is ATZ.TO, and the bare
+    // ticker returns nothing — so the exchange has to be resolved first.
+    const listings = await searchGlobalSymbols(upper, 6).catch(() => []);
+    const listing = listings.find((l) => l.symbol.toUpperCase() === upper);
+    const candidate = yahooSymbol(upper, listing?.exchange);
+
+    fallbackFundamentals = await yahoo.getFundamentals(candidate).catch(() => null);
+
+    // A US listing needs no suffix, so avoid repeating an identical request.
+    if (!fallbackFundamentals && candidate !== upper) {
+      fallbackFundamentals = await yahoo.getFundamentals(upper).catch(() => null);
+    }
     reportingCurrency = fallbackFundamentals?.annual[0]?.facts.assets?.unit ?? null;
   }
 
