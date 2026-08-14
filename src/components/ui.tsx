@@ -58,7 +58,9 @@ export function SectionHeading({
 }: {
   eyebrow?: string;
   title: string;
-  description?: string;
+  // ReactNode rather than string: a description can carry an inline element,
+  // such as a timestamp that has to be formatted in the reader's own timezone.
+  description?: ReactNode;
   action?: ReactNode;
 }) {
   return (

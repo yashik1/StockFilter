@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Card, SectionHeading } from "@/components/ui";
+import { LocalTime } from "@/components/local-time";
 import { price as fmtPrice, signedPercent } from "@/lib/format";
 import type { MarketSnapshot, Mover, SectorPerformance } from "@/lib/market";
 
@@ -21,12 +22,16 @@ export function MarketOverview({ snapshot }: { snapshot: MarketSnapshot }) {
         eyebrow="Market"
         title="How things moved"
         description={
-          asOf
-            ? `Across ${covered} companies, as of ${asOf.toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}.`
-            : `Across ${covered} companies.`
+          // Formatted in the browser: this component renders on the server,
+          // whose clock is UTC, so a reader elsewhere saw a shifted time.
+          asOf ? (
+            <>
+              Across {covered} companies, as of{" "}
+              <LocalTime value={asOf} mode="datetime" showZone />.
+            </>
+          ) : (
+            `Across ${covered} companies.`
+          )
         }
       />
 

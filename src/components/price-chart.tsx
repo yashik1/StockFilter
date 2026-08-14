@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Bar, Timeframe } from "@/lib/providers/types";
 import { cn } from "@/lib/utils";
+import { useTimeZone } from "@/components/local-time";
 
 type ChartStyle = "candles" | "line" | "area";
 
@@ -48,12 +49,36 @@ const MAX_DAYS: Record<Timeframe, number> = {
   "1Week": 365 * 25,
 };
 
+/**
+ * Formats an axis tick in the reader's own timezone.
+ *
+ * The series carries UTC epoch seconds, which the library renders as UTC — so a
+ * US market opening at 9:30 Eastern appeared as 14:30 with nothing to say why.
+ * Only the display is shifted; the underlying timestamps stay UTC.
+ */
+function localTick(time: number, intraday: boolean): string {
+  const date = new Date(time * 1000);
+  return intraday
+    ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(date)
+    : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+}
+
+/** Full local date and time, for the crosshair readout. */
+function localCrosshair(time: number, intraday: boolean): string {
+  const date = new Date(time * 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    ...(intraday ? { timeStyle: "short" as const } : {}),
+  }).format(date);
+}
+
 function cssVar(name: string, fallback: string) {
   if (typeof window === "undefined") return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
 export function PriceChart({ symbol }: { symbol: string }) {
+  const zone = useTimeZone();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const priceSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
@@ -135,6 +160,14 @@ export function PriceChart({ symbol }: { symbol: string }) {
         // Intraday needs the clock; daily and weekly do not.
         timeVisible: timeframe !== "1Day" && timeframe !== "1Week",
         secondsVisible: false,
+        // Rendered in the reader's zone rather than UTC, which is what the
+        // library would otherwise show for these timestamps.
+        tickMarkFormatter: (time: number) =>
+          localTick(time, timeframe !== "1Day" && timeframe !== "1Week"),
+      },
+      localization: {
+        timeFormatter: (time: number) =>
+          localCrosshair(time, timeframe !== "1Day" && timeframe !== "1Week"),
       },
       crosshair: { mode: 1 },
       autoSize: true,
@@ -328,6 +361,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
       {bars.length > 0 && (
         <p className="text-xs text-muted">
           {bars.length.toLocaleString()} bars · {timeframe} interval
+          {zone && ` · times shown in ${zone}`}
         </p>
       )}
     </div>

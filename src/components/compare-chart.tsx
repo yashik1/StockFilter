@@ -39,6 +39,29 @@ interface Series {
   bars: Bar[];
 }
 
+/**
+ * Formats an axis tick in the reader's own timezone.
+ *
+ * The series carries UTC epoch seconds, which the library renders as UTC — so a
+ * US market opening at 9:30 Eastern appeared as 14:30 with nothing to say why.
+ * Only the display is shifted; the underlying timestamps stay UTC.
+ */
+function localTick(time: number, intraday: boolean): string {
+  const date = new Date(time * 1000);
+  return intraday
+    ? new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(date)
+    : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+}
+
+/** Full local date and time, for the crosshair readout. */
+function localCrosshair(time: number, intraday: boolean): string {
+  const date = new Date(time * 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    ...(intraday ? { timeStyle: "short" as const } : {}),
+  }).format(date);
+}
+
 function cssVar(name: string, fallback: string) {
   if (typeof window === "undefined") return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
@@ -120,10 +143,14 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
         horzLines: { color: cssVar("--border", "#e2e8f0") },
       },
       rightPriceScale: { borderColor: cssVar("--border", "#e2e8f0") },
-      timeScale: { borderColor: cssVar("--border", "#e2e8f0") },
+      timeScale: {
+        borderColor: cssVar("--border", "#e2e8f0"),
+        tickMarkFormatter: (time: number) => localTick(time, false),
+      },
       crosshair: { mode: 1 },
       localization: {
         priceFormatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`,
+        timeFormatter: (time: number) => localCrosshair(time, false),
       },
       autoSize: true,
     });

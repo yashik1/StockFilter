@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ExternalLink, FileText } from "lucide-react";
 import type { Filing, NewsItem } from "@/lib/providers/types";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
+import { LocalTime } from "@/components/local-time";
 
 /** Plain-English label for each filing type, so the form codes mean something. */
 const FORM_LABELS: Record<string, string> = {
@@ -85,7 +86,7 @@ export function NewsList({ news, symbol }: { news: NewsItem[]; symbol: string })
               >
                 <p className="text-sm font-medium leading-snug">{n.headline}</p>
                 <p className="mt-1 text-xs text-muted">
-                  {n.source} · {new Date(n.publishedAt).toLocaleDateString()}
+                  {n.source} · <LocalTime value={n.publishedAt} mode="relative" />
                 </p>
               </a>
             </li>
