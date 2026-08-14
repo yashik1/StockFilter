@@ -120,8 +120,17 @@ class FreeStackProvider implements MarketDataProvider {
    */
   async searchSymbols(query: string, limit = 10): Promise<SymbolSearchResult[]> {
     const fromEdgar = await secEdgar.searchSymbols(query, limit).catch(() => []);
-    if (fromEdgar.length >= limit) {
-      return fromEdgar.map((r) => ({ ...r, supported: true, type: r.type ?? ("stock" as const) }));
+
+    // Only skip the worldwide lookup when EDGAR already holds this exact
+    // ticker. Skipping merely because EDGAR filled the page would hide a
+    // foreign listing behind loose name matches — searching a TSX ticker can
+    // return eight unrelated US companies whose names happen to contain it.
+    const q = query.trim().toUpperCase();
+    const edgarHasExact = fromEdgar.some((r) => r.symbol.toUpperCase() === q);
+    if (edgarHasExact) {
+      return fromEdgar
+        .map((r) => ({ ...r, supported: true, type: r.type ?? ("stock" as const) }))
+        .slice(0, limit);
     }
 
     const seen = new Set(fromEdgar.map((r) => r.symbol.toUpperCase()));
@@ -140,7 +149,6 @@ class FreeStackProvider implements MarketDataProvider {
     // actually score. Without this an EDGAR name-substring hit outranks an
     // exact ticker match from the worldwide directory — searching "ATZ" put
     // "DATZ WORLD HOLDINGS" above Aritzia.
-    const q = query.trim().toUpperCase();
     const rank = (r: SymbolSearchResult) => {
       const sym = r.symbol.toUpperCase();
       if (sym === q) return 0;

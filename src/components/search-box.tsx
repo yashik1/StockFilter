@@ -26,6 +26,7 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -40,6 +41,7 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
       // within the effect body.
       const reset = setTimeout(() => {
         setResults([]);
+        setProblem(null);
         setLoading(false);
       }, 0);
       return () => clearTimeout(reset);
@@ -56,6 +58,9 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
           signal: controller.signal,
         });
         const json = await res.json();
+        // A failed lookup and a genuine "no such company" previously looked
+        // identical — both showed an empty box, which leaves nothing to act on.
+        setProblem(json.error ? (json.message ?? "Search is unavailable.") : null);
         setResults(json.results ?? []);
         setActive(0);
       } catch {
@@ -127,7 +132,7 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
         />
       </div>
 
-      {open && (results.length > 0 || (loading && query)) && (
+      {open && query.trim().length > 0 && (results.length > 0 || loading || problem || !loading) && (
         <ul
           id={listId}
           role="listbox"
@@ -135,6 +140,23 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
         >
           {results.length === 0 && loading && (
             <li className="px-3 py-2 text-sm text-muted">Searching…</li>
+          )}
+
+          {/* Distinguish an outage from a query that genuinely matches nothing. */}
+          {!loading && problem && (
+            <li className="px-3 py-2.5 text-sm">
+              <span className="font-medium text-poor">Search is unavailable</span>
+              <span className="mt-0.5 block text-xs text-muted">{problem}</span>
+            </li>
+          )}
+
+          {!loading && !problem && results.length === 0 && (
+            <li className="px-3 py-2.5 text-sm">
+              <span className="font-medium">No company matched</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                Try the company name instead of the ticker.
+              </span>
+            </li>
           )}
           {results.map((r, i) => (
             <li key={`${r.symbol}-${i}`} role="option" aria-selected={i === active}>
