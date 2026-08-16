@@ -79,9 +79,14 @@ async function StockBody({
 }) {
   const data = await getStockPageData(upper);
 
-  // Outside SEC coverage and no fallback produced statements either — only now
-  // is the coverage explainer the right answer.
-  if (unsupported && !data.fundamentals?.annual.length) {
+  // The coverage explainer is a last resort, for when there is genuinely
+  // nothing to show. Absence from EDGAR alone is not that: a US-listed fund is
+  // missing from it by nature, and Roundhill Memory ETF was turned away with an
+  // apology about foreign regulators while a perfectly good price history sat
+  // one call away. If a price can be drawn, the ordinary page is the better
+  // answer — it already explains a fund on its own terms.
+  const hasSomethingToShow = Boolean(data.fundamentals?.annual.length || data.quote);
+  if (unsupported && !hasSomethingToShow) {
     return <UnsupportedListing info={unsupported} />;
   }
 

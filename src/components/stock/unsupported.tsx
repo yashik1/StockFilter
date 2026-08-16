@@ -13,6 +13,59 @@ import type { UnsupportedSymbol } from "@/lib/symbol-resolver";
  * no scores, and — when the same company also lists in the US — points at the
  * ticker that does work.
  */
+/** US venues, where "it files abroad instead" would simply be untrue. */
+const US_EXCHANGES = new Set([
+  "NYSE",
+  "NASDAQ",
+  "NYSE ARCA",
+  "NYSEARCA",
+  "AMEX",
+  "NYSE AMERICAN",
+  "BATS",
+  "CBOE",
+  "IEX",
+  "OTC",
+]);
+
+/**
+ * Says why this particular listing has no analysis.
+ *
+ * There are three genuinely different reasons and they were previously
+ * collapsed into one sentence about foreign regulators. That sentence was read
+ * out to someone looking up a US-listed ETF, telling them a fund was a company
+ * and that NYSE was outside the United States.
+ */
+function explain(info: UnsupportedSymbol): string {
+  const { name, symbol, exchange, country, type } = info;
+  const subject = name ?? symbol;
+  const onUsVenue = exchange ? US_EXCHANGES.has(exchange.toUpperCase()) : false;
+
+  if (type === "etf") {
+    return (
+      `${subject} is a fund — it holds a basket of other investments rather than ` +
+      `running a business. The health scores here read a company's own annual ` +
+      `accounts, and a fund files none, so there is nothing for them to measure.`
+    );
+  }
+
+  if (onUsVenue) {
+    return (
+      `${subject} trades on ${exchange}, but no annual accounts for it could be ` +
+      `found in the SEC's filing database. That is usually because it is newly ` +
+      `listed, or files under a different name than it trades under.`
+    );
+  }
+
+  return (
+    `${subject} is a real company — it just reports to a different regulator. ` +
+    `The analysis here is built from filings made to the US Securities and ` +
+    `Exchange Commission, and a company listed on ` +
+    `${exchange ?? "an exchange outside the US"} files with ` +
+    `${country ? `${country}'s` : "its own"} authorities instead` +
+    `${country === "Canada" ? ", on SEDAR+" : ""}.`
+  );
+}
+
 export function UnsupportedListing({ info }: { info: UnsupportedSymbol }) {
   const { symbol, name, exchange, country, otherListings, usEquivalent } = info;
 
@@ -29,13 +82,7 @@ export function UnsupportedListing({ info }: { info: UnsupportedSymbol }) {
         {country && <Badge>{country}</Badge>}
       </div>
 
-      <p className="mt-4 text-base leading-relaxed text-muted">
-        This is a real company — it just doesn&apos;t file with the SEC. Financial
-        scores here are built from SEC filings, and a company listed only on
-        {exchange ? ` ${exchange}` : " a non-US exchange"} files with its own national
-        regulator instead
-        {country === "Canada" ? " (SEDAR+ in Canada, which has no public API)" : ""}.
-      </p>
+      <p className="mt-4 text-base leading-relaxed text-muted">{explain(info)}</p>
 
       {/* The most useful thing on the page when it exists: the same company,
           under the ticker that does work here. */}
@@ -82,29 +129,43 @@ export function UnsupportedListing({ info }: { info: UnsupportedSymbol }) {
         </Card>
       )}
 
+      {/*
+        This card used to give instructions for setting ENABLE_YAHOO_FALLBACK
+        and EODHD_API_KEY. Those are deployment settings: a reader cannot act on
+        them, they name internals on a public page, and the advice was offered
+        even where it would not have helped — a fund has no accounts to fetch
+        from any source. What a reader can actually do is look elsewhere, so
+        that is what is offered.
+      */}
       <Card className="mt-4 p-5">
-        <h2 className="text-sm font-semibold">What would make this work</h2>
+        <h2 className="text-sm font-semibold">What you can still do</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted">
-          Two options, and the first is free. Setting{" "}
-          <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">
-            ENABLE_YAHOO_FALLBACK=true
-          </code>{" "}
-          turns on a worldwide fallback that covers this listing — it is off by default
-          because Yahoo publishes no official API and restricts automated use, so
-          whether that suits your deployment is a judgement call rather than a technical
-          one.
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          For a documented, licensed source instead, setting{" "}
-          <code className="rounded bg-surface-2 px-1 py-0.5 text-xs">EODHD_API_KEY</code>{" "}
-          switches the whole app to 60+ exchanges with no other change.
+          {info.type === "etf" ? (
+            <>
+              Judge a fund by what it holds and how it has performed, rather than by
+              company accounts.{" "}
+              <Link
+                href={`/compare?symbols=${encodeURIComponent(symbol)},SPY`}
+                className="text-accent underline"
+              >
+                Compare it against the wider market
+              </Link>{" "}
+              to see how it has done.
+            </>
+          ) : (
+            <>
+              Read the company&apos;s own reports on its investor relations pages, which
+              is where the figures here would have come from.{" "}
+              <Link href="/screen" className="text-accent underline">
+                The screener
+              </Link>{" "}
+              covers everything that does file with the SEC.
+            </>
+          )}
         </p>
         <div className="mt-3 flex flex-wrap gap-4">
           <Link href="/learn" className="text-sm text-accent hover:underline">
-            Where the data comes from →
-          </Link>
-          <Link href="/terms" className="text-sm text-accent hover:underline">
-            Terms covering each source →
+            Which companies are covered →
           </Link>
         </div>
       </Card>

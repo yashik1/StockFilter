@@ -24,6 +24,16 @@ export interface UnsupportedSymbol {
   name: string | null;
   exchange: string | null;
   country: string | null;
+  /**
+   * Whether this is a fund rather than an operating company.
+   *
+   * The two are unavailable for entirely different reasons — a fund publishes
+   * no statements anywhere, while a foreign company publishes them to a
+   * regulator this app does not read — and saying the wrong one is worse than
+   * saying nothing. A page once told a reader that a US-listed ETF was a
+   * company filing with another country's regulator, which was untrue twice.
+   */
+  type: "stock" | "etf" | "unknown";
   /** Other listings of the same company, worldwide. */
   otherListings: SymbolSearchResult[];
   /** A US-listed ticker for the same company that does file with the SEC. */
@@ -107,6 +117,7 @@ export async function resolveUnsupported(symbol: string): Promise<UnsupportedSym
     name: primary.name ?? null,
     exchange: primary.exchange ?? null,
     country: primary.country ?? null,
+    type: primary.type === "etf" || primary.type === "stock" ? primary.type : "unknown",
     otherListings: exact
       .slice(1)
       .filter((m) => m.exchange && m.exchange !== primary.exchange),
