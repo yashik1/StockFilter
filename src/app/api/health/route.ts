@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
-import { finnhub, getProvider, providerStatus, twelveData, yahoo } from "@/lib/providers";
+import {
+  finnhub,
+  getNewsWithSource,
+  getProvider,
+  providerStatus,
+  twelveData,
+  yahoo,
+} from "@/lib/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -114,12 +121,17 @@ export async function GET() {
 }
 
 /**
- * Whether Finnhub actually answers with a key set.
+ * Whether the reader gets headlines, and which source supplied them.
  *
- * "News needs a key" was shown whenever the list came back empty, including to
- * operators who had set one — because a refused key and a quiet month produced
- * the same empty array. AMAT is a large, heavily covered company, so an empty
- * result here points at the key or the plan rather than at the company.
+ * Reports the chain and Finnhub separately, because they can disagree and both
+ * answers matter. The chain is what a reader actually sees; Finnhub alone is
+ * what needs fixing. Reporting only the first would call news healthy while a
+ * refused key sat unnoticed behind a fallback, and reporting only the second
+ * would call it broken while the panel was full — this endpoint has been read
+ * as the truth about the deployment often enough to be worth stating precisely.
+ *
+ * AMAT is the canary: heavily covered, so an empty result points at the
+ * plumbing rather than at the company.
  */
 async function probeNews(): Promise<Record<string, unknown>> {
   if (!finnhub.isConfigured()) {
@@ -129,27 +141,38 @@ async function probeNews(): Promise<Record<string, unknown>> {
     };
   }
 
-  try {
-    const items = await finnhub.getNews("AMAT", 5);
-    return {
-      configured: true,
-      working: items.length > 0,
-      articlesReturned: items.length,
-      note:
-        items.length > 0
-          ? "News is working."
-          : "The key was accepted but Finnhub returned no articles for AMAT in the " +
-            "last 30 days, which is unusual for a company this size — the key may be " +
-            "on a plan that excludes company news.",
-    };
-  } catch (err) {
-    return {
-      configured: true,
-      working: false,
-      articlesReturned: 0,
-      note: err instanceof Error ? err.message : String(err),
-    };
-  }
+  // What the reader actually gets, which is the chain rather than any one link.
+  const chain = await getNewsWithSource("AMAT", 5).catch((err: unknown) => ({
+    news: [],
+    source: null,
+    error: err instanceof Error ? err.message : String(err),
+  }));
+
+  // Finnhub separately, because the chain succeeding through a fallback would
+  // otherwise hide a key that needs replacing.
+  const finnhubNote = await finnhub
+    .getNews("AMAT", 5)
+    .then((items) =>
+      items.length > 0
+        ? "working"
+        : "accepted the key but returned no articles for AMAT, which is unusual for a " +
+          "company this size — the key may be on a plan that excludes company news",
+    )
+    .catch((err: unknown) => (err instanceof Error ? err.message : String(err)));
+
+  return {
+    configured: true,
+    working: chain.news.length > 0,
+    articlesReturned: chain.news.length,
+    servedBy: chain.source,
+    finnhub: finnhubNote,
+    note:
+      chain.news.length > 0
+        ? `News is working, served by ${chain.source}.` +
+          (chain.source === "Finnhub" ? "" : " Finnhub is not answering — see `finnhub`.")
+        : "No source in the chain returned anything, which should not happen for a " +
+          "US filer while SEC EDGAR is reachable.",
+  };
 }
 
 /**
