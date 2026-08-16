@@ -78,6 +78,25 @@ export interface NewsItem {
   imageUrl: string | null;
 }
 
+/**
+ * Something that happened to the shares, marked on the price chart.
+ *
+ * A price history alone invites wrong conclusions. A 10:1 split looks like a
+ * 90% collapse, a dividend looks like an unexplained overnight drop, and a gap
+ * of either kind is exactly the sort of thing a newcomer reads as a disaster.
+ * Marking the cause is the difference between a chart that informs and one that
+ * misleads.
+ */
+export interface CorporateEvent {
+  kind: "dividend" | "split" | "earnings";
+  /** Epoch seconds, matching the bar times the chart is drawn from. */
+  time: number;
+  /** Short text for the marker itself. */
+  label: string;
+  /** A full sentence for the legend, in plain English. */
+  detail: string;
+}
+
 /** A regulatory filing, linked directly to its source. */
 export interface Filing {
   form: string;

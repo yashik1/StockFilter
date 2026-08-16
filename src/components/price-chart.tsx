@@ -5,15 +5,19 @@ import {
   CandlestickSeries,
   ColorType,
   createChart,
+  createSeriesMarkers,
   HistogramSeries,
   LineSeries,
   type IChartApi,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
+  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Bar, Timeframe } from "@/lib/providers/types";
+import type { Bar, CorporateEvent, Timeframe } from "@/lib/providers/types";
+import { placeEvents } from "@/lib/chart-markers";
 import { daysSinceStartOfYear, resolveDays, type RangeDays } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import { useTimeZone } from "@/components/local-time";
@@ -114,6 +118,29 @@ function localCrosshair(time: unknown, intraday: boolean): string {
   }).format(date);
 }
 
+/**
+ * Turns events into markers the chart can draw.
+ *
+ * Placement lives in chart-markers.ts and is shared with its tests; this maps
+ * the result onto the library's shapes and the theme's colours.
+ */
+function buildMarkers(events: CorporateEvent[], bars: Bar[]): SeriesMarker<Time>[] {
+  const style = {
+    dividend: { color: cssVar("--up", "#059669"), shape: "circle" as const },
+    split: { color: cssVar("--accent", "#a35d00"), shape: "arrowUp" as const },
+    earnings: { color: cssVar("--muted-strong", "#6b7280"), shape: "square" as const },
+  };
+
+  return placeEvents(events, bars).map((e) => ({
+    time: e.time as Time,
+    position: "belowBar" as const,
+    color: style[e.kind].color,
+    shape: style[e.kind].shape,
+    text: e.label,
+    id: e.id,
+  }));
+}
+
 function cssVar(name: string, fallback: string) {
   if (typeof window === "undefined") return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
@@ -130,6 +157,9 @@ export function PriceChart({ symbol }: { symbol: string }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("1Day");
   const [style, setStyle] = useState<ChartStyle>("candles");
   const [bars, setBars] = useState<Bar[]>([]);
+  const [events, setEvents] = useState<CorporateEvent[]>([]);
+  const [showEvents, setShowEvents] = useState(true);
+  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -182,6 +212,27 @@ export function PriceChart({ symbol }: { symbol: string }) {
       controller.abort();
     };
   }, [symbol, timeframe, range.days]);
+
+  // Fetched separately from the bars so that losing the annotation never costs
+  // the chart itself.
+  useEffect(() => {
+    let cancelled = false;
+    const days = resolveDays(range.days);
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/events?symbol=${encodeURIComponent(symbol)}&days=${days}`);
+        const json = await res.json();
+        if (!cancelled) setEvents((json.events ?? []) as CorporateEvent[]);
+      } catch {
+        if (!cancelled) setEvents([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol, range.days]);
 
   // ---- chart lifecycle ----
   const buildChart = useCallback(() => {
@@ -265,6 +316,9 @@ export function PriceChart({ symbol }: { symbol: string }) {
       chartRef.current = null;
       priceSeriesRef.current = null;
       volumeSeriesRef.current = null;
+      // Bound to the series that was just removed; a stale handle would write
+      // markers to a chart that no longer exists.
+      markersRef.current = null;
     };
   }, [buildChart]);
 
@@ -310,8 +364,13 @@ export function PriceChart({ symbol }: { symbol: string }) {
       })),
     );
 
+    // Markers are attached to the price series rather than drawn separately, so
+    // they stay put through zooming and panning.
+    const markers = (markersRef.current ??= createSeriesMarkers(price, []));
+    markers.setMarkers(showEvents ? buildMarkers(events, bars) : []);
+
     chartRef.current?.timeScale().fitContent();
-  }, [bars, style]);
+  }, [bars, style, events, showEvents]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -367,10 +426,36 @@ export function PriceChart({ symbol }: { symbol: string }) {
           ))}
         </div>
 
+        {/*
+          Off is a real choice: on a five-year daily chart a marker every
+          quarter plus one every dividend crowds the line it is annotating.
+        */}
+        <button
+          type="button"
+          aria-pressed={showEvents}
+          onClick={() => setShowEvents((v) => !v)}
+          disabled={events.length === 0}
+          className={cn(
+            "ml-auto rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+            events.length === 0
+              ? "cursor-not-allowed border-border text-faint"
+              : showEvents
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-border text-muted hover:text-foreground",
+          )}
+          title={
+            events.length === 0
+              ? "No dividends, splits or results dates in this window"
+              : "Show dividends, splits and results dates"
+          }
+        >
+          Events
+        </button>
+
         <div
           role="group"
           aria-label="Chart style"
-          className="ml-auto flex rounded-lg border border-border bg-surface p-0.5"
+          className="flex rounded-lg border border-border bg-surface p-0.5"
         >
           {(["candles", "line", "area"] as ChartStyle[]).map((s) => (
             <button
@@ -388,6 +473,31 @@ export function PriceChart({ symbol }: { symbol: string }) {
           ))}
         </div>
       </div>
+
+      {/*
+        A key for the markers. Shapes and colours mean nothing on their own, and
+        the whole reason for marking a split is that a reader would otherwise
+        misread the drop — leaving them to guess what a triangle means would
+        reproduce the problem in a different form.
+      */}
+      {showEvents && events.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+          {(
+            [
+              ["dividend", "Dividend paid", "bg-up"],
+              ["split", "Share split", "bg-accent"],
+              ["earnings", "Results published", "bg-muted-strong"],
+            ] as const
+          )
+            .filter(([kind]) => events.some((e) => e.kind === kind))
+            .map(([kind, label, colour]) => (
+              <span key={kind} className="flex items-center gap-1.5">
+                <span aria-hidden className={cn("size-2 rounded-full", colour)} />
+                {label}
+              </span>
+            ))}
+        </div>
+      )}
 
       <div className="relative h-[420px] w-full">
         <div ref={containerRef} className="absolute inset-0" />

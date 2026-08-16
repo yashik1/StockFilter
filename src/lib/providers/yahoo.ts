@@ -422,6 +422,64 @@ export class YahooProvider {
     }
   }
 
+  /**
+   * Dividends and splits over a window.
+   *
+   * The same chart endpoint the bars come from carries these when asked, so
+   * this costs one extra request rather than a new dependency. Amounts are
+   * as-paid, and split ratios are Yahoo's own strings ("10:1").
+   */
+  async getCorporateEvents(
+    symbol: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ dividends: { time: number; amount: number }[]; splits: { time: number; ratio: string }[] }> {
+    const empty = { dividends: [], splits: [] };
+    if (!this.isConfigured()) return empty;
+
+    const resolved = symbol.includes(".") ? symbol : ((await resolveYahooSymbol(symbol)) ?? symbol);
+    const params = new URLSearchParams({
+      interval: "1d",
+      period1: String(Math.floor(from.getTime() / 1000)),
+      period2: String(Math.floor(to.getTime() / 1000)),
+      events: "div,split",
+    });
+
+    try {
+      const res = await fetch(`${CHART}/${encodeURIComponent(resolved)}?${params}`, {
+        headers: HEADERS,
+        next: { revalidate: 3600 },
+      });
+      if (!res.ok) return empty;
+
+      const json = (await res.json()) as {
+        chart?: {
+          result?: {
+            events?: {
+              dividends?: Record<string, { date?: number; amount?: number }>;
+              splits?: Record<string, { date?: number; splitRatio?: string }>;
+            };
+          }[];
+        };
+      };
+
+      const events = json.chart?.result?.[0]?.events;
+
+      return {
+        dividends: Object.values(events?.dividends ?? {})
+          .filter((d): d is { date: number; amount: number } =>
+            typeof d.date === "number" && typeof d.amount === "number")
+          .map((d) => ({ time: d.date, amount: d.amount })),
+        splits: Object.values(events?.splits ?? {})
+          .filter((s): s is { date: number; splitRatio: string } =>
+            typeof s.date === "number" && typeof s.splitRatio === "string")
+          .map((s) => ({ time: s.date, ratio: s.splitRatio })),
+      };
+    } catch {
+      return empty;
+    }
+  }
+
   async getQuote(symbol: string): Promise<Quote | null> {
     if (!this.isConfigured()) return null;
 
