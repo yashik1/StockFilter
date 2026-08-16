@@ -1,9 +1,10 @@
 import type { NormalizedFundamentals } from "../fundamentals/types";
 import { eodhd } from "./eodhd";
+import { alphaVantage } from "./alphavantage";
 import { finnhub } from "./finnhub";
 import { cikForSymbol, secEdgar } from "./sec-edgar";
 import { tiingo } from "./tiingo";
-import { yahoo } from "./yahoo";
+import { yahoo, yahooSymbol } from "./yahoo";
 import { searchGlobalSymbols, twelveData } from "./twelvedata";
 import {
   fetchBarsWithFailover,
@@ -87,7 +88,7 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getFundamentals(symbol: string): Promise<NormalizedFundamentals | null> {
-    return secEdgar.getFundamentals(symbol);
+    return (await getFundamentalsWithSource(symbol)).fundamentals;
   }
 
   async getNews(symbol: string, limit?: number): Promise<NewsItem[]> {
@@ -194,6 +195,77 @@ class FreeStackProvider implements MarketDataProvider {
  * enabled it is the only one of these that covers non-US exchanges for free.
  */
 const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo, yahoo];
+
+/**
+ * Statements, falling back past EDGAR for listings it does not cover.
+ *
+ * This used to live in the stock page's own loader, so it ran for that page and
+ * nowhere else: comparing Aritzia against Royal Bank showed nothing at all for
+ * Aritzia — no revenue, no profit, no market value — while its own page showed
+ * all three. Coverage is a property of the data layer, not of one screen, so it
+ * belongs here where every caller gets it.
+ *
+ * Alpha Vantage is tried before Yahoo but only for a one-off lookup like this;
+ * its free allowance is 25 requests a day, which would take weeks to cover the
+ * screening universe and is never used by the nightly pass.
+ */
+export async function getFundamentalsWithSource(symbol: string): Promise<{
+  fundamentals: NormalizedFundamentals | null;
+  /** Currency the statements were reported in, when a fallback supplied them. */
+  currency: string | null;
+  source: string;
+}> {
+  const upper = symbol.toUpperCase();
+
+  const fromEdgar = await secEdgar.getFundamentals(upper).catch(() => null);
+  if (fromEdgar?.annual.length) {
+    return { fundamentals: fromEdgar, currency: null, source: "SEC EDGAR" };
+  }
+
+  if (alphaVantage.isConfigured()) {
+    const matches = await alphaVantage.search(upper, 5).catch(() => []);
+    // Alpha Vantage keys foreign listings by an exchange suffix (ATZ -> ATZ.TRT),
+    // so the bare ticker has to be resolved before the statements can be read.
+    const match =
+      matches.find((m) => m.symbol.toUpperCase().startsWith(`${upper}.`)) ??
+      matches.find((m) => m.symbol.toUpperCase() === upper);
+
+    if (match) {
+      const av = await alphaVantage.getFundamentals(match.symbol).catch(() => null);
+      if (av?.annual.length) {
+        return {
+          fundamentals: av,
+          currency: av.annual[0]?.facts.assets?.unit ?? null,
+          source: "Alpha Vantage",
+        };
+      }
+    }
+  }
+
+  if (yahoo.isConfigured()) {
+    // Yahoo keys foreign listings by suffix — Aritzia is ATZ.TO, and the bare
+    // ticker returns nothing — so the exchange has to be resolved first.
+    const listings = await searchGlobalSymbols(upper, 6).catch(() => []);
+    const listing = listings.find((l) => l.symbol.toUpperCase() === upper);
+    const candidate = yahooSymbol(upper, listing?.exchange);
+
+    let fromYahoo = await yahoo.getFundamentals(candidate).catch(() => null);
+    // A US listing needs no suffix, so avoid repeating an identical request.
+    if (!fromYahoo?.annual.length && candidate !== upper) {
+      fromYahoo = await yahoo.getFundamentals(upper).catch(() => null);
+    }
+
+    if (fromYahoo?.annual.length) {
+      return {
+        fundamentals: fromYahoo,
+        currency: fromYahoo.annual[0]?.facts.assets?.unit ?? null,
+        source: "Yahoo Finance",
+      };
+    }
+  }
+
+  return { fundamentals: fromEdgar, currency: null, source: "SEC EDGAR" };
+}
 
 /**
  * Where headlines come from, in order of how directly they answer the question.

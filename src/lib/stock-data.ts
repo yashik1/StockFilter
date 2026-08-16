@@ -1,9 +1,12 @@
 import { fieldValue } from "./fundamentals/normalize";
 import type { NormalizedFundamentals } from "./fundamentals/types";
-import { getInstrumentType, getNewsWithSource, getPeers, getProvider } from "./providers";
-import { alphaVantage } from "./providers/alphavantage";
-import { yahoo, yahooSymbol } from "./providers/yahoo";
-import { searchGlobalSymbols } from "./providers/twelvedata";
+import {
+  getFundamentalsWithSource,
+  getInstrumentType,
+  getNewsWithSource,
+  getPeers,
+  getProvider,
+} from "./providers";
 import type { CompanyProfile, Filing, InstrumentType, NewsItem, Quote } from "./providers/types";
 import { ProviderNotConfiguredError } from "./providers/types";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
@@ -65,7 +68,11 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
   const [profile, fundamentals, quote, news, filings, peers, providerType] =
     await Promise.all([
       provider.getProfile(upper).catch(() => null),
-      provider.getFundamentals(upper).catch(() => null),
+      getFundamentalsWithSource(upper).catch(() => ({
+        fundamentals: null,
+        currency: null,
+        source: "SEC EDGAR",
+      })),
       provider.getQuote(upper).catch(() => null),
       getNewsWithSource(upper, 12).then(
         ({ news: items, source }) => ({ items, source, error: null as Error | null }),
@@ -80,49 +87,8 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       getInstrumentType(upper).catch(() => "unknown" as InstrumentType),
     ]);
 
-  // EDGAR has nothing, so this is a listing outside SEC coverage. Alpha
-  // Vantage is consulted only here, never during the nightly universe pass —
-  // its free allowance is 25 requests a day, which suits an occasional lookup
-  // and would take weeks to cover the whole universe.
-  let fallbackFundamentals: NormalizedFundamentals | null = null;
-  let reportingCurrency: string | null = null;
-
-  if (!fundamentals?.annual.length && alphaVantage.isConfigured()) {
-    const matches = await alphaVantage.search(upper, 5).catch(() => []);
-    // Alpha Vantage keys foreign listings by an exchange suffix (ATZ -> ATZ.TRT),
-    // so the bare ticker has to be resolved before the statements can be read.
-    const match =
-      matches.find((m) => m.symbol.toUpperCase().startsWith(`${upper}.`)) ??
-      matches.find((m) => m.symbol.toUpperCase() === upper);
-
-    if (match) {
-      fallbackFundamentals = await alphaVantage
-        .getFundamentals(match.symbol)
-        .catch(() => null);
-      reportingCurrency = fallbackFundamentals?.annual[0]?.facts.assets?.unit ?? null;
-    }
-  }
-
-  // Yahoo last, and only when explicitly enabled. It has the widest free
-  // coverage of the fallbacks but no official API, so it is never reached
-  // unless the operator has opted in.
-  if (!fundamentals?.annual.length && !fallbackFundamentals && yahoo.isConfigured()) {
-    // Yahoo keys foreign listings by suffix — Aritzia is ATZ.TO, and the bare
-    // ticker returns nothing — so the exchange has to be resolved first.
-    const listings = await searchGlobalSymbols(upper, 6).catch(() => []);
-    const listing = listings.find((l) => l.symbol.toUpperCase() === upper);
-    const candidate = yahooSymbol(upper, listing?.exchange);
-
-    fallbackFundamentals = await yahoo.getFundamentals(candidate).catch(() => null);
-
-    // A US listing needs no suffix, so avoid repeating an identical request.
-    if (!fallbackFundamentals && candidate !== upper) {
-      fallbackFundamentals = await yahoo.getFundamentals(upper).catch(() => null);
-    }
-    reportingCurrency = fallbackFundamentals?.annual[0]?.facts.assets?.unit ?? null;
-  }
-
-  const resolvedFundamentals = fundamentals?.annual.length ? fundamentals : fallbackFundamentals;
+  const resolvedFundamentals = fundamentals.fundamentals;
+  const reportingCurrency = fundamentals.currency;
 
   const sector = sectorFromSic(profile?.sicCode);
 
