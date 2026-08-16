@@ -302,9 +302,11 @@ export function PriceChart({ symbol }: { symbol: string }) {
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
     });
-    // Pin volume to the bottom fifth so it never obscures price.
+    // Volume keeps the bottom fifth, held clear of the very foot of the plot so
+    // the event row below has a band of its own rather than sitting on top of
+    // the bars.
     chart.priceScale("volume").applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.75, bottom: 0.12 },
     });
 
     /*
