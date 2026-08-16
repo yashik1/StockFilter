@@ -133,7 +133,7 @@ function buildMarkers(events: CorporateEvent[], bars: Bar[]): SeriesMarker<Time>
 
   return placeEvents(events, bars).map((e) => ({
     time: e.time as Time,
-    position: "belowBar" as const,
+    position: "aboveBar" as const,
     color: style[e.kind].color,
     shape: style[e.kind].shape,
     text: e.label,
@@ -152,6 +152,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
   const chartRef = useRef<IChartApi | null>(null);
   const priceSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const eventSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
   const [rangeLabel, setRangeLabel] = useState("1Y");
   const [timeframe, setTimeframe] = useState<Timeframe>("1Day");
@@ -306,6 +307,27 @@ export function PriceChart({ symbol }: { symbol: string }) {
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
+    /*
+      An invisible rail along the foot of the chart, carrying nothing but the
+      event markers.
+      
+      Markers have to belong to a series, and hanging them off the price meant
+      each one sat at whatever height its bar happened to reach — so they
+      scattered up and down the chart and cluttered the line they were
+      annotating. Anchored here they form a single row against the date axis,
+      which is where a reader looks to ask "when did that happen?".
+    */
+    eventSeriesRef.current = chart.addSeries(LineSeries, {
+      color: "transparent",
+      priceScaleId: "events",
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    chart.priceScale("events").applyOptions({
+      scaleMargins: { top: 0.94, bottom: 0 },
+    });
+
     chartRef.current = chart;
   }, [style, timeframe]);
 
@@ -316,6 +338,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
       chartRef.current = null;
       priceSeriesRef.current = null;
       volumeSeriesRef.current = null;
+      eventSeriesRef.current = null;
       // Bound to the series that was just removed; a stale handle would write
       // markers to a chart that no longer exists.
       markersRef.current = null;
@@ -364,10 +387,15 @@ export function PriceChart({ symbol }: { symbol: string }) {
       })),
     );
 
-    // Markers are attached to the price series rather than drawn separately, so
-    // they stay put through zooming and panning.
-    const markers = (markersRef.current ??= createSeriesMarkers(price, []));
-    markers.setMarkers(showEvents ? buildMarkers(events, bars) : []);
+    // The rail needs a point on every bar, or a marker on a bar it does not
+    // cover has nothing to attach to and is dropped.
+    const rail = eventSeriesRef.current;
+    if (rail) {
+      rail.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: 0 })));
+
+      const markers = (markersRef.current ??= createSeriesMarkers(rail, []));
+      markers.setMarkers(showEvents ? buildMarkers(events, bars) : []);
+    }
 
     chartRef.current?.timeScale().fitContent();
   }, [bars, style, events, showEvents]);
