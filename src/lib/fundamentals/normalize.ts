@@ -1,6 +1,7 @@
 import {
   ANNUAL_FORMS,
   CONCEPT_MAP,
+  DURATION_CONCEPTS,
   DURATION_FIELDS,
   MUST_BE_POSITIVE,
 } from "./concept-map";
@@ -85,13 +86,18 @@ function extractField(
   cik: number,
   field: CanonicalField,
 ): Map<number, Fact> {
-  const isDuration = DURATION_FIELDS.has(field);
+  const fieldIsDuration = DURATION_FIELDS.has(field);
   /** Year -> best observation so far, plus the preference rank that supplied it. */
   const byYear = new Map<number, { entry: SecFactEntry; fact: Fact; rank: number }>();
 
   const concepts = CONCEPT_MAP[field];
   for (let rank = 0; rank < concepts.length; rank++) {
     const concept = concepts[rank];
+    // Shape is decided per concept, not per field: a share count is a
+    // point-in-time measure, but a dual-class filer may only publish the
+    // consolidated figure as an average across the year.
+    const isDuration = fieldIsDuration || DURATION_CONCEPTS.has(concept);
+
     for (const [taxonomy, concepts] of Object.entries(facts)) {
       const node = concepts[concept];
       if (!node?.units) continue;

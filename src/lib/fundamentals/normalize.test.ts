@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filingUrl, normalizeCompanyFacts } from "./normalize";
+import { fieldValue, filingUrl, normalizeCompanyFacts } from "./normalize";
 import type { SecCompanyFacts } from "./types";
 
 import aaplRaw from "./__fixtures__/aapl.json";
@@ -194,5 +194,48 @@ describe("provenance", () => {
   it("returns null for a malformed accession number", () => {
     expect(filingUrl(320193, undefined)).toBeNull();
     expect(filingUrl(320193, "bogus")).toBeNull();
+  });
+});
+
+/**
+ * Share counts from a filer that publishes no usable instant.
+ *
+ * A share count is a point-in-time measure, so the extractor looked only for
+ * facts without a start date. But a company with more than one class of stock
+ * often tags the per-class instants and publishes the consolidated figure only
+ * as an average over the year: Shopify's `CommonStockSharesOutstanding` has two
+ * observations in its whole history while the weighted averages have thirty.
+ *
+ * Judging the shape from the field alone discarded the only usable number, and
+ * the effect reached much further than one blank cell — with no share count
+ * there is no market value, and with no market value there is no P/E, no P/B
+ * and no answer to "is it cheap or expensive?".
+ */
+describe("share counts across differently-tagged filers", () => {
+  it("falls back to the yearly average when a filer publishes no instant", () => {
+    const shares = fieldValue(shop.annual[0], "sharesOutstanding");
+
+    expect(shares).not.toBeNull();
+    expect(shares!).toBeGreaterThan(1e9);
+    expect(shop.annual[0]!.facts.sharesOutstanding!.sourceConcept).toMatch(
+      /WeightedAverageNumber/,
+    );
+  });
+
+  // The average is a worse measure than the closing count, so it must never
+  // displace an instant on a filer that reports one.
+  it("still prefers the point-in-time count where one exists", () => {
+    for (const f of [aapl, ry]) {
+      const concept = f.annual[0]!.facts.sharesOutstanding!.sourceConcept;
+      expect(concept).not.toMatch(/WeightedAverageNumber/);
+    }
+  });
+
+  it("keeps the share count within a believable range for a real company", () => {
+    for (const f of [aapl, ry, shop]) {
+      const shares = fieldValue(f.annual[0], "sharesOutstanding")!;
+      expect(shares).toBeGreaterThan(1e6);
+      expect(shares).toBeLessThan(1e12);
+    }
   });
 });

@@ -160,8 +160,32 @@ export const CONCEPT_MAP: Record<CanonicalField, string[]> = {
     "NumberOfSharesOutstanding",
     "WeightedAverageNumberOfSharesOutstandingBasic",
     "WeightedAverageNumberOfDilutedSharesOutstanding",
+    "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
   ],
 };
+
+/**
+ * Concepts reported over a period even though their field is a point-in-time
+ * measure.
+ *
+ * `sharesOutstanding` is the only hybrid in the map. A share count is normally
+ * an instant, but a filer with more than one class of stock often tags the
+ * instants per class and reports the consolidated figure only as an average
+ * over the year. Shopify is exactly that: `CommonStockSharesOutstanding` has
+ * two observations in its entire filing history, while the weighted averages
+ * have thirty and are current. Judging the shape from the field alone threw
+ * away the only usable number, which left the company with no market value —
+ * and, downstream, no P/E, no P/B and no answer to "is it cheap or expensive?".
+ *
+ * A yearly average is not the same as the count on the closing date, so it sits
+ * below every instant concept in preference order and is reached only when no
+ * instant is available.
+ */
+export const DURATION_CONCEPTS: ReadonlySet<string> = new Set([
+  "WeightedAverageNumberOfSharesOutstandingBasic",
+  "WeightedAverageNumberOfDilutedSharesOutstanding",
+  "WeightedAverageNumberOfShareOutstandingBasicAndDiluted",
+]);
 
 /**
  * Fields for which a non-positive value is meaningless and indicates a filing
