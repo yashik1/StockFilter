@@ -57,6 +57,95 @@ export function placeEvents(events: CorporateEvent[], bars: Bar[]): PlacedEvent[
   });
 }
 
+/**
+ * When the next results or dividend are likely due.
+ *
+ * No free source publishes confirmed future dates per symbol — Yahoo's calendar
+ * answers 401 without a token this app will not forge, Finnhub's needs a
+ * working key, and Nasdaq's is queryable by date rather than by company. What
+ * can be known is the company's own rhythm, and for many filers that rhythm is
+ * exact: Apple's last eight quarterly reports landed 91 days apart every single
+ * time.
+ *
+ * So this projects rather than reports, and only where the history earns it.
+ * Coca-Cola's gaps run from 69 to 120 days and Berkshire's from 63 to 119;
+ * projecting those would invent a precision the record does not support, so
+ * they get nothing. The result is always labelled as expected, never scheduled
+ * — the distinction matters most to the reader least able to check it.
+ */
+const MAX_DRIFT_DAYS = 14;
+const MIN_OBSERVATIONS = 4;
+const DAY_SECONDS = 86_400;
+
+export interface ProjectedEvent {
+  kind: CorporateEvent["kind"];
+  /** Epoch seconds of the expected date. */
+  time: number;
+  /** Typical gap between occurrences, in days. */
+  intervalDays: number;
+  /** How far the observed gaps stray from that typical gap, in days. */
+  driftDays: number;
+}
+
+export function projectNextEvents(events: CorporateEvent[], now = Date.now()): ProjectedEvent[] {
+  const projections: ProjectedEvent[] = [];
+  const nowSeconds = Math.floor(now / 1000);
+
+  for (const kind of ["earnings", "dividend"] as const) {
+    // Splits are deliberately absent: they happen when a board decides one is
+    // warranted, not on a cycle, so past spacing predicts nothing at all.
+    const times = events
+      .filter((e) => e.kind === kind)
+      .map((e) => e.time)
+      .sort((a, b) => b - a)
+      .slice(0, 9);
+
+    if (times.length < MIN_OBSERVATIONS) continue;
+
+    const gaps = times.slice(0, -1).map((t, i) => (t - times[i + 1]) / DAY_SECONDS);
+    const median = middle(gaps);
+    if (!Number.isFinite(median) || median <= 0) continue;
+
+    /*
+      A gap far longer than the rest means an observation is missing, not that
+      the company changed its schedule. Shopify's history shows six gaps near 90
+      days and one of 364 — three filings dropped off the end of a truncated
+      list, not a year of silence. Measuring spread against that outlier put the
+      drift at 274 days and threw away a perfectly regular cadence.
+
+      Only clear multiples are discarded. Coca-Cola's gaps run 69 to 120 days
+      with nothing beyond, so all of them survive and its drift of 30 days still
+      rules it out — which is right, because that spacing really is irregular.
+    */
+    const observed = gaps.filter((g) => g <= median * 1.5);
+    if (observed.length < MIN_OBSERVATIONS - 1) continue;
+
+    const typical = middle(observed);
+    const drift = Math.max(...observed.map((g) => Math.abs(g - typical)));
+    if (drift > MAX_DRIFT_DAYS) continue;
+
+    const next = times[0] + typical * DAY_SECONDS;
+    // A date already past means the event is overdue or was missed by the
+    // sources, and guessing further ahead compounds the error.
+    if (next <= nowSeconds) continue;
+
+    projections.push({
+      kind,
+      time: Math.round(next),
+      intervalDays: Math.round(typical),
+      driftDays: Math.round(drift),
+    });
+  }
+
+  return projections.sort((a, b) => a.time - b.time);
+}
+
+/** Median of a list, which ignores an outlier the way a mean would not. */
+function middle(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
 /** Binary search for the bar closest in time to an event. */
 export function nearestBar(bars: { time: number }[], time: number): number {
   let lo = 0;

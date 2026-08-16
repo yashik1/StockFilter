@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nearestBar, placeEvents } from "./chart-markers";
+import { nearestBar, placeEvents, projectNextEvents } from "./chart-markers";
 import type { Bar, CorporateEvent } from "./providers/types";
 
 /**
@@ -96,5 +96,85 @@ describe("placing events in a window", () => {
     const [placed] = placeEvents([event(week[0].time, "split")], week);
     expect(placed.label).toBe("27c");
     expect(placed.id).toContain("split");
+  });
+});
+
+/**
+ * Projecting the next results or dividend.
+ *
+ * No free source publishes confirmed future dates per symbol, so this is the
+ * company's own rhythm carried forward — which is honest only where the rhythm
+ * is real. The gate is the feature: guessing at an irregular filer would invent
+ * a precision the record does not support, and the reader least able to check
+ * it is the one this app is written for.
+ *
+ * The intervals below are the ones actually observed on the live filings.
+ */
+const NOW = Date.UTC(2026, 7, 16);
+
+function series(kind: CorporateEvent["kind"], gaps: number[]): CorporateEvent[] {
+  // Built backwards from a recent date, so the newest sits first.
+  let t = Math.floor(NOW / 1000) - 10 * DAY;
+  const out: CorporateEvent[] = [{ kind, time: t, label: "x", detail: "" }];
+  for (const g of gaps) {
+    t -= g * DAY;
+    out.push({ kind, time: t, label: "x", detail: "" });
+  }
+  return out;
+}
+
+describe("projecting the next event", () => {
+  it("projects a filer that reports like clockwork", () => {
+    // Apple: eight consecutive 91-day gaps.
+    const [p] = projectNextEvents(series("earnings", [91, 91, 91, 91, 91, 91, 91, 91]), NOW);
+
+    expect(p.kind).toBe("earnings");
+    expect(p.intervalDays).toBe(91);
+    expect(p.driftDays).toBe(0);
+    expect(p.time * 1000).toBeGreaterThan(NOW);
+  });
+
+  it("refuses to project an irregular filer", () => {
+    // Coca-Cola: gaps from 69 to 120 days. That spacing predicts nothing.
+    expect(projectNextEvents(series("earnings", [90, 69, 120, 91, 84, 70, 119, 87]), NOW)).toEqual([]);
+  });
+
+  // A truncated filing list leaves a hole that is not a change of schedule.
+  it("ignores a gap that is plainly a missing observation", () => {
+    // Shopify: six gaps near 90 days and one of 364.
+    const [p] = projectNextEvents(series("earnings", [92, 83, 99, 90, 90, 86, 364]), NOW);
+
+    expect(p).toBeDefined();
+    expect(p.intervalDays).toBeCloseTo(90, 0);
+    expect(p.driftDays).toBeLessThanOrEqual(14);
+  });
+
+  it("says nothing when there is too little history to judge", () => {
+    expect(projectNextEvents(series("earnings", [91]), NOW)).toEqual([]);
+    expect(projectNextEvents([], NOW)).toEqual([]);
+  });
+
+  // A board decides a split when it decides one; past spacing says nothing.
+  it("never projects a split", () => {
+    const splits = projectNextEvents(series("split", [365, 365, 365, 365, 365]), NOW);
+    expect(splits.filter((p) => p.kind === "split")).toEqual([]);
+  });
+
+  it("does not offer a date that has already passed", () => {
+    // Last event long ago, so one interval on still lands in the past.
+    const stale = series("earnings", [91, 91, 91, 91]).map((e) => ({
+      ...e,
+      time: e.time - 400 * DAY,
+    }));
+
+    for (const p of projectNextEvents(stale, NOW)) {
+      expect(p.time * 1000).toBeGreaterThan(NOW);
+    }
+  });
+
+  it("reports the drift so the estimate can be read with its uncertainty", () => {
+    const [p] = projectNextEvents(series("dividend", [91, 84, 98, 91, 91, 91]), NOW);
+    expect(p.driftDays).toBeGreaterThan(0);
+    expect(p.driftDays).toBeLessThanOrEqual(14);
   });
 });

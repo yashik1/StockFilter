@@ -17,10 +17,10 @@ import {
 } from "lightweight-charts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Bar, CorporateEvent, Timeframe } from "@/lib/providers/types";
-import { placeEvents } from "@/lib/chart-markers";
+import { placeEvents, projectNextEvents } from "@/lib/chart-markers";
 import { daysSinceStartOfYear, resolveDays, type RangeDays } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
-import { useTimeZone } from "@/components/local-time";
+import { LocalTime, useTimeZone } from "@/components/local-time";
 
 type ChartStyle = "candles" | "line" | "area";
 
@@ -163,6 +163,23 @@ export function PriceChart({ symbol }: { symbol: string }) {
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
+
+  /*
+    What is probably next, stated in words below the chart rather than drawn on
+    it.
+
+    No free source publishes confirmed dates per symbol — Yahoo's calendar
+    answers 401, Finnhub's needs a working key, Nasdaq's is queryable only by
+    date — so these are the company's own rhythm carried forward, and only where
+    that rhythm is regular enough to mean something.
+
+    In words because an estimate deserves its caveat attached. A marker sitting
+    on the axis alongside four confirmed ones reads as a scheduled date however
+    it is coloured, and the reader who would take it that way is the one this is
+    written for. Prose can say "expected", give the interval it rests on, and
+    admit that nothing has been announced.
+  */
+  const expected = showEvents ? projectNextEvents(events) : [];
 
   // Found by label rather than by index, so inserting a range cannot silently
   // change which one is the fallback.
@@ -400,7 +417,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
     }
 
     chartRef.current?.timeScale().fitContent();
-  }, [bars, style, events, showEvents]);
+  }, [bars, style, events, showEvents, timeframe]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -526,7 +543,22 @@ export function PriceChart({ symbol }: { symbol: string }) {
                 {label}
               </span>
             ))}
+
         </div>
+      )}
+
+      {expected.length > 0 && (
+        <p className="text-xs leading-relaxed text-faint">
+          {expected.map((p) => (
+            <span key={p.kind} className="mr-3 inline-block">
+              {p.kind === "earnings" ? "Results" : "Next dividend"} expected around{" "}
+              <LocalTime value={p.time * 1000} mode="date" />, going by{" "}
+              {p.intervalDays}-day gaps
+              {p.driftDays > 0 ? ` that have varied by up to ${p.driftDays} days` : " every time"}
+              . No date has been confirmed.
+            </span>
+          ))}
+        </p>
       )}
 
       <div className="relative h-[420px] w-full">
