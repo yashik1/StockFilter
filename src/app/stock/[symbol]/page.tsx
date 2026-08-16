@@ -248,7 +248,12 @@ async function StockBody({
       <div className="grid gap-4 lg:grid-cols-2">
         <FilingsList filings={data.filings} />
         <div className="space-y-4">
-          <NewsList news={data.news} symbol={upper} status={data.newsStatus} />
+          <NewsList
+            news={data.news}
+            symbol={upper}
+            status={data.newsStatus}
+            source={data.newsSource}
+          />
           <PeersList peers={data.peers} />
           <ResearchLinks
             symbol={upper}

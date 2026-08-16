@@ -1,4 +1,4 @@
-import type { Bar, Quote, Timeframe } from "./types";
+import type { Bar, NewsItem, Quote, Timeframe } from "./types";
 
 /**
  * Failover across price providers, with a short in-process cache.
@@ -181,6 +181,61 @@ export async function fetchBarsWithFailover(
     const result = { value: best.bars, source: best.source, attempts };
     writeCache(key, result, barsTtl(timeframe));
     return result;
+  }
+
+  return { value: [], source: null, attempts };
+}
+
+/** A source of headlines. Narrower than PriceSource: news needs no timeframe. */
+export interface NewsSource {
+  readonly name: string;
+  isConfigured(): boolean;
+  getNews(symbol: string, limit?: number): Promise<NewsItem[]>;
+}
+
+/**
+ * Headlines, falling through the same way prices do.
+ *
+ * News was the last single-source dependency in the app: when Finnhub refused
+ * the key, the panel simply went blank, while prices in the same page carried
+ * on through four providers. The chain ends at EDGAR, which needs no key and
+ * cannot be unsubscribed, so a US filer's panel is never empty.
+ *
+ * The first source with anything to say wins rather than merging them. A
+ * journalist's headline and a regulatory filing are different kinds of claim,
+ * and interleaving them would leave a reader unsure which they were looking at.
+ */
+export async function fetchNewsWithFailover(
+  sources: NewsSource[],
+  symbol: string,
+  limit = 20,
+): Promise<FailoverResult<NewsItem[]>> {
+  const key = `news:${symbol}:${limit}`;
+  const cached = readCache<FailoverResult<NewsItem[]>>(key);
+  if (cached) return cached;
+
+  const attempts: { provider: string; error: string }[] = [];
+
+  for (const source of sources) {
+    if (!source.isConfigured()) {
+      attempts.push({ provider: source.name, error: "not configured" });
+      continue;
+    }
+
+    try {
+      const items = await source.getNews(symbol, limit);
+      if (items.length > 0) {
+        const result = { value: items, source: source.name, attempts };
+        writeCache(key, result, 900);
+        return result;
+      }
+      attempts.push({ provider: source.name, error: "returned no articles" });
+    } catch (err) {
+      attempts.push({
+        provider: source.name,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   return { value: [], source: null, attempts };

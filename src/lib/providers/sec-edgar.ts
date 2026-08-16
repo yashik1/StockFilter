@@ -326,9 +326,58 @@ export class SecEdgarProvider implements MarketDataProvider {
     return null;
   }
 
-  async getNews(_symbol: string, _limit?: number): Promise<NewsItem[]> {
-    return [];
+  /**
+   * Recent filings, presented as news.
+   *
+   * The last link in the news chain, and the only one that cannot be refused,
+   * rate limited or unsubscribed: EDGAR needs no key and a US filer always has
+   * filings. An 8-K *is* the news — a company is required to announce material
+   * events there, and a journalist's article is a description of one written
+   * afterwards. For an app whose premise is that every figure traces to a
+   * primary source, this is the more defensible thing to show anyway.
+   *
+   * Routine paperwork is left out. An insider selling a scheduled block of
+   * shares is a Form 4 every month and tells a newcomer nothing, so only forms
+   * that carry an announcement are surfaced.
+   */
+  async getNews(symbol: string, limit = 20): Promise<NewsItem[]> {
+    const filings = await this.getFilings(symbol, 40);
+    const cutoff = Date.now() - NEWS_WINDOW_DAYS * 86_400_000;
+
+    return filings
+      .filter((f) => NEWSWORTHY[f.form] && Date.parse(f.filedAt) >= cutoff)
+      .slice(0, limit)
+      .map((f) => ({
+        id: f.url,
+        headline: NEWSWORTHY[f.form],
+        // The filing's own description, when EDGAR carries one, is a better
+        // summary than anything that could be generated from the form type.
+        summary: f.description || null,
+        source: "SEC EDGAR",
+        url: f.url,
+        publishedAt: new Date(f.filedAt).toISOString(),
+        imageUrl: null,
+      }));
   }
 }
+
+/** How far back a filing still counts as news. Matches the panel's own wording. */
+const NEWS_WINDOW_DAYS = 30;
+
+/**
+ * Forms worth announcing, in plain English.
+ *
+ * Deliberately short. Most filings are routine and listing them all would bury
+ * the two or three that mean something.
+ */
+const NEWSWORTHY: Record<string, string> = {
+  "8-K": "The company reported a major event",
+  "6-K": "The company published an interim update",
+  "10-K": "The company filed its annual report",
+  "10-Q": "The company filed its quarterly results",
+  "20-F": "The company filed its annual report",
+  "40-F": "The company filed its annual report",
+  "DEF 14A": "The company issued shareholder voting materials",
+};
 
 export const secEdgar = new SecEdgarProvider();

@@ -8,6 +8,8 @@ import { searchGlobalSymbols, twelveData } from "./twelvedata";
 import {
   fetchBarsWithFailover,
   fetchQuoteWithFailover,
+  fetchNewsWithFailover,
+  type NewsSource,
   type PriceSource,
 } from "./failover";
 import type {
@@ -89,13 +91,7 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getNews(symbol: string, limit?: number): Promise<NewsItem[]> {
-    if (!finnhub.isConfigured()) {
-      throw new ProviderNotConfiguredError("Finnhub", ["FINNHUB_API_KEY"]);
-    }
-    // Deliberately not caught here. The caller tells a refused key apart from a
-    // month with no coverage and words the panel accordingly, which it cannot
-    // do if every failure arrives flattened into an empty list.
-    return finnhub.getNews(symbol, limit);
+    return (await getNewsWithSource(symbol, limit)).news;
   }
 
   async getFilings(symbol: string, limit?: number): Promise<Filing[]> {
@@ -198,6 +194,50 @@ class FreeStackProvider implements MarketDataProvider {
  * enabled it is the only one of these that covers non-US exchanges for free.
  */
 const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo, yahoo];
+
+/**
+ * Where headlines come from, in order of how directly they answer the question.
+ *
+ * Finnhub first: real journalism, with summaries and images. Yahoo next,
+ * because it covers exchanges Finnhub does not — Aritzia has Toronto coverage
+ * there and none at all in Finnhub — though it stays behind the same opt-in as
+ * the rest of Yahoo, since it has no official API.
+ *
+ * EDGAR last and always. It needs no key, so the panel cannot go blank for a US
+ * filer the way it did when Finnhub started refusing the key.
+ */
+const NEWS_SOURCES: NewsSource[] = [finnhub, yahoo, secEdgar];
+
+/**
+ * Headlines plus the name of the source that supplied them.
+ *
+ * Which one answered changes how the list should be read: a filing is the
+ * company's own announcement, a headline is somebody's description of one.
+ */
+export async function getNewsWithSource(
+  symbol: string,
+  limit?: number,
+): Promise<{ news: NewsItem[]; source: string | null }> {
+  const result = await fetchNewsWithFailover(NEWS_SOURCES, symbol, limit);
+  if (result.value.length > 0) return { news: result.value, source: result.source };
+
+  // An empty panel now means all three were asked, so it is only worth raising
+  // when every one of them actually broke. A source that answered and had
+  // nothing to say is not a fault — it is a quiet month, and saying otherwise
+  // sends the reader off to fix something that works.
+  const answered = result.attempts.filter(
+    (a) => a.error === "returned no articles" || a.error === "not configured",
+  );
+  if (answered.length === 0 && result.attempts.length > 0) {
+    throw new Error(
+      `No news source could be reached. ${result.attempts
+        .map((a) => `${a.provider}: ${a.error}`)
+        .join("; ")}`,
+    );
+  }
+
+  return { news: result.value, source: result.source };
+}
 
 /**
  * Bars plus the name of the provider that supplied them.

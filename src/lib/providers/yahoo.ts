@@ -4,7 +4,7 @@ import type {
   FinancialPeriod,
   NormalizedFundamentals,
 } from "../fundamentals/types";
-import type { Bar, Quote, Timeframe } from "./types";
+import type { Bar, NewsItem, Quote, Timeframe } from "./types";
 
 /**
  * Yahoo Finance — the widest free coverage, and off unless explicitly enabled.
@@ -29,6 +29,7 @@ import type { Bar, Quote, Timeframe } from "./types";
  */
 
 const CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
+const NEWS_FEED = "https://feeds.finance.yahoo.com/rss/2.0/headline";
 const TIMESERIES =
   "https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries";
 
@@ -173,6 +174,40 @@ async function resolveYahooSymbol(symbol: string): Promise<string | null> {
   const resolved = listing ? yahooSymbol(upper, listing.exchange) : null;
   symbolCache.set(upper, resolved);
   return resolved;
+}
+
+/**
+ * Reads an RSS feed without pulling in an XML parser.
+ *
+ * The feed is a fixed, narrow shape — a flat list of items with five fields —
+ * so a dependency to read it would cost more than it saves. Anything
+ * unrecognised is skipped rather than guessed at.
+ */
+export function rssItems(xml: string): Record<string, string>[] {
+  const items: Record<string, string>[] = [];
+
+  for (const [, body] of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)) {
+    const item: Record<string, string> = {};
+    for (const [, tag, raw] of body.matchAll(/<(\w+)[^>]*>([\s\S]*?)<\/\1>/gi)) {
+      item[tag.toLowerCase()] = decodeXml(raw);
+    }
+    if (item.title && item.link) items.push(item);
+  }
+
+  return items;
+}
+
+/** Unwraps CDATA and the five entities an RSS feed is allowed to escape with. */
+function decodeXml(value: string): string {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    // Ampersand last, or an already-decoded entity would be decoded twice.
+    .replace(/&amp;/g, "&")
+    .trim();
 }
 
 export class YahooProvider {
@@ -326,6 +361,62 @@ export class YahooProvider {
           (b): b is Bar =>
             b.open != null && b.high != null && b.low != null && b.close != null,
         );
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Headlines from Yahoo's per-symbol RSS feed.
+   *
+   * Chosen over the JSON search endpoint, which matches any article merely
+   * mentioning a ticker — asked about ATZ.TO and XEQT.TO it returned the same
+   * generic listicle for both. The RSS feed is scoped to the listing, and it
+   * covers exchanges Finnhub does not: Aritzia returns Toronto coverage here
+   * and nothing at all there.
+   */
+  async getNews(symbol: string, limit = 20): Promise<NewsItem[]> {
+    if (!this.isConfigured()) return [];
+
+    const direct = await this.newsFor(symbol, limit);
+    if (direct.length > 0) return direct;
+
+    // Same exchange-suffix problem as the bars and quotes above.
+    const suffixed = await resolveYahooSymbol(symbol);
+    if (!suffixed || suffixed === symbol.toUpperCase()) return [];
+
+    return this.newsFor(suffixed, limit);
+  }
+
+  private async newsFor(symbol: string, limit: number): Promise<NewsItem[]> {
+    const params = new URLSearchParams({ s: symbol, region: "US", lang: "en-US" });
+
+    try {
+      const res = await fetch(`${NEWS_FEED}?${params}`, {
+        headers: HEADERS,
+        next: { revalidate: 900 },
+      });
+      if (!res.ok) return [];
+
+      return rssItems(await res.text())
+        .slice(0, limit)
+        .map((item) => {
+          const published = item.pubdate ? new Date(item.pubdate) : null;
+          return {
+            id: item.guid || item.link,
+            headline: item.title,
+            summary: item.description || null,
+            // The feed names the outlet inconsistently, so it is attributed to
+            // the aggregator rather than to a publication it may not be.
+            source: "Yahoo Finance",
+            url: item.link,
+            publishedAt:
+              published && !Number.isNaN(published.getTime())
+                ? published.toISOString()
+                : new Date().toISOString(),
+            imageUrl: null,
+          };
+        });
     } catch {
       return [];
     }

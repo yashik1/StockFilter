@@ -1,6 +1,6 @@
 import { fieldValue } from "./fundamentals/normalize";
 import type { NormalizedFundamentals } from "./fundamentals/types";
-import { getInstrumentType, getPeers, getProvider } from "./providers";
+import { getInstrumentType, getNewsWithSource, getPeers, getProvider } from "./providers";
 import { alphaVantage } from "./providers/alphavantage";
 import { yahoo, yahooSymbol } from "./providers/yahoo";
 import { searchGlobalSymbols } from "./providers/twelvedata";
@@ -24,6 +24,14 @@ export interface StockPageData {
    * an empty array cannot tell them apart.
    */
   newsStatus: { state: "ok" | "not-configured" | "failed"; message: string | null };
+  /**
+   * Which source the headlines came from.
+   *
+   * Worth showing, because the chain ends at EDGAR: a reader looking at
+   * "the company reported a major event" is reading the company's own filing,
+   * not a journalist's account of it, and should be able to tell.
+   */
+  newsSource: string | null;
   filings: Filing[];
   peers: string[];
   sector: SectorKind;
@@ -59,10 +67,11 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       provider.getProfile(upper).catch(() => null),
       provider.getFundamentals(upper).catch(() => null),
       provider.getQuote(upper).catch(() => null),
-      provider.getNews(upper, 12).then(
-        (items) => ({ items, error: null as Error | null }),
+      getNewsWithSource(upper, 12).then(
+        ({ news: items, source }) => ({ items, source, error: null as Error | null }),
         (err: unknown) => ({
           items: [] as NewsItem[],
+          source: null as string | null,
           error: err instanceof Error ? err : new Error(String(err)),
         }),
       ),
@@ -139,6 +148,7 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     quote,
     news: news.items,
     newsStatus: describeNews(news.error),
+    newsSource: news.source,
     filings,
     peers,
     sector,

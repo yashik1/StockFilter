@@ -70,11 +70,21 @@ export function NewsList({
   news,
   symbol,
   status = { state: "ok", message: null },
+  source = null,
 }: {
   news: NewsItem[];
   symbol: string;
   status?: StockPageData["newsStatus"];
+  source?: string | null;
 }) {
+  // When the chain falls through to EDGAR these are the company's own filings,
+  // not press coverage. Saying so matters: "the company reported a major event"
+  // is a legally required announcement, which carries quite different weight
+  // from somebody's write-up of it, and a newcomer would not guess that.
+  const fromFilings = source === "SEC EDGAR";
+  const subtitle = fromFilings
+    ? "Announcements the company filed itself, from the last 30 days"
+    : "Coverage from the last 30 days";
   // Telling a reader who has already set a key to go and set a key sends them
   // to fix something that is not broken. Each case gets its own wording, and
   // the quiet one — a company simply not in the news this month — is stated as
@@ -98,7 +108,7 @@ export function NewsList({
 
   return (
     <Card>
-      <CardHeader title="Recent news" subtitle="Coverage from the last 30 days" />
+      <CardHeader title="Recent news" subtitle={subtitle} />
       {news.length === 0 ? (
         <EmptyState title={empty.title} description={empty.description} />
       ) : (
