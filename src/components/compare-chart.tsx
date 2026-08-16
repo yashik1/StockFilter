@@ -10,6 +10,7 @@ import {
 } from "lightweight-charts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Bar, Timeframe } from "@/lib/providers/types";
+import { daysSinceStartOfYear, resolveDays, type RangeDays } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,9 +28,10 @@ function seriesColor(i: number): string {
   return cssVar(SERIES_VARS[i % SERIES_VARS.length], SERIES_FALLBACK[i % SERIES_FALLBACK.length]);
 }
 
-const RANGES: { label: string; days: number; timeframe: Timeframe }[] = [
+const RANGES: { label: string; days: RangeDays; timeframe: Timeframe }[] = [
   { label: "1M", days: 30, timeframe: "1Day" },
   { label: "6M", days: 182, timeframe: "1Day" },
+  { label: "YTD", days: daysSinceStartOfYear, timeframe: "1Day" },
   { label: "1Y", days: 365, timeframe: "1Day" },
   { label: "5Y", days: 365 * 5, timeframe: "1Week" },
 ];
@@ -118,8 +120,13 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
 
-  const range = RANGES.find((r) => r.label === rangeLabel) ?? RANGES[2];
+  const range =
+    RANGES.find((r) => r.label === rangeLabel) ??
+    RANGES.find((r) => r.label === "1Y")!;
   const key = symbols.join(",");
+  // Resolved once per render so the request and the effect's dependency agree,
+  // and so year-to-date is measured at one instant rather than twice.
+  const days = resolveDays(range.days);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,7 +140,7 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
         const loaded = await Promise.all(
           symbols.map(async (symbol) => {
             const res = await fetch(
-              `/api/bars?symbol=${encodeURIComponent(symbol)}&timeframe=${range.timeframe}&days=${range.days}`,
+              `/api/bars?symbol=${encodeURIComponent(symbol)}&timeframe=${range.timeframe}&days=${days}`,
               { signal: controller.signal },
             );
             const json = await res.json();
@@ -159,7 +166,7 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
       cancelled = true;
       controller.abort();
     };
-  }, [key, range.days, range.timeframe, symbols]);
+  }, [key, days, range.timeframe, symbols]);
 
   const buildChart = useCallback(() => {
     if (!containerRef.current) return;

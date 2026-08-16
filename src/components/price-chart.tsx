@@ -14,17 +14,25 @@ import {
 } from "lightweight-charts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Bar, Timeframe } from "@/lib/providers/types";
+import { daysSinceStartOfYear, resolveDays, type RangeDays } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import { useTimeZone } from "@/components/local-time";
 
 type ChartStyle = "candles" | "line" | "area";
 
-/** Ranges offered per timeframe, in days. */
-const RANGES: { label: string; days: number; timeframe: Timeframe }[] = [
+/**
+ * Ranges offered per timeframe, in days.
+ *
+ * Year-to-date sits between the six-month and one-year windows, which is where
+ * it falls for most of the year and where a reader looks for it. Its length is
+ * a function rather than a constant because the calendar decides it.
+ */
+const RANGES: { label: string; days: RangeDays; timeframe: Timeframe }[] = [
   { label: "1D", days: 1, timeframe: "1Min" },
   { label: "5D", days: 5, timeframe: "5Min" },
   { label: "1M", days: 30, timeframe: "15Min" },
   { label: "6M", days: 182, timeframe: "1Hour" },
+  { label: "YTD", days: daysSinceStartOfYear, timeframe: "1Day" },
   { label: "1Y", days: 365, timeframe: "1Day" },
   { label: "5Y", days: 365 * 5, timeframe: "1Day" },
   { label: "Max", days: 365 * 20, timeframe: "1Week" },
@@ -125,7 +133,11 @@ export function PriceChart({ symbol }: { symbol: string }) {
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
 
-  const range = RANGES.find((r) => r.label === rangeLabel) ?? RANGES[4];
+  // Found by label rather than by index, so inserting a range cannot silently
+  // change which one is the fallback.
+  const range =
+    RANGES.find((r) => r.label === rangeLabel) ??
+    RANGES.find((r) => r.label === "1Y")!;
 
   // ---- data ----
   useEffect(() => {
@@ -138,7 +150,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
 
       // A range longer than the timeframe can serve is clamped rather than
       // silently returning a partial window.
-      const days = Math.min(range.days, MAX_DAYS[timeframe]);
+      const days = Math.min(resolveDays(range.days), MAX_DAYS[timeframe]);
 
       try {
         const res = await fetch(
