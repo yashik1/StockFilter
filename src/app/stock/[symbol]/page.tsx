@@ -69,6 +69,14 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
   );
 }
 
+/** Rates span tiny and large numbers, so the useful precision varies. */
+function formatRate(rate: number): string {
+  if (rate >= 100) return rate.toFixed(0);
+  if (rate >= 1) return rate.toFixed(2);
+  if (rate >= 0.01) return rate.toFixed(4);
+  return rate.toPrecision(3);
+}
+
 /** The slow half: filings, prices and news. Streams behind the skeleton. */
 async function StockBody({
   symbol: upper,
@@ -95,7 +103,7 @@ async function StockBody({
 
   // Orientation before analysis: what the business is, then what the filings
   // show going well and going badly.
-  const currency = data.reportingCurrency ?? "USD";
+  const currency = data.displayCurrency;
   const business = buildBusinessSummary(
     profile?.name ?? unsupported?.name ?? fundamentals?.entityName ?? upper,
     profile?.sicCode,
@@ -274,6 +282,15 @@ async function StockBody({
           Financial figures are from {upper}&apos;s {latest.form} for fiscal year{" "}
           {latest.fiscalYear} (period ending {latest.end}), reported under the{" "}
           {fundamentals?.taxonomy === "ifrs-full" ? "IFRS" : "US GAAP"} taxonomy.
+          {data.converted && (
+            <>
+              {" "}
+              Reported in {data.converted.from} and shown here in{" "}
+              {data.displayCurrency}, the currency {upper} trades in, converted at
+              today&apos;s rate of {formatRate(data.converted.rate)}. The filing itself
+              is in {data.converted.from}.
+            </>
+          )}
           {report?.sourceFilingUrl && (
             <>
               {" "}

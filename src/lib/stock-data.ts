@@ -9,6 +9,9 @@ import {
 } from "./providers";
 import type { CompanyProfile, Filing, InstrumentType, NewsItem, Quote } from "./providers/types";
 import { ProviderNotConfiguredError } from "./providers/types";
+import { convertFundamentals } from "./fundamentals/convert";
+import { currencyForExchange } from "./exchange-currency";
+import { getRate } from "./fx";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
 import { resolveType } from "./compare";
@@ -48,6 +51,13 @@ export interface StockPageData {
    * ratios are.
    */
   reportingCurrency: string | null;
+  /**
+   * The currency every figure on the page is shown in — the one the shares
+   * trade in, not necessarily the one the books are kept in.
+   */
+  displayCurrency: string;
+  /** Set when figures were restated from another currency, for the footnote. */
+  converted: { from: string; rate: number } | null;
 }
 
 /**
@@ -87,8 +97,37 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       getInstrumentType(upper).catch(() => "unknown" as InstrumentType),
     ]);
 
-  const resolvedFundamentals = fundamentals.fundamentals;
+  /*
+    Figures are shown in the currency the shares trade in.
+
+    SK hynix keeps its books in won and lists in New York; reporting ₩42.92T is
+    faithful to the filing and close to useless to somebody deciding whether to
+    buy it in dollars. One rate, today's, is used for every year — an accountant
+    would use each year's own rate, but that mixes business performance with
+    currency movement, and the comparison a reader is making is between the
+    years, not between the currencies. The page says the figures are converted.
+  */
   const reportingCurrency = fundamentals.currency;
+  const listingCurrency = quote?.currency ?? currencyForExchange(profile?.exchange) ?? "USD";
+
+  let resolvedFundamentals = fundamentals.fundamentals;
+  let converted: { from: string; rate: number } | null = null;
+
+  if (
+    resolvedFundamentals &&
+    reportingCurrency &&
+    reportingCurrency.toUpperCase() !== listingCurrency.toUpperCase()
+  ) {
+    const rate = await getRate(reportingCurrency, listingCurrency).catch(() => null);
+    // No rate means the figures stay as filed. A converted number at an invented
+    // rate would be worse than an honest one in an unfamiliar currency.
+    if (rate) {
+      resolvedFundamentals = convertFundamentals(resolvedFundamentals, rate, listingCurrency);
+      converted = { from: reportingCurrency, rate };
+    }
+  }
+
+  const displayCurrency = converted ? listingCurrency : (reportingCurrency ?? listingCurrency);
 
   const sector = sectorFromSic(profile?.sicCode);
 
@@ -127,6 +166,8 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       profile?.sicCode,
     ),
     reportingCurrency,
+    displayCurrency,
+    converted,
   };
 }
 

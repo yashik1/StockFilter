@@ -43,6 +43,11 @@ export interface Quote {
   volume: number | null;
   freshness: PriceFreshness;
   asOf: string | null;
+  /**
+   * The currency the shares trade in, which need not be the one the company
+   * keeps its books in — SK hynix files in won and lists in New York.
+   */
+  currency?: string | null;
 }
 
 export interface CompanyProfile {

@@ -510,6 +510,7 @@ export class YahooProvider {
 
       return {
         symbol: symbol.toUpperCase(),
+        currency: meta.currency ?? null,
         price: meta.regularMarketPrice,
         change,
         changePercent: change != null && previous ? change / previous : null,
