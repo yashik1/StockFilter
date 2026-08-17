@@ -80,7 +80,7 @@ export function BalanceSheetVisual({
           <div
             className="flex h-11 w-full overflow-hidden rounded-lg"
             role="img"
-            aria-label={`Of ${money(assets)} in total assets, ${money(liabilities, currency)} is owed to others and ${money(equity, currency)} belongs to shareholders.`}
+            aria-label={`Of ${money(assets, currency)} in total assets, ${money(liabilities, currency)} is owed to others and ${money(equity, currency)} belongs to shareholders.`}
           >
             <div
               className="flex items-center justify-center bg-poor/75 text-xs font-medium text-white"
@@ -123,7 +123,7 @@ export function BalanceSheetVisual({
         {netIncome != null && (
           <p className="border-t border-border pt-3 text-xs text-muted">
             Last year it {netIncome >= 0 ? "earned" : "lost"}{" "}
-            <span className="font-medium text-foreground">{money(Math.abs(netIncome))}</span>
+            <span className="font-medium text-foreground">{money(Math.abs(netIncome), currency)}</span>
             {ocf != null && (
               <>
                 {" "}and generated{" "}
