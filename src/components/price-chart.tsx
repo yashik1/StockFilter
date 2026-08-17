@@ -15,9 +15,14 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Bar, CorporateEvent, Timeframe } from "@/lib/providers/types";
-import { placeEvents, projectNextEvents } from "@/lib/chart-markers";
+import {
+  nearestBar,
+  placeEvents,
+  projectNextEvents,
+  type ProjectedEvent,
+} from "@/lib/chart-markers";
 import { daysSinceStartOfYear, resolveDays, type RangeDays } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import { LocalTime, useTimeZone } from "@/components/local-time";
@@ -141,6 +146,35 @@ function buildMarkers(events: CorporateEvent[], bars: Bar[]): SeriesMarker<Time>
   }));
 }
 
+/**
+ * Markers for dates that have not happened yet.
+ *
+ * Drawn deliberately unlike the confirmed ones — the muted colour and a label
+ * that says "due" rather than naming an amount. A reader who cannot tell an
+ * estimate from a scheduled date is worse off than one shown nothing, and the
+ * reader this app is for is exactly the one who would not think to check. The
+ * sentence beneath the chart carries the caveat in full.
+ */
+function buildProjected(
+  projections: ProjectedEvent[],
+  future: { time: UTCTimestamp; value: number }[],
+): SeriesMarker<Time>[] {
+  if (future.length === 0) return [];
+
+  const slots = future.map((f) => ({ time: f.time as number }));
+  const muted = cssVar("--faint", "#9ca3af");
+
+  return projections.map((p) => ({
+    // Snapped the same way past events are, and for the same reason.
+    time: nearestBar(slots, p.time) as Time,
+    position: "aboveBar" as const,
+    color: muted,
+    shape: "circle" as const,
+    text: p.kind === "earnings" ? "Results due" : "Dividend due",
+    id: `expected-${p.kind}`,
+  }));
+}
+
 function cssVar(name: string, fallback: string) {
   if (typeof window === "undefined") return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
@@ -179,7 +213,12 @@ export function PriceChart({ symbol }: { symbol: string }) {
     written for. Prose can say "expected", give the interval it rests on, and
     admit that nothing has been announced.
   */
-  const expected = showEvents ? projectNextEvents(events) : [];
+  // Memoised because the render effect depends on it. Recomputed each render it
+  // would be a new array every time, redrawing the whole series on every pass.
+  const expected = useMemo(
+    () => (showEvents ? projectNextEvents(events) : []),
+    [events, showEvents],
+  );
 
   // Found by label rather than by index, so inserting a range cannot silently
   // change which one is the fallback.
@@ -410,14 +449,55 @@ export function PriceChart({ symbol }: { symbol: string }) {
     // cover has nothing to attach to and is dropped.
     const rail = eventSeriesRef.current;
     if (rail) {
-      rail.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: 0 })));
+      const spacing = bars.length > 1 ? bars[1].time - bars[0].time : 86_400;
+      const lastBar = bars[bars.length - 1].time;
+
+      /*
+        An expected date lies past the final bar, so there is nothing there to
+        pin a marker to. These extra points extend the rail, and with it the
+        time axis, far enough to reach it.
+
+        They carry a real value rather than being blank. Trailing blanks are
+        trimmed, so the axis snapped straight back to the last bar and the
+        marker sat off-screen with no error to show for it. The rail is
+        transparent, so a value draws nothing.
+
+        Only on daily and weekly charts, and only when the wait is short next to
+        the window on screen: ten weeks would add six thousand blank minutes to
+        an intraday chart, and on a one-month view it would squeeze a month of
+        trading into a third of the width to make room for an estimate.
+      */
+      const reachable =
+        timeframe === "1Day" || timeframe === "1Week" ? expected : [];
+      const furthest = reachable.reduce((m, p) => Math.max(m, p.time), 0);
+      const extraBars = furthest > lastBar ? Math.ceil((furthest - lastBar) / spacing) : 0;
+      const affordable = extraBars > 0 && extraBars <= bars.length * 0.3;
+
+      const future = affordable
+        ? Array.from({ length: extraBars }, (_, i) => ({
+            time: (lastBar + (i + 1) * spacing) as UTCTimestamp,
+            value: 0,
+          }))
+        : [];
+
+      rail.setData([
+        ...bars.map((b) => ({ time: b.time as UTCTimestamp, value: 0 })),
+        ...future,
+      ]);
 
       const markers = (markersRef.current ??= createSeriesMarkers(rail, []));
-      markers.setMarkers(showEvents ? buildMarkers(events, bars) : []);
+      markers.setMarkers(
+        showEvents
+          ? [
+              ...buildMarkers(events, bars),
+              ...(affordable ? buildProjected(reachable, future) : []),
+            ]
+          : [],
+      );
     }
 
     chartRef.current?.timeScale().fitContent();
-  }, [bars, style, events, showEvents, timeframe]);
+  }, [bars, style, events, showEvents, timeframe, expected]);
 
   return (
     <div className="flex flex-col gap-3">
