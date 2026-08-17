@@ -98,6 +98,11 @@ function extractField(
     // consolidated figure as an average across the year.
     const isDuration = fieldIsDuration || DURATION_CONCEPTS.has(concept);
 
+    // Every entry seen for this concept, across both taxonomies, so the true
+    // first-disclosure date of the winning value can be recovered below even
+    // though later filings re-tag it.
+    const entriesThisRank: SecFactEntry[] = [];
+
     for (const [taxonomy, concepts] of Object.entries(facts)) {
       const node = concepts[concept];
       if (!node?.units) continue;
@@ -121,6 +126,8 @@ function extractField(
           continue;
         }
 
+        entriesThisRank.push(entry);
+
         const year = Number(entry.end.slice(0, 4));
         if (!Number.isFinite(year)) continue;
 
@@ -143,8 +150,44 @@ function extractField(
             form: entry.form,
             sourceConcept: `${taxonomy}:${concept}`,
             sourceFilingUrl: filingUrl(cik, entry.accn),
+            filed: entry.filed,
           },
         });
+      }
+    }
+
+    /*
+      Fix up the filed date on whichever years this rank just won, to the
+      *earliest* filing that reported the winning value — not the winning
+      entry's own filed date.
+
+      SEC XBRL re-tags a prior year's comparative figures inside every
+      subsequent 10-K with an unchanged value: Apple's FY2023 assets
+      ($352,583,000,000) appear tagged as filed 2023-11-03 in the original
+      10-K, then again as filed 2024-11-01 and 2025-10-31 as comparative data
+      in the next two annual reports. `isBetter` above deliberately prefers
+      the most recent of these for *value* selection, so that a genuine
+      restatement supersedes an original — but blindly reusing that entry's
+      own filed date would then claim the 2023 figure only became public in
+      2025, two years after it actually did. A backtest run "as of 2024"
+      would wrongly treat Apple's FY2023 results as unknown.
+
+      Searching this rank's own entries for the earliest filed date that
+      reported the exact same (period end, value) recovers the true first
+      disclosure. A genuine restatement carries a different value, so no
+      earlier entry matches it and its own later filed date stands.
+    */
+    for (const winner of byYear.values()) {
+      if (winner.rank !== rank) continue;
+
+      let earliest = winner.entry.filed;
+      for (const e of entriesThisRank) {
+        if (e.end !== winner.entry.end || e.val !== winner.entry.val) continue;
+        if (e.filed && (!earliest || e.filed < earliest)) earliest = e.filed;
+      }
+
+      if (earliest !== winner.fact.filed) {
+        winner.fact = { ...winner.fact, filed: earliest };
       }
     }
 
@@ -222,12 +265,39 @@ export function normalizeCompanyFacts(raw: SecCompanyFacts): NormalizedFundament
       }
 
       const anchor = facts.assets ?? facts.revenue ?? facts.netIncome;
+
+      /*
+        The period as a whole was not knowable until every one of its own
+        facts had been filed, so the latest of them — not the earliest — is
+        the date to test a rebalance date against. A derived fact (see above)
+        carries no filed date of its own; it is computed from facts that do,
+        and those already contribute to this max.
+
+        Deliberately taken over every field, not just the core anchors
+        (assets/revenue/netIncome) that decide whether a year exists at all.
+        A minor line item can genuinely have no earlier XBRL tag to find —
+        Shopify's FY2023 10-K never separately tagged `InventoryNet`, so the
+        first disclosure of that figure, by this data, is the FY2024 10-K's
+        comparative column over a year later. That may only mean the original
+        filing folded inventory into a broader line on the face financials
+        rather than that the number was truly unknown, but this module has no
+        way to tell the two apart from the XBRL facts alone. Erring toward the
+        later, more conservative date matches the currency-conversion
+        principle used elsewhere in this app: an honest "not yet known" beats
+        a guess that happens to be flattering.
+      */
+      let filedAt: string | null = null;
+      for (const fact of Object.values(facts)) {
+        if (fact?.filed && (!filedAt || fact.filed > filedAt)) filedAt = fact.filed;
+      }
+
       return {
         fiscalYear: year,
         fiscalPeriod: "FY",
         end: anchor?.end ?? `${year}-12-31`,
         form: anchor?.form ?? "10-K",
         facts,
+        filedAt,
       };
     });
 

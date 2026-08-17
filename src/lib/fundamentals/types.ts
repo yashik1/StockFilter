@@ -67,6 +67,14 @@ export interface Fact {
    * `liabilities = assets - equity` for filers that never tag total liabilities.
    */
   derived?: boolean;
+  /**
+   * ISO date the filing carrying this value was submitted to the SEC, not the
+   * date the figure describes. A FY2020 result is typically filed six to ten
+   * weeks into 2021, so a reader — or a backtest — that only knew what was
+   * public on, say, 2021-01-15 could not yet have seen this number. Absent for
+   * a derived fact, which was computed here rather than filed by anyone.
+   */
+  filed?: string;
 }
 
 /** One fiscal period's worth of canonical facts. */
@@ -76,6 +84,13 @@ export interface FinancialPeriod {
   end: string;
   form: string;
   facts: Partial<Record<CanonicalField, Fact>>;
+  /**
+   * The latest `filed` date among this period's own facts — the date the last
+   * of them became public. A derived fact carries no filed date of its own, so
+   * it does not enter this; the anchor facts (assets, revenue, net income) it
+   * is derived from already do.
+   */
+  filedAt: string | null;
 }
 
 /** Which XBRL taxonomy a company reports under. */

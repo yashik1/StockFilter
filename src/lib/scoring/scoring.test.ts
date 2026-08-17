@@ -74,7 +74,14 @@ describe("Altman Z-Score", () => {
   });
 
   it("reports insufficient data rather than a wrong number", () => {
-    const empty = { fiscalYear: 2024, fiscalPeriod: "FY", end: "2024-12-31", form: "10-K", facts: {} };
+    const empty = {
+      fiscalYear: 2024,
+      fiscalPeriod: "FY",
+      end: "2024-12-31",
+      form: "10-K",
+      facts: {},
+      filedAt: null,
+    };
     const result = altmanZScore(empty, "manufacturing", 1e9);
     expect(result.applicable).toBe(false);
     expect(result.reason).toMatch(/not reported enough/i);

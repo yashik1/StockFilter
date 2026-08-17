@@ -591,6 +591,11 @@ export class YahooProvider {
         }
       }
 
+      // Yahoo's timeseries carries the period end (asOfDate) but never the date
+      // a filing was actually submitted, so filedAt is left null rather than
+      // guessed at — a period with no known filing date is excluded from
+      // point-in-time reconstruction rather than assumed to have been public
+      // on its period end, which would understate the real reporting lag.
       const annual: FinancialPeriod[] = [...byDate.entries()]
         .map(([end, facts]) => ({
           fiscalYear: Number(end.slice(0, 4)),
@@ -598,6 +603,7 @@ export class YahooProvider {
           end,
           form: "annual-report",
           facts,
+          filedAt: null,
         }))
         // Newest first, matching the SEC normalizer's ordering.
         .sort((a, b) => b.end.localeCompare(a.end));

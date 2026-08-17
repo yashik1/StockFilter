@@ -15,6 +15,13 @@
       "when": 1786583768166,
       "tag": "0001_add_quotes_and_display_sector",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786996460036,
+      "tag": "0002_add_filed_at",
+      "breakpoints": true
     }
   ]
 }

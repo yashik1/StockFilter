@@ -104,6 +104,13 @@ export class AlphaVantageProvider {
       (income?.annualReports ?? []).map((r) => [r.fiscalDateEnding, r]),
     );
 
+    // Alpha Vantage reports a fiscal period end but never the date it filed
+    // that report, so there is nothing honest to put in filedAt — treating the
+    // period end as the filing date would understate the real reporting lag by
+    // six to ten weeks, exactly the gap point-in-time backtesting exists to
+    // respect. Left null; a period with no known filing date is excluded from
+    // point-in-time reconstruction rather than assumed to have been public
+    // immediately.
     const annual: FinancialPeriod[] = balance.annualReports
       .slice(0, 8)
       .map((b) => {
@@ -169,6 +176,7 @@ export class AlphaVantageProvider {
           end: date,
           form: "annual-report",
           facts,
+          filedAt: null,
         };
       })
       .filter((p) => Object.keys(p.facts).length > 0);

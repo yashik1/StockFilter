@@ -39,6 +39,7 @@ const won: NormalizedFundamentals = {
         netIncome: fact(42_920_000_000_000, "KRW"),
         sharesOutstanding: fact(728_002_365, "shares"),
       },
+      filedAt: "2026-03-15",
     },
   ],
 };

@@ -64,6 +64,21 @@ export const financials = pgTable(
     endDate: text("end_date").notNull(),
     form: text("form"),
     currency: text("currency").default("USD"),
+    /**
+     * ISO date the filing carrying these figures was submitted to the SEC —
+     * distinct from `endDate`, which is the period the figures describe. A
+     * FY2020 10-K is typically filed six to ten weeks into 2021, so a reader
+     * who only knew what was public on, say, 2021-01-15 could not yet have
+     * seen these numbers. Backtesting a "buy the healthy companies" strategy
+     * without this distinction quietly cheats: it scores 2020 using 2020's
+     * results before those results existed.
+     *
+     * Nullable because it depends on the SEC payload's own `filed` field,
+     * which fallback providers (Yahoo, Alpha Vantage, EODHD) never carry — see
+     * their comments in src/lib/providers/. A row with no filedAt should be
+     * excluded from point-in-time reconstruction, not assumed current.
+     */
+    filedAt: text("filed_at"),
 
     assets: doublePrecision("assets"),
     liabilities: doublePrecision("liabilities"),

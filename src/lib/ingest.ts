@@ -150,6 +150,11 @@ export async function ingestSymbol(symbol: string): Promise<void> {
       form: period.form,
       currency: period.facts.assets?.unit ?? "USD",
       sourceFilingUrl: period.facts.assets?.sourceFilingUrl ?? null,
+      // The date this period's own facts were filed — see the column comment
+      // in schema.ts. Explicitly re-set on conflict, unlike currency and
+      // sourceFilingUrl above: a restatement moves this date forward, and a
+      // point-in-time backtest depends on it being current.
+      filedAt: period.filedAt,
     };
     for (const field of FINANCIAL_COLUMNS) {
       row[field] = period.facts[field]?.value ?? null;
@@ -160,9 +165,10 @@ export async function ingestSymbol(symbol: string): Promise<void> {
       .values(row as typeof financials.$inferInsert)
       .onConflictDoUpdate({
         target: [financials.companyId, financials.fiscalYear],
-        set: Object.fromEntries(
-          FINANCIAL_COLUMNS.map((f) => [f, row[f] ?? null]),
-        ) as Partial<typeof financials.$inferInsert>,
+        set: {
+          ...Object.fromEntries(FINANCIAL_COLUMNS.map((f) => [f, row[f] ?? null])),
+          filedAt: row.filedAt ?? null,
+        } as Partial<typeof financials.$inferInsert>,
       });
   }
 

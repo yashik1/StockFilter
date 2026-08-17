@@ -239,3 +239,189 @@ describe("share counts across differently-tagged filers", () => {
     }
   });
 });
+
+/**
+ * When a period's figures actually became public.
+ *
+ * This is the load-bearing fact for backtesting: a strategy that scores 2020
+ * using 2020's own year-end results is testing something that could not have
+ * been known at the time, because those results were not filed until early
+ * 2021.
+ *
+ * The first version of this shipped with a real bug, caught before it went
+ * anywhere near a backtest: it took whichever filed date `isBetter` preferred
+ * for value selection, which is always the *most recent* one. SEC XBRL
+ * re-tags a prior year's unchanged comparative figures inside every
+ * subsequent 10-K, so Apple's FY2023 assets ($352,583,000,000) appear three
+ * times in its own fixture — filed 2023-11-03, 2024-11-01, and 2025-10-31 —
+ * with the identical value each time. Taking the latest of those claimed the
+ * 2023 figure only became public in 2025. A backtest run "as of 2024" would
+ * have wrongly treated Apple's own FY2023 results as not yet knowable.
+ */
+describe("when a period's figures became public", () => {
+  it("records a real filing date, not the period end", () => {
+    const latest = aapl.annual[0]!;
+    expect(latest.filedAt).toBeTruthy();
+    expect(latest.filedAt).not.toBe(latest.end);
+  });
+
+  it("reflects the real reporting lag, not an invented one", () => {
+    const latest = aapl.annual[0]!;
+    const lagDays = (Date.parse(latest.filedAt!) - Date.parse(latest.end)) / 86_400_000;
+
+    // A large filer reports within roughly two months of its fiscal year end;
+    // a negative lag or a multi-year one would mean the wrong date was picked.
+    expect(lagDays).toBeGreaterThan(0);
+    expect(lagDays).toBeLessThan(120);
+  });
+
+  // The regression test for the bug described above, against real fixture
+  // data rather than a synthetic case: every one of Apple's annual periods
+  // should show the same ~34-day lag, not just the newest one. An older
+  // period showing a lag of hundreds of days would mean a later re-tag of an
+  // unchanged comparative figure was mistaken for a fresh disclosure.
+  it("is not inflated by a later filing re-tagging an unchanged comparative figure", () => {
+    for (const period of aapl.annual.slice(0, 4)) {
+      const lagDays = (Date.parse(period.filedAt!) - Date.parse(period.end)) / 86_400_000;
+      expect(lagDays, `FY${period.fiscalYear} lag`).toBeGreaterThan(0);
+      expect(lagDays, `FY${period.fiscalYear} lag`).toBeLessThan(60);
+    }
+  });
+
+  it("carries a filed date on every fact that has one", () => {
+    const revenue = aapl.annual[0]!.facts.revenue!;
+    expect(revenue.filed).toBeTruthy();
+    expect(revenue.filed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  // Every fact StockFilter reads from a real SEC filing does, in fact, carry
+  // one — this is the assumption Phase 2's exclusion logic is built on.
+  it("gives every field in a real filing a filed date", () => {
+    const latest = aapl.annual[0]!;
+    for (const fact of Object.values(latest.facts)) {
+      if (!fact || fact.derived) continue;
+      expect(fact.filed).toBeTruthy();
+    }
+  });
+
+  it("takes the latest filed date across the period's own facts, not the first", () => {
+    const raw: SecCompanyFacts = {
+      cik: 1,
+      entityName: "Synthetic Co",
+      facts: {
+        "us-gaap": {
+          Assets: {
+            units: {
+              USD: [
+                {
+                  end: "2022-12-31",
+                  val: 1000,
+                  form: "10-K",
+                  fy: 2022,
+                  fp: "FY",
+                  filed: "2023-02-01",
+                },
+              ],
+            },
+          },
+          Revenues: {
+            units: {
+              USD: [
+                {
+                  start: "2022-01-01",
+                  end: "2022-12-31",
+                  val: 500,
+                  form: "10-K",
+                  fy: 2022,
+                  fp: "FY",
+                  // A late amendment restated revenue after the original 10-K.
+                  filed: "2023-04-15",
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const result = normalizeCompanyFacts(raw);
+    // The period was not fully knowable until the later of its two facts —
+    // taking the earlier one would have claimed knowledge of a number that
+    // had not been restated yet.
+    expect(result.annual[0]!.filedAt).toBe("2023-04-15");
+  });
+
+  // The synthetic version of the real Apple bug above: one concept, the same
+  // value, tagged three times at increasing filed dates because each later
+  // 10-K echoes the prior year as a comparative column.
+  it("attributes an unchanged value to its earliest filing, not its latest", () => {
+    const raw: SecCompanyFacts = {
+      cik: 1,
+      entityName: "Synthetic Co",
+      facts: {
+        "us-gaap": {
+          Assets: {
+            units: {
+              USD: [
+                { end: "2022-12-31", val: 1000, form: "10-K", fy: 2022, fp: "FY", filed: "2023-02-01" },
+                // Re-tagged as a comparative figure in the next two 10-Ks. The
+                // value never changes.
+                { end: "2022-12-31", val: 1000, form: "10-K", fy: 2023, fp: "FY", filed: "2024-02-01" },
+                { end: "2022-12-31", val: 1000, form: "10-K", fy: 2024, fp: "FY", filed: "2025-02-01" },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const result = normalizeCompanyFacts(raw);
+    expect(result.annual[0]!.facts.assets!.filed).toBe("2023-02-01");
+  });
+
+  // The other side of the same coin: when the value actually does change, the
+  // later filed date is correct, because the corrected number genuinely was
+  // not public until then.
+  it("attributes a genuinely restated value to the filing that restated it", () => {
+    const raw: SecCompanyFacts = {
+      cik: 1,
+      entityName: "Synthetic Co",
+      facts: {
+        "us-gaap": {
+          Assets: {
+            units: {
+              USD: [
+                { end: "2022-12-31", val: 1000, form: "10-K", fy: 2022, fp: "FY", filed: "2023-02-01" },
+                // A correction, not a re-tag: the value itself changed.
+                { end: "2022-12-31", val: 1050, form: "10-K", fy: 2023, fp: "FY", filed: "2024-02-01" },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const result = normalizeCompanyFacts(raw);
+    const assets = result.annual[0]!.facts.assets!;
+    expect(assets.value).toBe(1050);
+    expect(assets.filed).toBe("2024-02-01");
+  });
+
+  it("is null when nothing in the period carries a filed date", () => {
+    const raw: SecCompanyFacts = {
+      cik: 1,
+      entityName: "No Filed Dates Co",
+      facts: {
+        "us-gaap": {
+          Assets: {
+            units: {
+              USD: [{ end: "2022-12-31", val: 1000, form: "10-K", fy: 2022, fp: "FY" }],
+            },
+          },
+        },
+      },
+    };
+
+    expect(normalizeCompanyFacts(raw).annual[0]!.filedAt).toBeNull();
+  });
+});

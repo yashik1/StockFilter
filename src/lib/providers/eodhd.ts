@@ -332,7 +332,11 @@ export function mapEodhdFundamentals(
 
     if (shares != null && shares > 0) put("sharesOutstanding", shares, "SharesOutstanding");
 
-    return { fiscalYear, fiscalPeriod: "FY", end: date, form: "annual-report", facts };
+    // EODHD exposes no filings index (see getFilings below) and no filing date
+    // on the fundamentals payload either, so filedAt is left null rather than
+    // guessed at from the period end — which would understate the real
+    // reporting lag and defeat the point of tracking it at all.
+    return { fiscalYear, fiscalPeriod: "FY", end: date, form: "annual-report", facts, filedAt: null };
   });
 
   const latest = annual[0];
