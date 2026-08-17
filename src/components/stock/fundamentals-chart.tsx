@@ -31,7 +31,14 @@ export interface TrendSeries {
  * `lightweight-charts` handles the price series but only draws financial time
  * series, so Recharts covers these categorical year-over-year views.
  */
-export function FundamentalsChart({ series }: { series: TrendSeries[] }) {
+export function FundamentalsChart({
+  series,
+  currency = "USD",
+}: {
+  series: TrendSeries[];
+  /** The filer's own reporting currency. */
+  currency?: string;
+}) {
   const available = series.filter((s) => s.data.length > 1);
   const [activeKey, setActiveKey] = useState(available[0]?.key);
 
@@ -44,7 +51,7 @@ export function FundamentalsChart({ series }: { series: TrendSeries[] }) {
   }
 
   const active = available.find((s) => s.key === activeKey) ?? available[0];
-  const fmt = (v: number) => (active.format === "money" ? money(v) : percent(v));
+  const fmt = (v: number) => (active.format === "money" ? money(v, currency) : percent(v));
 
   return (
     <div className="p-5">

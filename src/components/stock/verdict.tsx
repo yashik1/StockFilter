@@ -44,6 +44,13 @@ export function VerdictCard({
   quote?: Quote | null;
   marketCap?: number | null;
 }) {
+  /*
+    Market value deliberately takes no reporting currency. It is the traded
+    price multiplied by the share count, so it is denominated in whatever the
+    shares change hands in — SK hynix files in won but its US listing trades in
+    dollars, and labelling that figure ₩ would be a new error in place of the
+    old one.
+  */
   const score = report.score;
   const tone = score == null ? "unknown" : scoreTone(score);
 

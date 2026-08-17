@@ -233,14 +233,14 @@ async function StockBody({
       {/* ---- balance sheet + trends ---- */}
       <div className="grid gap-4 lg:grid-cols-2">
         {fundamentals && (
-          <BalanceSheetVisual fundamentals={fundamentals} sector={sector} />
+          <BalanceSheetVisual fundamentals={fundamentals} sector={sector} currency={currency} />
         )}
         <Card>
           <CardHeader
             title="How it has changed over time"
             subtitle="Reported annual figures"
           />
-          <FundamentalsChart series={trends} />
+          <FundamentalsChart series={trends} currency={currency} />
         </Card>
       </div>
 

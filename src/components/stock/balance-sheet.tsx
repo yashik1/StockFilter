@@ -14,9 +14,12 @@ import { Card, CardHeader } from "@/components/ui";
 export function BalanceSheetVisual({
   fundamentals,
   sector,
+  currency = "USD",
 }: {
   fundamentals: NormalizedFundamentals;
   sector: SectorKind;
+  /** The filer's own reporting currency; a Korean filer reports in won. */
+  currency?: string;
 }) {
   const period = fundamentals.annual[0];
   if (!period) return null;
@@ -42,7 +45,7 @@ export function BalanceSheetVisual({
   }
   if (equity != null && assets > 0) {
     sentences.push(
-      `After paying off everything it owes, ${money(equity)} would be left for shareholders — ` +
+      `After paying off everything it owes, ${money(equity, currency)} would be left for shareholders — ` +
         `about ${Math.round(equityPct * 100)}% of everything it owns.`,
     );
   }
@@ -51,11 +54,11 @@ export function BalanceSheetVisual({
     if (ocf != null && ocf < 0) {
       const months = Math.floor(cash / (Math.abs(ocf) / 12));
       sentences.push(
-        `It holds ${money(cash)} in cash. At its current rate of cash burn that would ` +
+        `It holds ${money(cash, currency)} in cash. At its current rate of cash burn that would ` +
           `last roughly ${months} month${months === 1 ? "" : "s"} without new funding.`,
       );
     } else {
-      sentences.push(`It holds ${money(cash)} in cash and cash equivalents.`);
+      sentences.push(`It holds ${money(cash, currency)} in cash and cash equivalents.`);
     }
   }
   if (sector === "financial") {
@@ -77,33 +80,33 @@ export function BalanceSheetVisual({
           <div
             className="flex h-11 w-full overflow-hidden rounded-lg"
             role="img"
-            aria-label={`Of ${money(assets)} in total assets, ${money(liabilities)} is owed to others and ${money(equity)} belongs to shareholders.`}
+            aria-label={`Of ${money(assets)} in total assets, ${money(liabilities, currency)} is owed to others and ${money(equity, currency)} belongs to shareholders.`}
           >
             <div
               className="flex items-center justify-center bg-poor/75 text-xs font-medium text-white"
               style={{ width: `${liabPct * 100}%` }}
             >
-              {liabPct > 0.14 && <span>Owes {money(liabilities)}</span>}
+              {liabPct > 0.14 && <span>Owes {money(liabilities, currency)}</span>}
             </div>
             <div
               className="flex items-center justify-center bg-good/75 text-xs font-medium text-white"
               style={{ width: `${equityPct * 100}%` }}
             >
-              {equityPct > 0.14 && <span>Owns {money(equity)}</span>}
+              {equityPct > 0.14 && <span>Owns {money(equity, currency)}</span>}
             </div>
           </div>
 
           <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-muted">
             <span className="flex items-center gap-1.5">
               <span aria-hidden className="size-2 rounded-full bg-poor/75" />
-              Liabilities {money(liabilities)}
+              Liabilities {money(liabilities, currency)}
             </span>
             <span className="flex items-center gap-1.5">
               <span aria-hidden className="size-2 rounded-full bg-good/75" />
-              Shareholders&apos; equity {money(equity)}
+              Shareholders&apos; equity {money(equity, currency)}
             </span>
             <span className="tnum font-medium text-muted-strong">
-              Total assets {money(assets)}
+              Total assets {money(assets, currency)}
             </span>
           </div>
         </div>
@@ -124,7 +127,7 @@ export function BalanceSheetVisual({
             {ocf != null && (
               <>
                 {" "}and generated{" "}
-                <span className="font-medium text-foreground">{money(ocf)}</span> of cash
+                <span className="font-medium text-foreground">{money(ocf, currency)}</span> of cash
                 from operations
               </>
             )}

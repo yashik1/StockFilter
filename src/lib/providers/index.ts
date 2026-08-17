@@ -219,7 +219,7 @@ export async function getFundamentalsWithSource(symbol: string): Promise<{
 
   const fromEdgar = await secEdgar.getFundamentals(upper).catch(() => null);
   if (fromEdgar?.annual.length) {
-    return { fundamentals: fromEdgar, currency: null, source: "SEC EDGAR" };
+    return { fundamentals: fromEdgar, currency: reportedIn(fromEdgar), source: "SEC EDGAR" };
   }
 
   if (alphaVantage.isConfigured()) {
@@ -233,11 +233,7 @@ export async function getFundamentalsWithSource(symbol: string): Promise<{
     if (match) {
       const av = await alphaVantage.getFundamentals(match.symbol).catch(() => null);
       if (av?.annual.length) {
-        return {
-          fundamentals: av,
-          currency: av.annual[0]?.facts.assets?.unit ?? null,
-          source: "Alpha Vantage",
-        };
+        return { fundamentals: av, currency: reportedIn(av), source: "Alpha Vantage" };
       }
     }
   }
@@ -256,15 +252,33 @@ export async function getFundamentalsWithSource(symbol: string): Promise<{
     }
 
     if (fromYahoo?.annual.length) {
-      return {
-        fundamentals: fromYahoo,
-        currency: fromYahoo.annual[0]?.facts.assets?.unit ?? null,
-        source: "Yahoo Finance",
-      };
+      return { fundamentals: fromYahoo, currency: reportedIn(fromYahoo), source: "Yahoo Finance" };
     }
   }
 
   return { fundamentals: fromEdgar, currency: null, source: "SEC EDGAR" };
+}
+
+/**
+ * The currency a filer reports in, taken from the units on its own figures.
+ *
+ * Only the fallback sources used to report this, so every company filing with
+ * the SEC was assumed to report in dollars. Royal Bank files in Canadian
+ * dollars and SK hynix in Korean won — the normalizer records that faithfully,
+ * and it was being dropped one layer later.
+ *
+ * Balance-sheet items are checked before income items because a filer with no
+ * revenue tagged still has assets.
+ */
+function reportedIn(f: NormalizedFundamentals): string | null {
+  for (const period of f.annual) {
+    for (const field of ["assets", "equity", "revenue", "netIncome"] as const) {
+      const unit = period.facts[field]?.unit;
+      // Share counts carry a "shares" unit, which is not a currency.
+      if (unit && unit !== "shares" && unit !== "pure") return unit;
+    }
+  }
+  return null;
 }
 
 /**
