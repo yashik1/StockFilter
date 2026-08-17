@@ -55,6 +55,13 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
           today, using the actual price history — nothing here is a prediction about what
           happens next.
         </p>
+        <p className="mt-1.5 max-w-2xl text-sm text-muted">
+          Want to test the screener itself, not one stock?{" "}
+          <Link href="/backtest/screener" className="text-accent underline">
+            Backtest buying the healthiest companies
+          </Link>
+          .
+        </p>
       </header>
 
       <Card>
