@@ -34,8 +34,19 @@ export async function GET(request: Request) {
     const run = await runFullScreenerBacktest(new Date(startParam), amount, topN, benchmark);
     return NextResponse.json(run, { headers: { "Cache-Control": "public, max-age=3600" } });
   } catch (err) {
+    // Matches the shape runFullScreenerBacktest itself returns on a handled
+    // failure — a bare {error} here would leave the page trying to read
+    // run.result off an object that has no result key at all.
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Could not run the backtest." },
+      {
+        result: {
+          error: err instanceof Error ? err.message : "Could not run the backtest.",
+        },
+        universeSize: 0,
+        candidatesScored: 0,
+        topN,
+        benchmark: null,
+      },
       { status: 200 },
     );
   }

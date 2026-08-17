@@ -39,8 +39,17 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": "public, max-age=3600" },
     });
   } catch (err) {
+    // Matches the shape runSingleStockBacktest itself returns — the page
+    // reads run.result and run.benchmark unconditionally, and a bare
+    // {error} here would have nothing for either to destructure.
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Could not run the backtest." },
+      {
+        symbol,
+        source: null,
+        result: { error: err instanceof Error ? err.message : "Could not run the backtest." },
+        benchmark: null,
+        dividendDataAvailable: false,
+      },
       { status: 200 },
     );
   }

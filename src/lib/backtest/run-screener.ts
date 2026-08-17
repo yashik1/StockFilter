@@ -13,6 +13,28 @@ import type { InvestmentError, InvestmentResult } from "./single-stock";
 const MAX_DAYS = 365 * 10;
 
 /**
+ * Walks a Drizzle error's `.cause` chain for the real Postgres reason.
+ *
+ * `DrizzleQueryError.message` is the query text and parameter list, not the
+ * failure — mirrors the same fix already applied to /api/health's own
+ * database check, and exists for the identical reason: a bare `.message`
+ * dumped a several-hundred-character SQL statement with no indication of
+ * what actually went wrong.
+ */
+function rootCause(err: unknown): string {
+  let current: unknown = err;
+  const seen = new Set<unknown>();
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const code = (current as { code?: string }).code;
+    if (code) return `${code}: ${(current as Error).message?.split("\n")[0] ?? ""}`.slice(0, 200);
+    current = (current as { cause?: unknown }).cause;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  return message.split("\n")[0].slice(0, 200);
+}
+
+/**
  * How many symbols' price history are fetched at once.
  *
  * Matches the ingest job's own worker count. Kept modest rather than tuned up:
@@ -111,26 +133,44 @@ export async function runFullScreenerBacktest(
   const cappedFrom = new Date(Math.max(startDate.getTime(), to.getTime() - MAX_DAYS * 86_400_000));
 
   const universe = new Set(getUniverse());
-  const allCompanies = await db
-    .select({
-      id: companies.id,
-      symbol: companies.symbol,
-      cik: companies.cik,
-      name: companies.name,
-      sectorKind: companies.sectorKind,
-    })
-    .from(companies)
-    .where(eq(companies.isActive, true));
+  let inUniverse: { id: number; symbol: string; cik: string | null; name: string; sectorKind: string }[];
+  let financialsRows: (typeof financials.$inferSelect)[];
 
-  const inUniverse = allCompanies.filter((c) => universe.has(c.symbol));
+  try {
+    const allCompanies = await db
+      .select({
+        id: companies.id,
+        symbol: companies.symbol,
+        cik: companies.cik,
+        name: companies.name,
+        sectorKind: companies.sectorKind,
+      })
+      .from(companies)
+      .where(eq(companies.isActive, true));
 
-  const financialsRows =
-    inUniverse.length > 0
-      ? await db
-          .select()
-          .from(financials)
-          .where(inArray(financials.companyId, inUniverse.map((c) => c.id)))
-      : [];
+    inUniverse = allCompanies.filter((c) => universe.has(c.symbol));
+
+    financialsRows =
+      inUniverse.length > 0
+        ? await db
+            .select()
+            .from(financials)
+            .where(inArray(financials.companyId, inUniverse.map((c) => c.id)))
+        : [];
+  } catch (err) {
+    // Drizzle wraps the real Postgres reason in `.cause` and puts the whole
+    // query text in `.message`, so reading `.message` alone surfaces an
+    // opaque SQL dump rather than the actual problem — walk the chain for the
+    // Postgres error code instead, the same fix already applied to the health
+    // endpoint's own database check.
+    return {
+      result: { error: `Could not read the stored screening data: ${rootCause(err)}` },
+      universeSize: 0,
+      candidatesScored: 0,
+      topN,
+      benchmark: null,
+    };
+  }
 
   const rowsByCompany = new Map<number, typeof financialsRows>();
   for (const row of financialsRows) {
