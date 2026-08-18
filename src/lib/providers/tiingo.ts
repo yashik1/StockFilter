@@ -117,7 +117,18 @@ export class TiingoProvider implements MarketDataProvider {
       dayHigh: q.high ?? null,
       dayLow: q.low ?? null,
       volume: q.volume ?? null,
-      freshness: "realtime-iex",
+      /*
+        Not claimed as real-time. This hits Tiingo's /iex/ endpoint, and as of
+        February 2025 Tiingo requires a signed market data agreement with the
+        IEX Exchange for genuine last-trade prices on that endpoint — without
+        one, which a free-tier key does not have, it returns "a derived
+        reference price" instead. This provider is last in the failover
+        chain, so it is only reached when Twelve Data and Finnhub have both
+        already failed; a reader in that moment still deserves an honest
+        answer about what they are looking at, not a confident "Live" badge
+        on a number that was never a real trade print.
+      */
+      freshness: "unknown",
       asOf: q.timestamp ?? null,
     };
   }

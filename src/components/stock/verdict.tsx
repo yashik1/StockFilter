@@ -5,11 +5,19 @@ import { Badge, Card, Change, MeterBar, Metric, RatingBadge } from "@/components
 import { money, price as fmtPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/** Exactly how fresh a price is, so nothing is implied. */
+/**
+ * Exactly how fresh a price is, so nothing is implied.
+ *
+ * The hint under "Live" is deliberately provider-agnostic. This category
+ * covers more than one source (Finnhub, and EODHD's paid tier for US
+ * symbols), and only one of the providers this app has ever used for it —
+ * the now-removed Alpaca — was actually IEX-specific. Naming an exchange
+ * feed a provider does not use would trade one overclaim for another.
+ */
 const FRESHNESS: Record<PriceFreshness, { label: string; hint: string }> = {
   "realtime-iex": {
     label: "Live",
-    hint: "Real-time trade data from the exchange feed.",
+    hint: "Real-time trade data, as reported by the data provider.",
   },
   "delayed-15min": {
     label: "15-min delayed",
