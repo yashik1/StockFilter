@@ -8,8 +8,10 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InvestmentPoint } from "@/lib/backtest/single-stock";
+import { ema, sma } from "@/lib/backtest/indicators";
+import { cn } from "@/lib/utils";
 
 /**
  * Converts any of lightweight-charts' time representations into a Date.
@@ -55,6 +57,16 @@ interface Line {
 }
 
 /**
+ * Below this many points an average says more about its own window than about
+ * the data. The screener backtest rebalances yearly, so its curve can be six
+ * or seven points across — a 50-period average of that is not a smoother line,
+ * it is no line at all.
+ */
+const MIN_POINTS_FOR_AVERAGES = 20;
+
+const MIN_PERIOD = 2;
+
+/**
  * Two dollar-value lines over time: the holding and its benchmark.
  *
  * Both series were built from the same starting amount by `simulateInvestment`,
@@ -62,11 +74,30 @@ interface Line {
  * percentage is needed — the lines are already on the same footing and the
  * gap between them at any point is a real dollar amount, which is closer to
  * how a reader actually thinks about "how did my money do".
+ *
+ * The averages smooth the portfolio's own value, not a share price. On a
+ * backtest that is the more useful reading: it answers "is the strategy's
+ * value trending above or below where it has been sitting", which a jagged
+ * equity curve makes hard to judge by eye.
  */
 export function EquityChart({ target, benchmark }: { target: Line; benchmark: Line | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const smaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const emaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
+  const [showSma, setShowSma] = useState(false);
+  const [showEma, setShowEma] = useState(false);
+  const [smaPeriod, setSmaPeriod] = useState(50);
+  const [emaPeriod, setEmaPeriod] = useState(20);
+
+  const points = target.series.length;
+  const averagesAvailable = points >= MIN_POINTS_FOR_AVERAGES;
+  // A period longer than the data produces an empty line with no explanation,
+  // so the input is bounded by what the series can actually support.
+  const maxPeriod = Math.max(MIN_PERIOD, points - 1);
+
+  // ---- chart lifecycle: rebuilt only when the underlying backtest changes ----
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -105,9 +136,8 @@ export function EquityChart({ target, benchmark }: { target: Line; benchmark: Li
       target.series.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
     );
 
-    let benchSeries: ISeriesApi<"Line"> | null = null;
     if (benchmark) {
-      benchSeries = chart.addSeries(LineSeries, {
+      const benchSeries = chart.addSeries(LineSeries, {
         color: cssVar("--series-2", "#d97706"),
         lineWidth: 2,
         title: benchmark.label,
@@ -118,14 +148,187 @@ export function EquityChart({ target, benchmark }: { target: Line; benchmark: Li
       );
     }
 
+    /*
+      The average series are created here and left empty until switched on.
+      Adding and removing a series on each toggle would rebuild the chart and
+      throw away whatever the reader had zoomed or panned to, which is exactly
+      the moment they are most likely to be reaching for an overlay.
+    */
+    smaSeriesRef.current = chart.addSeries(LineSeries, {
+      color: cssVar("--series-3", "#5148d8"),
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    emaSeriesRef.current = chart.addSeries(LineSeries, {
+      color: cssVar("--series-4", "#c42a68"),
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
     return () => {
       chart.remove();
       chartRef.current = null;
+      smaSeriesRef.current = null;
+      emaSeriesRef.current = null;
     };
   }, [target, benchmark]);
 
-  return <div ref={containerRef} className="h-[380px] w-full" />;
+  // ---- overlay data: updated in place, so toggling keeps the current view ----
+  useEffect(() => {
+    const values = target.series.map((p) => p.value);
+    const times = target.series.map((p) => p.time as UTCTimestamp);
+
+    /*
+      A null becomes a whitespace point rather than being dropped. Dropping the
+      leading positions would shift every remaining value one bar earlier than
+      the figure it describes — a line that looks entirely plausible and is
+      quietly wrong, which is the failure mode worth engineering against.
+    */
+    const paint = (series: ISeriesApi<"Line"> | null, computed: (number | null)[] | null) => {
+      if (!series) return;
+      if (!computed) {
+        series.setData([]);
+        return;
+      }
+      series.setData(
+        times.map((time, i) =>
+          computed[i] == null ? { time } : { time, value: computed[i] as number },
+        ),
+      );
+    };
+
+    const clamp = (p: number) => Math.min(Math.max(Math.round(p), MIN_PERIOD), maxPeriod);
+
+    paint(
+      smaSeriesRef.current,
+      showSma && averagesAvailable ? sma(values, clamp(smaPeriod)) : null,
+    );
+    paint(
+      emaSeriesRef.current,
+      showEma && averagesAvailable ? ema(values, clamp(emaPeriod)) : null,
+    );
+  }, [target, showSma, showEma, smaPeriod, emaPeriod, averagesAvailable, maxPeriod]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <AverageControl
+          label="SMA"
+          hint={
+            averagesAvailable
+              ? "Simple moving average — the plain mean of the last N points."
+              : `Needs at least ${MIN_POINTS_FOR_AVERAGES} points; this backtest has ${points}.`
+          }
+          enabled={showSma}
+          onToggle={() => setShowSma((v) => !v)}
+          period={smaPeriod}
+          onPeriod={setSmaPeriod}
+          max={maxPeriod}
+          disabled={!averagesAvailable}
+          swatch="var(--series-3)"
+        />
+        <AverageControl
+          label="EMA"
+          hint={
+            averagesAvailable
+              ? "Exponential moving average — weights recent points more heavily."
+              : `Needs at least ${MIN_POINTS_FOR_AVERAGES} points; this backtest has ${points}.`
+          }
+          enabled={showEma}
+          onToggle={() => setShowEma((v) => !v)}
+          period={emaPeriod}
+          onPeriod={setEmaPeriod}
+          max={maxPeriod}
+          disabled={!averagesAvailable}
+          swatch="var(--series-4)"
+        />
+
+        {(showSma || showEma) && averagesAvailable && (
+          <span className="text-xs text-faint">
+            Smoothing the portfolio&apos;s value, not a share price. Descriptive only —
+            neither line forecasts anything.
+          </span>
+        )}
+      </div>
+
+      <div ref={containerRef} className="h-[380px] w-full" />
+    </div>
+  );
+}
+
+function AverageControl({
+  label,
+  hint,
+  enabled,
+  onToggle,
+  period,
+  onPeriod,
+  max,
+  disabled,
+  swatch,
+}: {
+  label: string;
+  hint: string;
+  enabled: boolean;
+  onToggle: () => void;
+  period: number;
+  onPeriod: (n: number) => void;
+  max: number;
+  disabled: boolean;
+  swatch: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        aria-pressed={enabled}
+        onClick={onToggle}
+        disabled={disabled}
+        title={hint}
+        className={cn(
+          "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+          disabled
+            ? "cursor-not-allowed border-border text-faint"
+            : enabled
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border text-muted hover:text-foreground",
+        )}
+      >
+        <span
+          aria-hidden
+          className="h-0.5 w-3 rounded-full"
+          style={{ background: disabled ? "currentColor" : swatch }}
+        />
+        {label}
+      </button>
+
+      <label className="sr-only" htmlFor={`${label}-period`}>
+        {label} period
+      </label>
+      <input
+        id={`${label}-period`}
+        type="number"
+        inputMode="numeric"
+        min={2}
+        max={max}
+        value={period}
+        disabled={disabled || !enabled}
+        onChange={(e) => {
+          const next = Number(e.target.value);
+          if (Number.isFinite(next)) onPeriod(next);
+        }}
+        className={cn(
+          "tnum w-14 rounded-lg border border-border bg-surface px-2 py-1 text-xs",
+          (disabled || !enabled) && "cursor-not-allowed text-faint",
+        )}
+      />
+    </div>
+  );
 }

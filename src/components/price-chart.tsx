@@ -23,7 +23,6 @@ import {
   projectNextEvents,
   type ProjectedEvent,
 } from "@/lib/chart-markers";
-import { sma } from "@/lib/backtest/indicators";
 import { daysSinceStartOfYear, resolveDays, type RangeDays } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import { LocalTime, useTimeZone } from "@/components/local-time";
@@ -46,19 +45,6 @@ const RANGES: { label: string; days: RangeDays; timeframe: Timeframe }[] = [
   { label: "1Y", days: 365, timeframe: "1Day" },
   { label: "5Y", days: 365 * 5, timeframe: "1Day" },
   { label: "Max", days: 365 * 20, timeframe: "1Week" },
-];
-
-/**
- * The two averages worth showing by default.
- *
- * 50 and 200 day are the two lengths in common use, and the only ones most
- * readers will have seen referenced elsewhere. Offering a dozen configurable
- * periods would be a charting tool's answer; this app's job is to make the
- * common case legible, not to become a terminal.
- */
-const MOVING_AVERAGES = [
-  { label: "50-day avg", period: 50, colorVar: "--series-3", colorFallback: "#5148d8" },
-  { label: "200-day avg", period: 200, colorVar: "--series-4", colorFallback: "#c42a68" },
 ];
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
@@ -201,7 +187,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
   const priceSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const eventSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const maSeriesRefs = useRef<ISeriesApi<"Line">[]>([]);
 
   const [rangeLabel, setRangeLabel] = useState("1Y");
   const [timeframe, setTimeframe] = useState<Timeframe>("1Day");
@@ -209,10 +194,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
   const [bars, setBars] = useState<Bar[]>([]);
   const [events, setEvents] = useState<CorporateEvent[]>([]);
   const [showEvents, setShowEvents] = useState(true);
-  // Off by default. This app's argument is that a company's filings tell you
-  // more than the shape of its price line, so the averages are available for
-  // a reader who wants them rather than presented as the main event.
-  const [showAverages, setShowAverages] = useState(false);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
@@ -234,16 +215,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
   */
   // Memoised because the render effect depends on it. Recomputed each render it
   // would be a new array every time, redrawing the whole series on every pass.
-  /*
-    The shortest average needs at least its own period of bars. On a one-day
-    intraday window there is no such thing as a 50-day average, so the control
-    is disabled rather than drawing nothing and looking broken.
-  */
-  const averagesAvailable = bars.length >= MOVING_AVERAGES[0].period;
-  const drawnAverages = showAverages
-    ? MOVING_AVERAGES.filter((ma) => bars.length >= ma.period)
-    : [];
-
   const expected = useMemo(
     () => (showEvents ? projectNextEvents(events) : []),
     [events, showEvents],
@@ -383,23 +354,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
       });
     }
 
-    /*
-      Moving averages, drawn on the price scale so they overlay the candles
-      directly. Created up front and left empty when switched off — adding and
-      removing series on toggle would rebuild the whole chart, losing the
-      reader's zoom and pan every time they flicked it.
-    */
-    maSeriesRefs.current = MOVING_AVERAGES.map((ma) =>
-      chart.addSeries(LineSeries, {
-        color: cssVar(ma.colorVar, ma.colorFallback),
-        lineWidth: 1,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-        title: ma.label,
-      }),
-    );
-
     volumeSeriesRef.current = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
@@ -481,29 +435,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
       );
     }
 
-    /*
-      Averages need the closes in order, and a null for every bar before the
-      window fills. lightweight-charts skips a whitespace point rather than
-      drawing to zero, so the line simply starts once it has enough history —
-      which is also the honest picture: a 200-day average genuinely does not
-      exist until day 200.
-    */
-    const closes = bars.map((b) => b.close);
-    maSeriesRefs.current.forEach((series, i) => {
-      if (!showAverages) {
-        series.setData([]);
-        return;
-      }
-      const values = sma(closes, MOVING_AVERAGES[i].period);
-      series.setData(
-        bars.map((b, idx) =>
-          values[idx] == null
-            ? { time: b.time as UTCTimestamp }
-            : { time: b.time as UTCTimestamp, value: values[idx] as number },
-        ),
-      );
-    });
-
     const up = cssVar("--up", "#059669");
     const down = cssVar("--down", "#dc2626");
     volume.setData(
@@ -566,7 +497,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
     }
 
     chartRef.current?.timeScale().fitContent();
-  }, [bars, style, events, showEvents, showAverages, timeframe, expected]);
+  }, [bars, style, events, showEvents, timeframe, expected]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -648,33 +579,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
           Events
         </button>
 
-        {/*
-          Disabled rather than hidden when the window is too short to compute
-          the longer average — a control that vanishes reads as a bug, where a
-          greyed one with a reason attached explains itself.
-        */}
-        <button
-          type="button"
-          aria-pressed={showAverages}
-          onClick={() => setShowAverages((v) => !v)}
-          disabled={!averagesAvailable}
-          className={cn(
-            "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-            !averagesAvailable
-              ? "cursor-not-allowed border-border text-faint"
-              : showAverages
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-border text-muted hover:text-foreground",
-          )}
-          title={
-            averagesAvailable
-              ? "Show 50- and 200-day moving averages"
-              : "This window is too short to compute a 50-day average"
-          }
-        >
-          Averages
-        </button>
-
         <div
           role="group"
           aria-label="Chart style"
@@ -720,31 +624,6 @@ export function PriceChart({ symbol }: { symbol: string }) {
               </span>
             ))}
 
-        </div>
-      )}
-
-      {/*
-        Named in words, not left as two coloured lines to decode. An average is
-        also the kind of thing a reader may have seen referenced without ever
-        being told what it is, so the sentence says plainly what it measures
-        and stops short of suggesting what to do about it.
-      */}
-      {drawnAverages.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-          {drawnAverages.map((ma) => (
-            <span key={ma.period} className="flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className="h-0.5 w-4 rounded-full"
-                style={{ background: `var(${ma.colorVar})` }}
-              />
-              {ma.label}
-            </span>
-          ))}
-          <span className="text-faint">
-            The average closing price over that many trading days — a smoother line
-            for reading a noisy one, not a signal to act on.
-          </span>
         </div>
       )}
 
