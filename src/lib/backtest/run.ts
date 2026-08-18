@@ -12,6 +12,16 @@ export interface SingleStockBacktest {
   symbol: string;
   source: string | null;
   result: InvestmentResult | InvestmentError;
+  /**
+   * Splits that happened inside the tested window.
+   *
+   * Carried purely so the page can explain itself. Every price series this
+   * app uses is already split-adjusted, so the returns are correct without
+   * any of this — but the adjusted figures deliberately do not match what a
+   * reader would have seen at the time, and without saying so the result
+   * reads as a bug rather than a convention.
+   */
+  splits: { time: number; ratio: string }[];
   benchmark: {
     symbol: string;
     source: string | null;
@@ -58,6 +68,7 @@ export async function runSingleStockBacktest(
     symbol: upper,
     source: target.source,
     result: target.result,
+    splits: target.splits,
     benchmark: benchmark
       ? { symbol: benchmarkSymbol!.toUpperCase(), source: benchmark.source, result: benchmark.result }
       : null,
@@ -71,7 +82,11 @@ async function runOne(
   to: Date,
   amount: number,
   reinvestDividends: boolean,
-): Promise<{ source: string | null; result: InvestmentResult | InvestmentError }> {
+): Promise<{
+  source: string | null;
+  result: InvestmentResult | InvestmentError;
+  splits: { time: number; ratio: string }[];
+}> {
   const [bars, dividends] = await Promise.all([
     getBarsWithSource(symbol, "1Day", from, to).catch(
       (err: unknown) => ({
@@ -84,11 +99,17 @@ async function runOne(
   ]);
 
   if ("error" in bars) {
-    return { source: null, result: { error: bars.error } };
+    return { source: null, result: { error: bars.error }, splits: [] };
   }
 
   return {
     source: bars.source,
     result: simulateInvestment(bars.bars, dividends.dividends, from, amount, reinvestDividends),
+    // Splits were already being fetched alongside dividends and thrown away.
+    // They change nothing about the arithmetic — the price series is already
+    // split-adjusted — but a reader who remembers NVDA trading near $300 in
+    // 2022 needs to be told why this says they bought at $30, or the whole
+    // result looks wrong.
+    splits: dividends.splits,
   };
 }

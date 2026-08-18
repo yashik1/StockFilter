@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         symbol,
         source: null,
         result: { error: err instanceof Error ? err.message : "Could not run the backtest." },
+        splits: [],
         benchmark: null,
         dividendDataAvailable: false,
       },

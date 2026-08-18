@@ -116,7 +116,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <span>StockFilter</span>
             </Link>
 
-            <nav className="order-3 flex w-full gap-1 sm:order-none sm:w-auto">
+            {/*
+              Wraps rather than overflowing. At five items the row no longer
+              fits a 375px phone — it needed 424px in a 343px space, which
+              pushed the whole page 65px wide and made every screen scroll
+              sideways, not just the one the fifth item was added for. Wrapping
+              costs a second row on small screens; scrolling would have hidden
+              a nav item behind a gesture nobody thinks to try.
+            */}
+            <nav className="order-3 flex w-full flex-wrap gap-1 sm:order-none sm:w-auto sm:flex-nowrap">
               {NAV.map((item) => (
                 <Link
                   key={item.href}

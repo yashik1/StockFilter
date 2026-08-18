@@ -200,6 +200,12 @@ function BacktestResults({
   const benchResult = benchmark && !isInvestmentError(benchmark.result) ? benchmark.result : null;
   const benchError = benchmark && isInvestmentError(benchmark.result) ? benchmark.result.error : null;
 
+  // Only splits inside the window actually held. One before the purchase date
+  // is already baked into the starting price and is not this holding's story.
+  const splitsInWindow = backtest.splits
+    .filter((s) => s.time >= result.startTime && s.time <= result.endTime)
+    .sort((a, b) => a.time - b.time);
+
   return (
     <div className="space-y-4">
       {result.startedLate && (
@@ -213,6 +219,31 @@ function BacktestResults({
         <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
           Dividend data isn&apos;t available on this deployment, so this shows price return only
           — any dividends {backtest.symbol} paid are not included.
+        </p>
+      )}
+      {/*
+        Without this, a split makes a correct result look broken. NVDA split
+        10:1 in June 2024, so a 2022 purchase is priced here at about $30 a
+        share where a reader remembers roughly $300 — the return is right
+        either way, because a split hands you ten times the shares at a tenth
+        the price, but the arithmetic only reads as honest once somebody says
+        that out loud.
+      */}
+      {splitsInWindow.length > 0 && (
+        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+          {backtest.symbol} split its shares{" "}
+          {splitsInWindow.map((s, i) => (
+            <span key={s.time}>
+              {i > 0 && (i === splitsInWindow.length - 1 ? " and " : ", ")}
+              <strong className="font-semibold">{s.ratio}</strong> on{" "}
+              <LocalTime value={s.time * 1000} mode="date" />
+            </span>
+          ))}
+          . Prices and share counts here are adjusted for that, so every figure is on
+          today&apos;s footing and comparable across the whole period — which means they
+          will not match the headline price you remember from before the split. Your money
+          was unaffected either way: a split hands you more shares at a proportionally
+          lower price.
         </p>
       )}
 
@@ -282,7 +313,13 @@ function ResultCard({
           </>
         }
       />
-      <dl className="grid grid-cols-3 gap-4 p-5">
+      {/*
+        Two columns on a phone, not three. At 375px three columns left each
+        metric 90px, which is enough for the figures but clips their labels —
+        "Would be worth" and "Yearly average" both truncated, so the reader
+        got a number with no reliable idea what it measured.
+      */}
+      <dl className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3">
         <Metric
           label="Would be worth"
           value={money(result.finalValue)}
