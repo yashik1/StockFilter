@@ -189,6 +189,7 @@ export async function runFullScreenerBacktest(
       getBarsWithSource(company.symbol, "1Day", cappedFrom, to).catch(() => ({
         bars: [] as CandidateData["bars"],
         source: null,
+        includesDividends: false,
       })),
       yahoo
         .getCorporateEvents(company.symbol, cappedFrom, to)
@@ -204,7 +205,15 @@ export async function runFullScreenerBacktest(
       sector: (company.sectorKind as SectorKind | null) ?? "other",
       financialsRows: rows,
       bars: bars.bars,
-      dividends: dividends.dividends,
+      /*
+        Dropped when this symbol's price series already carries them.
+
+        Same double count as the single-stock backtest, and worse here: the
+        source is resolved per symbol, so within one basket some holdings could
+        be inflated and others not — an error that does not merely shift the
+        strategy's return but reorders which holdings appear to have driven it.
+      */
+      dividends: bars.includesDividends ? [] : dividends.dividends,
     };
     return candidate;
   });
