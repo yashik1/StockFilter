@@ -24,6 +24,9 @@ const BASE = "https://finnhub.io/api/v1";
 export class FinnhubProvider implements MarketDataProvider {
   readonly name = "Finnhub";
 
+  /** Raw candles, when the plan serves them at all. Dividends not included. */
+  readonly barsIncludeDividends = false;
+
   private get token() {
     return process.env.FINNHUB_API_KEY;
   }

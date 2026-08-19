@@ -52,6 +52,14 @@ interface TwelveDataValue {
 export class TwelveDataProvider implements MarketDataProvider {
   readonly name = "Twelve Data";
 
+  /**
+   * getBars sends no `adjust` parameter, so Twelve Data's default applies:
+   * split-adjusted, dividends not reinvested. Stated explicitly because the
+   * default is the whole basis for the claim — if that request ever grows an
+   * `adjust=all`, this has to flip with it.
+   */
+  readonly barsIncludeDividends = false;
+
   private get apiKey() {
     return process.env.TWELVEDATA_API_KEY;
   }

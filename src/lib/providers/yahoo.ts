@@ -214,6 +214,14 @@ export class YahooProvider {
   readonly name = "Yahoo Finance";
 
   /**
+   * Yahoo's `indicators.quote[].close` is adjusted for splits but not for
+   * dividends — the separate `adjclose` array is the one that includes them,
+   * and getBars deliberately does not read it. So dividends still have to be
+   * applied on top, which is what the corporate-events feed is for.
+   */
+  readonly barsIncludeDividends = false;
+
+  /**
    * Makes one real request and reports exactly what came back.
    *
    * Necessary because these endpoints behave differently depending on where the

@@ -25,6 +25,19 @@ export interface PriceSource {
   isConfigured(): boolean;
   /** Optional guard for providers that cannot serve every timeframe. */
   supports?(timeframe: Timeframe): boolean;
+  /**
+   * True when this source's closes already have dividends reinvested into
+   * them — a "total return" series rather than a price series.
+   *
+   * The distinction is invisible in the numbers and changes every backtest
+   * that uses them. Tiingo serves adjClose, which is adjusted for splits *and*
+   * dividends; Yahoo's close is adjusted for splits only. Handed the first and
+   * treated like the second, the simulator reinvests dividends that the series
+   * has already counted, and reports a return inflated by roughly the whole
+   * dividend yield compounded over the window — on SPY since 2020 that was
+   * +186% against a true +159%, with nothing on the page to suggest which.
+   */
+  readonly barsIncludeDividends?: boolean;
   getBars(symbol: string, timeframe: Timeframe, from: Date, to: Date): Promise<Bar[]>;
   getQuote(symbol: string): Promise<Quote | null>;
 }

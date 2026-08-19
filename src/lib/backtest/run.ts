@@ -34,6 +34,17 @@ export interface SingleStockBacktest {
    * assume reinvestment happened when it silently could not.
    */
   dividendDataAvailable: boolean;
+  /**
+   * True when the price series itself already has dividends reinvested, so
+   * the result is a total return no matter what the reader asked for.
+   *
+   * Tiingo's adjClose is such a series. Dividends cannot be taken back out of
+   * it, which means the "paid out as cash" option cannot be honoured when it
+   * is the source — and silently showing a total return under a caption
+   * saying otherwise is the kind of small lie that makes every other number
+   * on the page worth less.
+   */
+  dividendsBakedIn: boolean;
 }
 
 /**
@@ -73,6 +84,7 @@ export async function runSingleStockBacktest(
       ? { symbol: benchmarkSymbol!.toUpperCase(), source: benchmark.source, result: benchmark.result }
       : null,
     dividendDataAvailable,
+    dividendsBakedIn: target.includesDividends,
   };
 }
 
@@ -86,12 +98,14 @@ async function runOne(
   source: string | null;
   result: InvestmentResult | InvestmentError;
   splits: { time: number; ratio: string }[];
+  includesDividends: boolean;
 }> {
   const [bars, dividends] = await Promise.all([
     getBarsWithSource(symbol, "1Day", from, to).catch(
       (err: unknown) => ({
         bars: [],
         source: null,
+        includesDividends: false,
         error: err instanceof Error ? err.message : String(err),
       }),
     ),
@@ -99,17 +113,35 @@ async function runOne(
   ]);
 
   if ("error" in bars) {
-    return { source: null, result: { error: bars.error }, splits: [] };
+    return { source: null, result: { error: bars.error }, splits: [], includesDividends: false };
   }
+
+  /*
+    Dividends are dropped entirely when the price series already carries them.
+
+    Which provider answered decides this, and failover means it is not fixed.
+    Tiingo returns adjClose — splits and dividends both — so applying the
+    dividend feed on top counted every one twice: SPY from 2020 reported +186%
+    where the true total return was about +159%, and the inflated figure looked
+    plausible next to a benchmark inflated the same way. Yahoo and Twelve Data
+    return price series, where applying them is exactly right.
+
+    Note this drops them rather than merely turning reinvestment off. Not
+    reinvesting does not mean not counting: the simulator collects unreinvested
+    dividends into a cash balance that still lands in the final value, so
+    flipping that flag alone would have left most of the double count in place.
+  */
+  const dividendsToApply = bars.includesDividends ? [] : dividends.dividends;
 
   return {
     source: bars.source,
-    result: simulateInvestment(bars.bars, dividends.dividends, from, amount, reinvestDividends),
+    result: simulateInvestment(bars.bars, dividendsToApply, from, amount, reinvestDividends),
     // Splits were already being fetched alongside dividends and thrown away.
     // They change nothing about the arithmetic — the price series is already
     // split-adjusted — but a reader who remembers NVDA trading near $300 in
     // 2022 needs to be told why this says they bought at $30, or the whole
     // result looks wrong.
     splits: dividends.splits,
+    includesDividends: bars.includesDividends,
   };
 }

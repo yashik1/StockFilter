@@ -313,6 +313,7 @@ function BacktestResults({
           amount={amount}
           result={result}
           reinvest={reinvest}
+          dividendsBakedIn={backtest.dividendsBakedIn}
         />
         {benchmark && benchResult && (
           <ResultCard
@@ -320,6 +321,7 @@ function BacktestResults({
             amount={amount}
             result={benchResult}
             reinvest={reinvest}
+            dividendsBakedIn={backtest.dividendsBakedIn}
             isBenchmark
           />
         )}
@@ -359,12 +361,14 @@ function ResultCard({
   amount,
   result,
   reinvest,
+  dividendsBakedIn,
   isBenchmark,
 }: {
   label: string;
   amount: number;
   result: InvestmentResult;
   reinvest: boolean;
+  dividendsBakedIn: boolean;
   isBenchmark?: boolean;
 }) {
   return (
@@ -409,12 +413,24 @@ function ResultCard({
           }
         />
       </dl>
-      {reinvest && result.dividendsReceived === 0 && result.totalReturn !== 0 && (
+      {/*
+        When the source series already carries dividends, neither caption
+        below is true — the result is a total return whatever was asked for,
+        and there is no way to take them back out. Saying so beats letting
+        "paid out as cash" stand over a number that reinvested them.
+      */}
+      {dividendsBakedIn ? (
+        <p className="border-t border-border px-5 py-2.5 text-xs text-muted">
+          This provider&apos;s prices already have dividends reinvested into them, so this
+          is a total return — the cash option cannot be applied to it.
+        </p>
+      ) : null}
+      {!dividendsBakedIn && reinvest && result.dividendsReceived === 0 && result.totalReturn !== 0 && (
         <p className="border-t border-border px-5 py-2.5 text-xs text-muted">
           Dividends, if any, were reinvested into more shares rather than paid out as cash.
         </p>
       )}
-      {!reinvest && result.dividendsReceived > 0 && (
+      {!dividendsBakedIn && !reinvest && result.dividendsReceived > 0 && (
         <p className="border-t border-border px-5 py-2.5 text-xs text-muted">
           Includes {money(result.dividendsReceived)} in dividends collected as cash, not
           reinvested.

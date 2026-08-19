@@ -358,14 +358,30 @@ export async function getBarsWithSource(
   timeframe: Timeframe,
   from: Date,
   to: Date,
-): Promise<{ bars: Bar[]; source: string | null }> {
+): Promise<{ bars: Bar[]; source: string | null; includesDividends: boolean }> {
   const result = await fetchBarsWithFailover(sourcesFor(symbol), symbol, timeframe, from, to);
   if (result.value.length === 0 && result.attempts.length > 0) {
     // Every provider failed. Report why rather than returning an empty chart,
     // which reads as "this symbol has no history".
     throw new Error(describeFailure(result.attempts));
   }
-  return { bars: result.value, source: result.source };
+
+  /*
+    Which source answered decides how the closes must be read.
+
+    Failover means the answer can come from any of four providers, and they do
+    not all adjust alike — Tiingo's are a total-return series with dividends
+    already reinvested, the rest are price series. Returning the bars without
+    saying which kind they are leaves every caller to guess, and the guess is
+    invisible when wrong.
+  */
+  const answered = PRICE_SOURCES.find((s) => s.name === result.source);
+
+  return {
+    bars: result.value,
+    source: result.source,
+    includesDividends: answered?.barsIncludeDividends ?? false,
+  };
 }
 
 /** Summarises a total failure across every provider. */

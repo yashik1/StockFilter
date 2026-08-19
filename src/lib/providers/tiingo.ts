@@ -28,6 +28,15 @@ const BASE = "https://api.tiingo.com";
 export class TiingoProvider implements MarketDataProvider {
   readonly name = "Tiingo";
 
+  /**
+   * Tiingo's adjClose is adjusted for splits *and* dividends, and getBars
+   * below prefers it — correctly, since the unadjusted close is not even
+   * split-adjusted and would show a fake collapse on every split. The
+   * consequence is that these closes are a total-return series, so anything
+   * reinvesting dividends on top of them would count them twice.
+   */
+  readonly barsIncludeDividends = true;
+
   private get token() {
     return process.env.TIINGO_API_KEY;
   }
