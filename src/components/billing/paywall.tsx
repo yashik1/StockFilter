@@ -64,9 +64,10 @@ export function Paywall({
       </div>
 
       <p className="mt-5 border-t border-border pt-4 text-xs leading-relaxed text-muted">
-        Only backtesting and the trade journal need a subscription. Company pages, the
-        screener, comparisons, charts and every figure traced back to its filing stay free
-        and always will.
+        Three things need a subscription: the screener backtest, the trade journal, and the
+        moving averages drawn over a result. Everything else is free — company pages, the
+        screener, comparisons, charts, crypto and commodities, and working out what an
+        investment would have been worth.
       </p>
     </Card>
   );

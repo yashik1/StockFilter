@@ -7,7 +7,6 @@ import { runSingleStockBacktest, DEFAULT_BENCHMARK } from "@/lib/backtest/run";
 import { isInvestmentError, type InvestmentResult } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
 import { getEntitlement } from "@/lib/billing/entitlement";
-import { Paywall } from "@/components/billing/paywall";
 import { classify, findInstrument } from "@/lib/instruments";
 
 export const dynamic = "force-dynamic";
@@ -49,17 +48,17 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
   const validDate = startDate && !Number.isNaN(startDate.getTime());
 
   /*
-    Checked before the backtest runs, not after.
+    The backtest itself is free. Entitlement decides only the moving averages.
 
-    Gating only the rendered output would still do the work — several seconds
-    of provider calls against a rate-limited free tier — for somebody who is
-    not going to see it, which is both wasteful and the kind of gap that lets
-    a paid feature leak through an API route later.
+    This is the question that brings people to the app at all — what would
+    £10,000 in Apple be worth now — and putting it behind a sign-up asks
+    somebody to pay before they have seen the thing work once. What is worth
+    charging for is the analysis laid over the answer, not the answer.
   */
   const entitlement = await getEntitlement();
 
   const backtest =
-    entitlement.subscribed && hasQuery && validDate
+    hasQuery && validDate
       ? await runSingleStockBacktest(symbol, startDate!, amount, reinvest, benchmark)
       : null;
 
@@ -168,14 +167,7 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
         </div>
       </Card>
 
-      {!entitlement.subscribed ? (
-        <Paywall
-          entitlement={entitlement}
-          feature="Backtesting"
-          description="See what an investment would have been worth, against the market, using real price and dividend history."
-          returnTo="/backtest"
-        />
-      ) : !hasQuery ? (
+      {!hasQuery ? (
         <Card>
           <EmptyState
             title="Nothing to show yet"
@@ -187,7 +179,12 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
           <EmptyState title="That date didn't parse" description="Pick a date and try again." />
         </Card>
       ) : (
-        <BacktestResults backtest={backtest!} amount={amount} reinvest={reinvest} />
+        <BacktestResults
+          backtest={backtest!}
+          amount={amount}
+          reinvest={reinvest}
+          canUseAverages={entitlement.subscribed}
+        />
       )}
 
       <Card className="p-5">
@@ -207,10 +204,12 @@ function BacktestResults({
   backtest,
   amount,
   reinvest,
+  canUseAverages,
 }: {
   backtest: Awaited<ReturnType<typeof runSingleStockBacktest>>;
   amount: number;
   reinvest: boolean;
+  canUseAverages: boolean;
 }) {
   const { result, benchmark } = backtest;
   const assetClass = classify(backtest.symbol);
@@ -347,6 +346,7 @@ function BacktestResults({
           <EquityChart
             target={{ label: backtest.symbol, series: result.series }}
             benchmark={benchResult ? { label: benchmark!.symbol, series: benchResult.series } : null}
+            canUseAverages={canUseAverages}
           />
         </div>
       </Card>

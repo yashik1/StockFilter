@@ -24,7 +24,11 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 export default async function AccountPage({ searchParams }: PageProps<"/account">) {
-  const session = await auth();
+  // Caught for the same reason the layout catches it: auth() throws when
+  // AUTH_SECRET is unset, and a configuration mistake should send somebody to
+  // the sign-in page rather than a stack trace. Failing to "signed out" is
+  // also the safe direction — this page shows billing state.
+  const session = await auth().catch(() => null);
   if (!session?.user) redirect("/signin?next=/account");
 
   const params = await searchParams;
@@ -96,16 +100,23 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
         <h2 className="text-sm font-semibold">What a subscription covers</h2>
         <ul className="mt-2 space-y-1.5 text-sm text-muted">
           <li>
-            <Link href="/backtest" className="text-accent underline">Backtesting</Link>{" "}
-            — single stocks and the screener strategy.
+            <Link href="/backtest/screener" className="text-accent underline">
+              The screener backtest
+            </Link>{" "}
+            — would buying the healthiest companies actually have worked?
           </li>
           <li>
             <Link href="/journal" className="text-accent underline">The trade journal</Link>{" "}
             — your own notes on what you did and why.
           </li>
+          <li>
+            <Link href="/backtest" className="text-accent underline">Moving averages</Link>{" "}
+            — SMA and EMA overlays, at any period, on a backtest result.
+          </li>
         </ul>
         <p className="mt-3 text-xs leading-relaxed text-muted">
-          Company pages, the screener, comparisons and charts stay free.
+          Company pages, the screener, comparisons, charts, crypto and commodities, and
+          working out what an investment would have been worth all stay free.
         </p>
       </Card>
     </div>

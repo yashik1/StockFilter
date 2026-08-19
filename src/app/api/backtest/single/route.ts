@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getEntitlement } from "@/lib/billing/entitlement";
 import { DEFAULT_BENCHMARK, runSingleStockBacktest } from "@/lib/backtest/run";
 
 export const dynamic = "force-dynamic";
@@ -9,28 +8,17 @@ export const dynamic = "force-dynamic";
  * benchmark by default, so a return is read next to the market rather than
  * in isolation.
  */
+/*
+  Open, like the page it serves.
+
+  This route used to return 402, matching a paywall the page no longer has.
+  What is paid is the moving averages drawn over the result, which are computed
+  in the browser from this very series — so gating the series would withhold
+  nothing and break the free page instead. The screener backtest next door
+  stays gated at its route, because there the expensive work and the paid
+  answer are the same thing.
+*/
 export async function GET(request: Request) {
-
-  /*
-    The API is gated as well as the page.
-
-    A paywall that only covers the rendered page is not a paywall — the route
-    behind it answers the same question in JSON to anybody who knows the URL,
-    and that URL is visible in the network tab of the page that does the
-    gating.
-  */
-  const entitlement = await getEntitlement();
-  if (!entitlement.subscribed) {
-    return NextResponse.json(
-      {
-        error: entitlement.signedIn
-          ? "Backtesting needs a subscription."
-          : "Sign in and subscribe to use backtesting.",
-      },
-      { status: 402 },
-    );
-  }
-
   const params = new URL(request.url).searchParams;
   const symbol = params.get("symbol")?.toUpperCase();
   const startParam = params.get("start");

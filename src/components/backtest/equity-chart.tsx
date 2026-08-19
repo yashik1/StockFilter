@@ -8,6 +8,7 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { InvestmentPoint } from "@/lib/backtest/single-stock";
 import { ema, sma } from "@/lib/backtest/indicators";
@@ -80,7 +81,27 @@ const MIN_PERIOD = 2;
  * value trending above or below where it has been sitting", which a jagged
  * equity curve makes hard to judge by eye.
  */
-export function EquityChart({ target, benchmark }: { target: Line; benchmark: Line | null }) {
+/**
+ * Whether the moving averages are unlocked.
+ *
+ * Deliberately a UI gate, not a server one, and worth being clear about why.
+ * The equity curve is free, and an SMA is the mean of numbers already on the
+ * page — so computing them server-side and withholding them would stop nobody
+ * determined while forcing a round trip every time a subscriber nudged the
+ * period, turning an instant control into a laggy one. Degrading the paid
+ * experience to deter a bypass that yields nothing is the wrong trade. The
+ * things that genuinely must not leak — the screener backtest and the journal
+ * — are gated at the route and the action, where it counts.
+ */
+export function EquityChart({
+  target,
+  benchmark,
+  canUseAverages = true,
+}: {
+  target: Line;
+  benchmark: Line | null;
+  canUseAverages?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const smaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -92,7 +113,7 @@ export function EquityChart({ target, benchmark }: { target: Line; benchmark: Li
   const [emaPeriod, setEmaPeriod] = useState(20);
 
   const points = target.series.length;
-  const averagesAvailable = points >= MIN_POINTS_FOR_AVERAGES;
+  const averagesAvailable = canUseAverages && points >= MIN_POINTS_FOR_AVERAGES;
   // A period longer than the data produces an empty line with no explanation,
   // so the input is bounded by what the series can actually support.
   const maxPeriod = Math.max(MIN_PERIOD, points - 1);
@@ -218,6 +239,21 @@ export function EquityChart({ target, benchmark }: { target: Line; benchmark: Li
 
   return (
     <div className="flex flex-col gap-3">
+      {!canUseAverages ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5">
+          <span className="text-xs font-semibold">Moving averages</span>
+          <span className="min-w-0 flex-1 text-xs text-muted">
+            Overlay a simple or exponential moving average, at any period, to see the
+            trend under the noise.
+          </span>
+          <Link
+            href="/account"
+            className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
+          >
+            Subscribe
+          </Link>
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-2">
         <AverageControl
           label="SMA"
@@ -257,6 +293,7 @@ export function EquityChart({ target, benchmark }: { target: Line; benchmark: Li
           </span>
         )}
       </div>
+      )}
 
       <div ref={containerRef} className="h-[380px] w-full" />
     </div>
