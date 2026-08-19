@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getEntitlement } from "@/lib/billing/entitlement";
 import { DEFAULT_BENCHMARK } from "@/lib/backtest/run";
 import { runFullScreenerBacktest } from "@/lib/backtest/run-screener";
 
@@ -15,6 +16,27 @@ export const maxDuration = 300;
  * scored at each rebalance date using only what was actually filed by then.
  */
 export async function GET(request: Request) {
+
+  /*
+    The API is gated as well as the page.
+
+    A paywall that only covers the rendered page is not a paywall — the route
+    behind it answers the same question in JSON to anybody who knows the URL,
+    and that URL is visible in the network tab of the page that does the
+    gating.
+  */
+  const entitlement = await getEntitlement();
+  if (!entitlement.subscribed) {
+    return NextResponse.json(
+      {
+        error: entitlement.signedIn
+          ? "Backtesting needs a subscription."
+          : "Sign in and subscribe to use backtesting.",
+      },
+      { status: 402 },
+    );
+  }
+
   const params = new URL(request.url).searchParams;
   const startParam = params.get("start");
   const amount = Number(params.get("amount") ?? 10_000);

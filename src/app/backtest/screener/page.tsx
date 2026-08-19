@@ -8,6 +8,8 @@ import { DEFAULT_BENCHMARK } from "@/lib/backtest/run";
 import { isInvestmentError } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
 import type { Rating } from "@/lib/scoring/types";
+import { getEntitlement } from "@/lib/billing/entitlement";
+import { Paywall } from "@/components/billing/paywall";
 
 export const dynamic = "force-dynamic";
 
@@ -48,8 +50,13 @@ export default async function ScreenerBacktestPage({
   const startDate = hasQuery ? new Date(start) : null;
   const validDate = startDate && !Number.isNaN(startDate.getTime());
 
+  // Same reasoning as the single-stock page: this one fetches price history
+  // for the entire universe, so running it for a non-subscriber would be the
+  // most expensive way possible to render a paywall.
+  const entitlement = await getEntitlement();
+
   const run =
-    hasQuery && validDate
+    entitlement.subscribed && hasQuery && validDate
       ? await runFullScreenerBacktest(startDate!, amount, topN, benchmark)
       : null;
 
@@ -152,7 +159,14 @@ export default async function ScreenerBacktestPage({
         </div>
       </Card>
 
-      {!hasQuery ? (
+      {!entitlement.subscribed ? (
+        <Paywall
+          entitlement={entitlement}
+          feature="Screener backtesting"
+          description="Test whether buying this app's highest-scoring companies would actually have beaten the market, scored point-in-time at every rebalance date."
+          returnTo="/backtest/screener"
+        />
+      ) : !hasQuery ? (
         <Card>
           <EmptyState
             title="Nothing to show yet"

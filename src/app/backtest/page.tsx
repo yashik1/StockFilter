@@ -6,6 +6,8 @@ import { LocalTime } from "@/components/local-time";
 import { runSingleStockBacktest, DEFAULT_BENCHMARK } from "@/lib/backtest/run";
 import { isInvestmentError, type InvestmentResult } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
+import { getEntitlement } from "@/lib/billing/entitlement";
+import { Paywall } from "@/components/billing/paywall";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +42,18 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
   const startDate = hasQuery ? new Date(start) : null;
   const validDate = startDate && !Number.isNaN(startDate.getTime());
 
+  /*
+    Checked before the backtest runs, not after.
+
+    Gating only the rendered output would still do the work — several seconds
+    of provider calls against a rate-limited free tier — for somebody who is
+    not going to see it, which is both wasteful and the kind of gap that lets
+    a paid feature leak through an API route later.
+  */
+  const entitlement = await getEntitlement();
+
   const backtest =
-    hasQuery && validDate
+    entitlement.subscribed && hasQuery && validDate
       ? await runSingleStockBacktest(symbol, startDate!, amount, reinvest, benchmark)
       : null;
 
@@ -150,7 +162,14 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
         </div>
       </Card>
 
-      {!hasQuery ? (
+      {!entitlement.subscribed ? (
+        <Paywall
+          entitlement={entitlement}
+          feature="Backtesting"
+          description="See what an investment would have been worth, against the market, using real price and dividend history."
+          returnTo="/backtest"
+        />
+      ) : !hasQuery ? (
         <Card>
           <EmptyState
             title="Nothing to show yet"

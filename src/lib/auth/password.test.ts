@@ -9,6 +9,15 @@ import {
 } from "./password";
 
 /**
+ * bcrypt at work factor 12 costs a few hundred milliseconds per hash by
+ * design — that slowness is the entire security property. Several of these
+ * hash more than once, and under the full suite's CPU contention that runs
+ * past vitest's 5s default, so the budget is raised here rather than the work
+ * factor being lowered to suit the test runner.
+ */
+const SLOW_HASHING_MS = 30_000;
+
+/**
  * Password hashing.
  *
  * The properties worth pinning are the ones whose absence is invisible: that
@@ -25,7 +34,7 @@ describe("hashing", () => {
     expect(hash).not.toContain(password);
     expect(hash).not.toContain("horse");
     expect(hash.startsWith("$2")).toBe(true);
-  });
+  }, SLOW_HASHING_MS);
 
   it("verifies the right password and rejects a wrong one", async () => {
     const hash = await hashPassword("a-real-password-1");
@@ -33,7 +42,7 @@ describe("hashing", () => {
     await expect(verifyPassword("a-real-password-1", hash)).resolves.toBe(true);
     await expect(verifyPassword("a-real-password-2", hash)).resolves.toBe(false);
     await expect(verifyPassword("", hash)).resolves.toBe(false);
-  });
+  }, SLOW_HASHING_MS);
 
   // Without a per-hash salt, two people choosing the same password would be
   // visibly identical in the table, and one cracked hash would break both.
@@ -47,13 +56,13 @@ describe("hashing", () => {
     // Both still verify — the salt travels inside the hash.
     await expect(verifyPassword("the-same-password", a)).resolves.toBe(true);
     await expect(verifyPassword("the-same-password", b)).resolves.toBe(true);
-  });
+  }, SLOW_HASHING_MS);
 
   it("carries the intended work factor", async () => {
     const hash = await hashPassword("anything-at-all");
     // bcrypt encodes the cost in the hash itself: $2a$12$...
     expect(hash).toMatch(/^\$2[aby]?\$12\$/);
-  });
+  }, SLOW_HASHING_MS);
 });
 
 describe("what counts as an acceptable password", () => {
@@ -106,5 +115,5 @@ describe("timing", () => {
     // match, since CI timing is noisy and a tight bound would flake.
     expect(dummyMs).toBeGreaterThan(realMs * 0.25);
     expect(dummyMs).toBeLessThan(realMs * 4);
-  });
+  }, SLOW_HASHING_MS);
 });
