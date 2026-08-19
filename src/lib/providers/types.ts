@@ -109,6 +109,12 @@ export interface Filing {
   periodOfReport: string | null;
   description: string | null;
   url: string;
+  /**
+   * For an 8-K, the comma-separated item numbers it reports under — "2.02" is
+   * results, "4.02" is a restatement. Null for every other form, which have a
+   * fixed meaning and need no further qualification.
+   */
+  items?: string | null;
 }
 
 /**

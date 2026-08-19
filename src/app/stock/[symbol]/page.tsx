@@ -20,6 +20,7 @@ import { resolveUnsupported, type UnsupportedSymbol } from "@/lib/symbol-resolve
 import { cikForSymbol } from "@/lib/providers/sec-edgar";
 import { ASSET_CLASS_LABEL, classify, findInstrument } from "@/lib/instruments";
 import { NotACompany } from "@/components/stock/not-a-company";
+import { EarlySignals } from "@/components/stock/early-signals";
 
 export const revalidate = 900;
 
@@ -303,6 +304,21 @@ async function StockBody({
           </Card>
         )}
       </div>
+
+      {/*
+        Early signals — insider trades, pending sales, ownership stakes, a
+        projected calendar. Equity only, not funds: an ETF's trust has
+        officers of its own on file, but their trading activity is not the
+        thing a reader of a fund page is here to learn about.
+      */}
+      {data.assetClass === "equity" && (
+        <EarlySignals
+          symbol={upper}
+          insider={data.earlySignals.insider}
+          stakes={data.earlySignals.stakes}
+          upcoming={data.earlySignals.upcoming}
+        />
+      )}
 
       {/* ---- sources ---- */}
       <SectionHeading

@@ -16,6 +16,10 @@ import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
 import { resolveType } from "./compare";
 import { classify, findInstrument, type AssetClass, type Instrument } from "./instruments";
+import { getCorporateEvents } from "./events";
+import { projectNextEvents, type ProjectedEvent } from "./chart-markers";
+import { getInsiderActivity, type InsiderActivity } from "./signals/insider";
+import { getStakeFilings, type StakeFiling } from "./signals/stakes";
 
 export interface StockPageData {
   symbol: string;
@@ -71,6 +75,18 @@ export interface StockPageData {
   displayCurrency: string;
   /** Set when figures were restated from another currency, for the footnote. */
   converted: { from: string; rate: number } | null;
+  /**
+   * The documents journalism gets written from, before the write-up: insider
+   * trades and pending-sale notices, 5%-ownership stakes, and a calendar
+   * projected from filing cadence. All from EDGAR, all free, all optional —
+   * a company with no recent activity in any of these is the ordinary case,
+   * not a failure.
+   */
+  earlySignals: {
+    insider: InsiderActivity;
+    stakes: StakeFiling[];
+    upcoming: ProjectedEvent[];
+  };
 }
 
 /**
@@ -96,7 +112,7 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
   const assetClass = classify(upper);
   if (assetClass) return getInstrumentPageData(upper, assetClass);
 
-  const [profile, fundamentals, quote, news, filings, peers, providerType] =
+  const [profile, fundamentals, quote, news, filings, peers, providerType, insider, stakes, upcoming] =
     await Promise.all([
       provider.getProfile(upper).catch(() => null),
       getFundamentalsWithSource(upper).catch(() => ({
@@ -116,6 +132,21 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       provider.getFilings(upper, 20).catch(() => []),
       getPeers(upper).catch(() => []),
       getInstrumentType(upper).catch(() => "unknown" as InstrumentType),
+      getInsiderActivity(upper).catch(
+        (): InsiderActivity => ({ trades: [], pendingSales: [] }),
+      ),
+      getStakeFilings(upper).catch((): StakeFiling[] => []),
+      /*
+        A multi-year window, not the chart's usual one — projectNextEvents
+        needs several observed cycles to trust a cadence at all, and the price
+        chart's own default of a year would rarely clear that bar. Fetched
+        here rather than reusing the chart's client-side /api/events call
+        because that call is scoped to whatever range the visitor has chosen
+        to view, which is the wrong lifetime for a projection.
+      */
+      getCorporateEvents(upper, new Date(Date.now() - 3 * 365 * 86_400_000), new Date())
+        .then((events) => projectNextEvents(events))
+        .catch((): ProjectedEvent[] => []),
     ]);
 
   /*
@@ -190,6 +221,7 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     instrumentType,
     assetClass: instrumentType === "etf" ? "etf" : "equity",
     instrument: null,
+    earlySignals: { insider, stakes, upcoming },
     reportingCurrency,
     displayCurrency,
     converted,
@@ -282,6 +314,9 @@ async function getInstrumentPageData(
     instrumentType: "unknown",
     assetClass,
     instrument,
+    // Gold files no Form 4s. These are simply empty rather than fetched and
+    // discarded — see the classify() short-circuit above this function.
+    earlySignals: { insider: { trades: [], pendingSales: [] }, stakes: [], upcoming: [] },
     reportingCurrency: null,
     displayCurrency,
     converted: null,

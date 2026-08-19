@@ -1,6 +1,7 @@
 import { normalizeCompanyFacts } from "../fundamentals/normalize";
 import type { NormalizedFundamentals, SecCompanyFacts } from "../fundamentals/types";
 import { SEC_USER_AGENT } from "./sec-config";
+import { describeEightK } from "../signals/eight-k-items";
 import type {
   Bar,
   CompanyProfile,
@@ -155,7 +156,7 @@ export async function cikForSymbol(symbol: string): Promise<string | null> {
   return null;
 }
 
-interface SecSubmissions {
+export interface SecSubmissions {
   cik: string;
   name: string;
   sic: string;
@@ -172,11 +173,19 @@ interface SecSubmissions {
       form: string[];
       primaryDocument: string[];
       primaryDocDescription: string[];
+      /**
+       * Comma-separated 8-K item numbers, e.g. "2.02,9.01". Present all along
+       * and ignored until now, which is why every 8-K was announced with the
+       * same sentence.
+       */
+      items?: string[];
+      /** When EDGAR accepted the filing — the moment it became public. */
+      acceptanceDateTime?: string[];
     };
   };
 }
 
-async function fetchSubmissions(cik: string): Promise<SecSubmissions | null> {
+export async function fetchSubmissions(cik: string): Promise<SecSubmissions | null> {
   const res = await fetch(`https://data.sec.gov/submissions/CIK${cik}.json`, {
     headers: SEC_HEADERS,
     next: { revalidate: SUBMISSIONS_TTL },
@@ -278,6 +287,7 @@ export class SecEdgarProvider implements MarketDataProvider {
         filedAt: r.filingDate[i],
         periodOfReport: r.reportDate[i] || null,
         description: r.primaryDocDescription?.[i] || null,
+        items: r.items?.[i] || null,
         url: doc
           ? `https://www.sec.gov/Archives/edgar/data/${cikNum}/${bare}/${doc}`
           : `https://www.sec.gov/Archives/edgar/data/${cikNum}/${bare}/${accn}-index.htm`,
@@ -347,17 +357,28 @@ export class SecEdgarProvider implements MarketDataProvider {
     return filings
       .filter((f) => NEWSWORTHY[f.form] && Date.parse(f.filedAt) >= cutoff)
       .slice(0, limit)
-      .map((f) => ({
-        id: f.url,
-        headline: NEWSWORTHY[f.form],
-        // The filing's own description, when EDGAR carries one, is a better
-        // summary than anything that could be generated from the form type.
-        summary: f.description || null,
-        source: "SEC EDGAR",
-        url: f.url,
-        publishedAt: new Date(f.filedAt).toISOString(),
-        imageUrl: null,
-      }));
+      .map((f) => {
+        /*
+          An 8-K says which items it reports under, and those items are the
+          difference between "we published results" and "our previous accounts
+          cannot be relied on". Both used to arrive as "the company reported a
+          major event". Every other form keeps its fixed label, because their
+          meaning does not vary.
+        */
+        const decoded = f.form === "8-K" ? describeEightK(f.items) : null;
+
+        return {
+          id: f.url,
+          headline: decoded ? decoded.headline : NEWSWORTHY[f.form],
+          // The filing's own description, when EDGAR carries one, is a better
+          // summary than anything that could be generated from the form type.
+          summary: f.description || null,
+          source: "SEC EDGAR",
+          url: f.url,
+          publishedAt: new Date(f.filedAt).toISOString(),
+          imageUrl: null,
+        };
+      });
   }
 }
 
