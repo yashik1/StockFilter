@@ -169,12 +169,29 @@ Everything runs on **Railway** — the app and Postgres as two services in one p
    ```
 
 4. Add `SEC_USER_AGENT`, `CRON_SECRET`, and whichever price keys you want.
-5. Create the tables and load the data, from inside the container:
+5. For accounts, add `AUTH_SECRET` (`openssl rand -base64 32`) and `AUTH_URL`
+   (the app's own public origin). Without `AUTH_SECRET` nobody can sign in;
+   the rest of the site still works, since the free pages never read a session.
+6. For the two paid features, add `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` and
+   `STRIPE_WEBHOOK_SECRET`, then point a Stripe webhook at
+   `https://<your-app>/api/billing/webhook` subscribed to
+   `checkout.session.completed` and the three `customer.subscription.*`
+   events. Leave all three empty to run the app with nothing paid.
+7. Create the tables and load the data, from inside the container:
 
    ```bash
    railway ssh -s StockFilter -- npm run db:migrate
    railway ssh -s StockFilter -- npm run ingest
    ```
+
+   `db:migrate` is safe to re-run: every statement tolerates "already exists",
+   so a schema that is half-applied catches up rather than needing a reset.
+
+**What is paid.** Backtesting and the trade journal, and nothing else. The
+screener, health reports, comparison and stock pages are the reason the app
+exists and stay free and signed-out. Both gates are enforced at the page *and*
+at the API route behind it, since a paywall that only covers the rendered page
+is answered in JSON to anyone who opens the network tab.
 
 `/api/health` reports what the running app can actually see — whether the database
 is reachable, which tables exist, row counts, and whether the price providers work.
