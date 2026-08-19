@@ -5,6 +5,9 @@ import "./globals.css";
 import { BoltMark } from "@/components/waveform";
 import { SearchBox } from "@/components/search-box";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SessionProvider } from "next-auth/react";
+import { auth } from "@/lib/auth";
+import { AccountMenu } from "@/components/auth/account-menu";
 
 /**
  * Three faces, each with one job.
@@ -95,7 +98,11 @@ const NAV = [
   { href: "/learn", label: "Learn" },
 ];
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Read once here rather than per page: the header needs it on every route,
+  // and this is a JWT session so it costs no database round trip.
+  const session = await auth().catch(() => null);
+
   return (
     <html
       lang="en"
@@ -106,6 +113,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col font-sans">
+        <SessionProvider session={session}>
         <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
             <Link
@@ -138,6 +146,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
             <div className="ml-auto flex items-center gap-2">
               <SearchBox className="w-44 sm:w-72" />
+              <AccountMenu email={session?.user?.email ?? null} />
               <ThemeToggle />
             </div>
           </div>
@@ -193,6 +202,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </p>
           </div>
         </footer>
+        </SessionProvider>
       </body>
     </html>
   );

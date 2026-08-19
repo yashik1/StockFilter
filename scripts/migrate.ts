@@ -13,6 +13,14 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
 
+/**
+ * Every table the app expects to exist once all migrations have run: the five
+ * original market-data tables plus the accounts, billing and journal tables.
+ * Counted after the fact so a half-applied migration is reported rather than
+ * discovered later by a page failing.
+ */
+const EXPECTED_TABLES = 12;
+
 /** Postgres error codes we treat as "already done" rather than failures. */
 const ALREADY_EXISTS = new Set([
   "42P07", // duplicate_table
@@ -81,13 +89,17 @@ async function main() {
       SELECT count(*)::int AS count
       FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('companies', 'financials', 'scores', 'price_cache', 'ingest_runs')
+        AND table_name IN (
+          'companies', 'financials', 'scores', 'price_cache', 'ingest_runs',
+          'users', 'accounts', 'sessions', 'verification_tokens',
+          'password_reset_tokens', 'subscriptions', 'journal_entries'
+        )
     `;
 
     console.log(`\n${created} applied, ${skipped} already existed.`);
-    console.log(`${count} of 5 expected tables present.`);
+    console.log(`${count} of ${EXPECTED_TABLES} expected tables present.`);
 
-    if (count < 5) {
+    if (count < EXPECTED_TABLES) {
       console.error("\nSome tables are missing. Check the errors above.");
       process.exitCode = 1;
     } else {
