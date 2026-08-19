@@ -63,7 +63,24 @@ const NOT_SIGNED_IN: Entitlement = {
  * staleness would hand access back to someone whose payment had failed.
  */
 export async function getEntitlement(): Promise<Entitlement> {
-  const session = await auth();
+  /*
+    A throw here is caught rather than propagated, and the catch fails closed.
+
+    `auth()` throws when AUTH_SECRET is missing or malformed, which is a
+    configuration mistake an operator makes once while setting a deployment up.
+    Letting it propagate replaces the paywall with an error boundary on every
+    gated page — the reader sees a broken app instead of an invitation to
+    subscribe, and the operator sees a stack trace rather than the actual
+    problem. Reading it as "not signed in" keeps the page working and keeps the
+    gate shut, which is the direction a paywall should fail in.
+  */
+  const session = await auth().catch((err) => {
+    console.error(
+      "[billing] could not read the session, treating the visitor as signed out:",
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  });
   const userId = session?.user?.id;
 
   if (!userId) return NOT_SIGNED_IN;
