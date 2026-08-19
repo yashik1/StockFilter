@@ -94,6 +94,7 @@ const NAV = [
   { href: "/", label: "Dashboard" },
   { href: "/screen", label: "Screener" },
   { href: "/compare", label: "Compare" },
+  { href: "/markets", label: "Markets" },
   { href: "/backtest", label: "Backtest" },
   { href: "/journal", label: "Journal" },
   { href: "/learn", label: "Learn" },

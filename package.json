@@ -18,7 +18,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:check": "tsx scripts/check-db.ts",
     "universe:audit": "tsx scripts/audit-universe.ts",
-    "quotes": "tsx scripts/refresh-quotes.ts"
+    "quotes": "tsx scripts/refresh-quotes.ts",
+    "instruments:verify": "tsx scripts/verify-instruments.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

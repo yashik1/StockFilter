@@ -4,6 +4,7 @@ import type { InstrumentType, Quote } from "./providers/types";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
 import { div } from "./scoring/math";
+import { classify, findInstrument, type AssetClass } from "./instruments";
 
 /** Most symbols a single comparison will load. */
 export const MAX_COMPARE = 4;
@@ -12,6 +13,14 @@ export interface CompareItem {
   symbol: string;
   name: string;
   type: InstrumentType;
+  /**
+   * What kind of thing this is, in the reader's terms.
+   *
+   * `type` answers whether statements exist; this answers what the row is.
+   * Both are needed, because "no statements" covers a fund, a commodity and a
+   * coin, and the comparison table says something different for each.
+   */
+  assetClass: AssetClass;
   quote: Quote | null;
   marketCap: number | null;
   sector: SectorKind;
@@ -80,6 +89,26 @@ async function loadOne(symbol: string): Promise<CompareItem> {
   const provider = getProvider();
   const upper = symbol.toUpperCase();
 
+  // A coin or a contract has a price and nothing else. Fetching a profile and
+  // statements for it would be two calls whose answers are known to be empty.
+  const assetClass = classify(upper);
+  if (assetClass) {
+    const quote = await provider.getQuote(upper).catch(() => null);
+    return {
+      symbol: upper,
+      name: findInstrument(upper)?.name ?? upper,
+      type: "unknown",
+      assetClass,
+      quote,
+      // A commodity has a price, not a market capitalisation.
+      marketCap: null,
+      sector: "other",
+      industry: findInstrument(upper)?.category ?? null,
+      report: null,
+      metrics: EMPTY_METRICS,
+    };
+  }
+
   const [profile, fundamentals, quote, type] = await Promise.all([
     provider.getProfile(upper).catch(() => null),
     provider.getFundamentals(upper).catch(() => null),
@@ -92,7 +121,7 @@ async function loadOne(symbol: string): Promise<CompareItem> {
 
   if (!profile && !hasFinancials && !quote) {
     return {
-      symbol: upper, name: upper, type: "unknown", quote: null, marketCap: null,
+      symbol: upper, name: upper, type: "unknown", assetClass: "equity", quote: null, marketCap: null,
       sector: "other", industry: null, report: null, metrics: EMPTY_METRICS,
       error: "Not found. Check the ticker, or it may not be covered by the configured data sources.",
     };
@@ -111,6 +140,7 @@ async function loadOne(symbol: string): Promise<CompareItem> {
       symbol: upper,
       name: profile?.name ?? upper,
       type: resolvedType,
+      assetClass: resolvedType === "etf" ? "etf" : "equity",
       quote,
       marketCap,
       sector,
@@ -131,6 +161,7 @@ async function loadOne(symbol: string): Promise<CompareItem> {
     symbol: upper,
     name: profile?.name ?? fundamentals.entityName,
     type: "stock",
+    assetClass: "equity",
     quote,
     marketCap,
     sector,

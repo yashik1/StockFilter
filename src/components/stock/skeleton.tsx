@@ -13,10 +13,11 @@ import { Card } from "@/components/ui";
  * 404 page under a 200 status. Placing the boundary inside the page keeps the
  * skeleton while leaving the status code correct.
  */
-export function StockSkeleton() {
+export function StockSkeleton({ label = "Loading company financials…" }: { label?: string } = {}) {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Loading company financials…</span>
+      {/* Read aloud, so it has to be true — Bitcoin has no financials to load. */}
+      <span className="sr-only">{label}</span>
 
       {/* header */}
       <header className="pt-1">

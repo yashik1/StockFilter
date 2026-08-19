@@ -23,8 +23,20 @@ there accounting red flags — and links every figure back to the filing it came
 - **Market movers and sector performance**, plus peer comparison on any stock chart.
 - **Saved companies and recent history**, kept in your browser with no account.
 - **Every source linked** — 10-K, 10-Q, 8-K and 40-F filings straight from SEC EDGAR.
+- **Crypto, commodities and futures** at `/markets` — Bitcoin, gold, oil, wheat and the
+  index contracts. None of them file accounts, so none of them get a health score; they
+  get the chart, the comparison and the backtest, and the page says plainly why the rest
+  does not apply.
 
-Coverage is US companies plus Canadian companies cross-listed on US exchanges.
+Coverage is US companies plus Canadian companies cross-listed on US exchanges, plus the
+non-company instruments listed in `src/lib/instruments.ts`.
+
+**A note on units.** Eleven of the agricultural and livestock contracts are quoted in US
+cents rather than dollars — wheat at "695" is $6.95 a bushel. The provider reports that as
+the currency `USX` and it is carried through to the page, because a hundredfold error in a
+price is the kind that reads as perfectly plausible. `npm run instruments:verify` re-checks
+every symbol still returns real history and that no unit has drifted out of step with what
+the provider reports.
 
 ---
 
@@ -209,6 +221,7 @@ npm test          # 49 tests, incl. fixtures for us-gaap, ifrs-full and derived 
 npm run typecheck
 npm run build
 npm run build:fixtures   # refresh test fixtures from live SEC data
+npm run instruments:verify   # re-check every crypto/commodity/future still has history
 ```
 
 Test fixtures cover three real companies chosen to exercise every branch: **AAPL**

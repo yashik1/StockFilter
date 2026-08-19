@@ -8,23 +8,29 @@ import { isInvestmentError, type InvestmentResult } from "@/lib/backtest/single-
 import { money, signedPercent } from "@/lib/format";
 import { getEntitlement } from "@/lib/billing/entitlement";
 import { Paywall } from "@/components/billing/paywall";
+import { classify, findInstrument } from "@/lib/instruments";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "What if I had invested…",
   description:
-    "See what an investment in any stock would be worth today, next to the market as a whole.",
+    "See what an investment in any stock, crypto or commodity would be worth today, " +
+    "next to the market as a whole.",
 };
 
 const SUGGESTIONS = [
   { label: "AAPL since 2015", symbol: "AAPL", start: "2015-01-01" },
-  { label: "MSFT since 2018", symbol: "MSFT", start: "2018-01-01" },
   { label: "SPY since 2010", symbol: "SPY", start: "2010-01-01" },
+  { label: "Bitcoin since 2017", symbol: "BTC-USD", start: "2017-01-01" },
+  { label: "Gold since 2010", symbol: "GC=F", start: "2010-01-01" },
+  { label: "Oil since 2019", symbol: "CL=F", start: "2019-01-01" },
 ];
 
 function suggestionHref(s: (typeof SUGGESTIONS)[number]) {
-  return `/backtest?symbol=${s.symbol}&start=${s.start}&amount=10000`;
+  // encodeURIComponent matters here: futures carry an "=" in the ticker, and
+  // an unencoded GC=F splits the query string into the wrong parameters.
+  return `/backtest?symbol=${encodeURIComponent(s.symbol)}&start=${s.start}&amount=10000`;
 }
 
 export default async function BacktestPage({ searchParams }: PageProps<"/backtest">) {
@@ -63,9 +69,9 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
         <p className="eyebrow">What if</p>
         <h1 className="font-display mt-2 text-4xl sm:text-5xl">What if I had invested…</h1>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
-          Pick a stock, a date and an amount. This shows what that money would be worth
-          today, using the actual price history — nothing here is a prediction about what
-          happens next.
+          Pick a stock, crypto, commodity or futures contract, a date and an amount. This
+          shows what that money would be worth today, using the actual price history —
+          nothing here is a prediction about what happens next.
         </p>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
           Want to test the screener itself, not one stock?{" "}
@@ -207,6 +213,8 @@ function BacktestResults({
   reinvest: boolean;
 }) {
   const { result, benchmark } = backtest;
+  const assetClass = classify(backtest.symbol);
+  const instrument = findInstrument(backtest.symbol);
 
   if (isInvestmentError(result)) {
     return (
@@ -234,10 +242,43 @@ function BacktestResults({
           available price.
         </p>
       )}
-      {reinvest && !backtest.dividendDataAvailable && (
+      {/*
+        The dividend caveat is for things that pay dividends.
+
+        Shown unconditionally, it told a reader that "any dividends BTC-USD
+        paid are not included" — inviting them to mentally add a yield that
+        does not exist and never did. A caveat that describes absent data is
+        only honest when the data could have been there.
+      */}
+      {reinvest && !backtest.dividendDataAvailable && assetClass === null && (
         <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
           Dividend data isn&apos;t available on this deployment, so this shows price return only
           — any dividends {backtest.symbol} paid are not included.
+        </p>
+      )}
+      {/*
+        A futures curve is not a thing anybody could have bought and held.
+
+        The series is stitched from each front-month contract in turn, so a
+        ten-year "investment" in wheat is really a decade of rolling positions,
+        each roll with its own cost and its own gap between the expiring and
+        the next contract. The number above is a fair record of how the
+        commodity's price moved; it is not a record of what a holder would have
+        ended up with, and the difference compounds.
+      */}
+      {(assetClass === "commodity" || assetClass === "future") && (
+        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+          This tracks the front-month futures price, stitched across contracts as each one
+          expires. Nobody can actually buy and hold that — a real position has to be rolled
+          into the next contract again and again, and the cost of doing so is not modelled
+          here. Read it as how the price moved, not as what a holder would have made.
+        </p>
+      )}
+      {assetClass === "crypto" && (
+        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+          Crypto trades every day of the year, including weekends, so this curve has roughly
+          40% more points than a stock over the same window. Returns are still annualised on
+          calendar days, so the comparison against the benchmark is like for like.
         </p>
       )}
       {/*
@@ -267,7 +308,13 @@ function BacktestResults({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <ResultCard label={backtest.symbol} amount={amount} result={result} reinvest={reinvest} />
+        {/* "Gold" reads better than "GC=F" on the headline card. */}
+        <ResultCard
+          label={instrument?.name ?? backtest.symbol}
+          amount={amount}
+          result={result}
+          reinvest={reinvest}
+        />
         {benchmark && benchResult && (
           <ResultCard
             label={benchmark.symbol}

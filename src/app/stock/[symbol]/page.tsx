@@ -18,6 +18,8 @@ import { StockSkeleton } from "@/components/stock/skeleton";
 import { UnsupportedListing } from "@/components/stock/unsupported";
 import { resolveUnsupported, type UnsupportedSymbol } from "@/lib/symbol-resolver";
 import { cikForSymbol } from "@/lib/providers/sec-edgar";
+import { ASSET_CLASS_LABEL, classify, findInstrument } from "@/lib/instruments";
+import { NotACompany } from "@/components/stock/not-a-company";
 
 export const revalidate = 900;
 
@@ -27,8 +29,16 @@ export async function generateMetadata({
   const { symbol } = await params;
   const upper = decodeURIComponent(symbol).toUpperCase();
 
-  const title = `${upper} — financial health in plain English`;
-  const description = `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`;
+  // A commodity or a coin gets a title that describes what the page actually
+  // offers. "Is gold profitable, growing, or carrying too much debt" is not a
+  // question anybody asked, and it is the description search engines would show.
+  const instrument = findInstrument(upper);
+  const title = instrument
+    ? `${instrument.name} (${upper}) — price history and backtesting`
+    : `${upper} — financial health in plain English`;
+  const description = instrument
+    ? `Live price, long-run history and backtesting for ${instrument.name}. It files no accounts, so the company health scores do not apply.`
+    : `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`;
 
   return {
     title,
@@ -50,20 +60,36 @@ export default async function StockPage({ params }: PageProps<"/stock/[symbol]">
   const { symbol } = await params;
   const upper = decodeURIComponent(symbol).toUpperCase();
 
-  const cik = await cikForSymbol(upper).catch(() => null);
+  /*
+    Commodities, contracts and coins skip the EDGAR existence check entirely.
 
-  // Absent from EDGAR. Resolve it here, before streaming, so a genuine typo can
-  // still answer 404 — but do not decide the page from that alone. A fallback
-  // provider may hold statements for this company, and short-circuiting to the
-  // coverage explainer here meant the fallback was never asked.
+    Not an optimisation — a correctness fix. That check asks whether the SEC
+    has heard of the ticker and answers 404 when it has not, which is right for
+    a mistyped equity and wrong for gold: BTC-USD and GC=F are absent from
+    EDGAR by nature, and both used to 404 despite having decades of price
+    history one call away.
+  */
+  const assetClass = classify(upper);
+
   let unsupported: UnsupportedSymbol | null = null;
-  if (!cik) {
-    unsupported = await resolveUnsupported(upper).catch(() => null);
-    if (!unsupported) notFound();
+  if (!assetClass) {
+    const cik = await cikForSymbol(upper).catch(() => null);
+
+    // Absent from EDGAR. Resolve it here, before streaming, so a genuine typo
+    // can still answer 404 — but do not decide the page from that alone. A
+    // fallback provider may hold statements for this company, and
+    // short-circuiting to the coverage explainer here meant the fallback was
+    // never asked.
+    if (!cik) {
+      unsupported = await resolveUnsupported(upper).catch(() => null);
+      if (!unsupported) notFound();
+    }
   }
 
   return (
-    <Suspense fallback={<StockSkeleton />}>
+    <Suspense
+      fallback={<StockSkeleton label={assetClass ? "Loading price history…" : undefined} />}
+    >
       <StockBody symbol={upper} unsupported={unsupported} />
     </Suspense>
   );
@@ -101,6 +127,17 @@ async function StockBody({
   const { profile, fundamentals, quote, report, sector, marketCap } = data;
   const latest = fundamentals?.annual[0];
 
+  /*
+    Whether the accounts-shaped parts of the page apply at all.
+
+    Without this, a Bitcoin page carried an empty "Reported annual figures"
+    panel and a filings list apologising that "this company has no recent
+    filings indexed on EDGAR" — both of which imply a company that ought to
+    have filed and has not, rather than an asset that never could. An empty
+    section is not neutral; it makes a claim about what is missing.
+  */
+  const filesAccounts = data.assetClass === "equity" || data.assetClass === "etf";
+
   // Orientation before analysis: what the business is, then what the filings
   // show going well and going badly.
   const currency = data.displayCurrency;
@@ -129,6 +166,9 @@ async function StockBody({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="display text-3xl font-bold sm:text-4xl">{upper}</h1>
+            {data.instrument && (
+              <Badge tone="accent">{ASSET_CLASS_LABEL[data.assetClass]}</Badge>
+            )}
             {(profile?.exchange ?? unsupported?.exchange) && (
               <Badge>{profile?.exchange ?? unsupported?.exchange}</Badge>
             )}
@@ -142,7 +182,9 @@ async function StockBody({
             )}
           </div>
           <p className="mt-1.5 text-sm text-muted">
-            {profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
+            {data.instrument?.name ?? profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
+            {/* The unit is the difference between "4554" and "$4,554 an ounce". */}
+            {data.instrument?.unit && ` · ${data.instrument.unit}`}
             {profile?.industry && ` · ${profile.industry}`}
             {!profile && unsupported?.country && ` · ${unsupported.country}`}
           </p>
@@ -168,6 +210,14 @@ async function StockBody({
           companyName={profile?.name ?? unsupported?.name ?? upper}
           quote={quote}
           marketCap={marketCap}
+        />
+      ) : data.assetClass === "crypto" ||
+        data.assetClass === "commodity" ||
+        data.assetClass === "future" ? (
+        <NotACompany
+          symbol={upper}
+          assetClass={data.assetClass}
+          instrument={data.instrument}
         />
       ) : data.instrumentType === "etf" ? (
         // A fund holds other assets rather than running a business, so there is
@@ -243,23 +293,29 @@ async function StockBody({
         {fundamentals && (
           <BalanceSheetVisual fundamentals={fundamentals} sector={sector} currency={currency} />
         )}
-        <Card>
-          <CardHeader
-            title="How it has changed over time"
-            subtitle="Reported annual figures"
-          />
-          <FundamentalsChart series={trends} currency={currency} />
-        </Card>
+        {filesAccounts && (
+          <Card>
+            <CardHeader
+              title="How it has changed over time"
+              subtitle="Reported annual figures"
+            />
+            <FundamentalsChart series={trends} currency={currency} />
+          </Card>
+        )}
       </div>
 
       {/* ---- sources ---- */}
       <SectionHeading
         eyebrow="Go deeper"
-        title="Sources and further reading"
-        description="Every figure above traces back to one of these filings."
+        title={filesAccounts ? "Sources and further reading" : "News and further reading"}
+        description={
+          filesAccounts
+            ? "Every figure above traces back to one of these filings."
+            : "There are no filings to trace back to, but the market still gets written about."
+        }
       />
       <div className="grid gap-4 lg:grid-cols-2">
-        <FilingsList filings={data.filings} />
+        {filesAccounts && <FilingsList filings={data.filings} />}
         <div className="space-y-4">
           <NewsList
             news={data.news}
@@ -267,12 +323,14 @@ async function StockBody({
             status={data.newsStatus}
             source={data.newsSource}
           />
-          <PeersList peers={data.peers} />
-          <ResearchLinks
-            symbol={upper}
-            cik={profile?.cik ?? null}
-            website={profile?.website ?? null}
-          />
+          {filesAccounts && <PeersList peers={data.peers} />}
+          {filesAccounts && (
+            <ResearchLinks
+              symbol={upper}
+              cik={profile?.cik ?? null}
+              website={profile?.website ?? null}
+            />
+          )}
         </div>
       </div>
 

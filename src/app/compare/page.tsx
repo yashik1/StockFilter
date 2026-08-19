@@ -4,6 +4,7 @@ import { CompareChart } from "@/components/compare-chart";
 import { Badge, Card, CardHeader, Change, NotReported, RatingBadge } from "@/components/ui";
 import { loadComparison, MAX_COMPARE, parseSymbols, type CompareItem } from "@/lib/compare";
 import { money, multiple, percent, price as fmtPrice } from "@/lib/format";
+import { ASSET_CLASS_LABEL } from "@/lib/instruments";
 import type { Rating } from "@/lib/scoring/types";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
         <p className="eyebrow">Side by side</p>
         <h1 className="font-display mt-2 text-4xl sm:text-5xl">Compare</h1>
         <p className="mt-1.5 text-sm text-muted">
-          Put up to {MAX_COMPARE} companies or ETFs next to each other — health, valuation,
+          Put up to {MAX_COMPARE} companies, funds, commodities or coins next to each other — health, valuation,
           growth and performance.
         </p>
       </header>
@@ -109,6 +110,26 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
             <ComparisonTable items={items} />
           </Card>
 
+          {items.some(
+            (i) =>
+              i.assetClass === "crypto" ||
+              i.assetClass === "commodity" ||
+              i.assetClass === "future",
+          ) && (
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold">
+                Why crypto, commodities and futures show no financial scores
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">
+                There is no company behind them. Bitcoin has no revenue, gold owes nothing,
+                and a futures contract is an agreement rather than a business — so the
+                profitability, debt and accounting scores are inapplicable here rather than
+                missing. Their price performance above is directly comparable with any share
+                or fund; every row below it is not.
+              </p>
+            </Card>
+          )}
+
           {items.some((i) => i.type === "etf") && (
             <Card className="p-5">
               <h2 className="text-sm font-semibold">Why funds show no financial scores</h2>
@@ -127,6 +148,29 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
   );
 }
 
+/**
+ * Why a row has no health score.
+ *
+ * "not reported" is a statement about a company that filed something and left
+ * a figure out. Applied to Bitcoin it is simply false — nothing was reported
+ * because nothing reports — and the distinction is the whole difference
+ * between missing data and an inapplicable question.
+ */
+function noScoreReason(i: CompareItem): string {
+  switch (i.assetClass) {
+    case "crypto":
+      return "n/a — no company behind it";
+    case "commodity":
+      return "n/a for commodities";
+    case "future":
+      return "n/a for futures";
+    case "etf":
+      return "n/a for funds";
+    default:
+      return i.type === "etf" ? "n/a for funds" : "not reported";
+  }
+}
+
 function ComparisonTable({ items }: { items: CompareItem[] }) {
   const rows: {
     label: string;
@@ -136,7 +180,11 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
     {
       label: "Type",
       render: (i) =>
-        i.type === "etf" ? (
+        i.assetClass === "crypto" ||
+        i.assetClass === "commodity" ||
+        i.assetClass === "future" ? (
+          <Badge tone="accent">{ASSET_CLASS_LABEL[i.assetClass]}</Badge>
+        ) : i.type === "etf" ? (
           <Badge tone="accent">Fund / ETF</Badge>
         ) : i.type === "stock" ? (
           <Badge>Company</Badge>
@@ -149,7 +197,11 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
       render: (i) =>
         i.quote?.price != null ? (
           <div>
-            <span className="tnum font-medium">{fmtPrice(i.quote.price)}</span>
+            {/* The quote's own currency. Without it wheat renders as "$695.50"
+                rather than "695.50¢", overstating a bushel a hundredfold. */}
+            <span className="tnum font-medium">
+              {fmtPrice(i.quote.price, i.quote.currency ?? "USD")}
+            </span>
             <Change
               value={i.quote.change}
               percent={i.quote.changePercent}
@@ -170,9 +222,7 @@ function ComparisonTable({ items }: { items: CompareItem[] }) {
             label={`${i.report.score.toFixed(1)}/10`}
           />
         ) : (
-          <span className="text-xs text-faint">
-            {i.type === "etf" ? "n/a for funds" : "not reported"}
-          </span>
+          <span className="text-xs text-faint">{noScoreReason(i)}</span>
         ),
     },
     {

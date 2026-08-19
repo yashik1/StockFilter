@@ -25,6 +25,7 @@ import type {
   Timeframe,
 } from "./types";
 import { ProviderNotConfiguredError } from "./types";
+import { classify } from "../instruments";
 
 /**
  * Composes the free US/Canada stack into a single provider.
@@ -51,7 +52,7 @@ class FreeStackProvider implements MarketDataProvider {
   }
 
   async getQuote(symbol: string): Promise<Quote | null> {
-    const result = await fetchQuoteWithFailover(PRICE_SOURCES, symbol);
+    const result = await fetchQuoteWithFailover(sourcesFor(symbol), symbol);
     return result.value;
   }
 
@@ -197,6 +198,25 @@ class FreeStackProvider implements MarketDataProvider {
 const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo, yahoo];
 
 /**
+ * The order to try, for one symbol.
+ *
+ * Crypto, commodities and futures go to Yahoo first, because it is the only
+ * source in the stack that covers them in this notation — Twelve Data prices
+ * crypto as `BTC/USD` rather than `BTC-USD`, Finnhub's free tier serves no
+ * candles at all, and neither Tiingo nor any of them carries a wheat contract.
+ *
+ * Left in the default order, every crypto chart spent three failed requests
+ * before reaching the provider that could answer, two of them against quotas
+ * measured in single-digit requests per minute. The failover still runs in
+ * full afterwards, so nothing is lost if Yahoo is the one that is down — this
+ * only changes who is asked first.
+ */
+function sourcesFor(symbol: string): PriceSource[] {
+  if (!classify(symbol)) return PRICE_SOURCES;
+  return [yahoo, ...PRICE_SOURCES.filter((s) => s !== yahoo)];
+}
+
+/**
  * Statements, falling back past EDGAR for listings it does not cover.
  *
  * This used to live in the stock page's own loader, so it ran for that page and
@@ -339,7 +359,7 @@ export async function getBarsWithSource(
   from: Date,
   to: Date,
 ): Promise<{ bars: Bar[]; source: string | null }> {
-  const result = await fetchBarsWithFailover(PRICE_SOURCES, symbol, timeframe, from, to);
+  const result = await fetchBarsWithFailover(sourcesFor(symbol), symbol, timeframe, from, to);
   if (result.value.length === 0 && result.attempts.length > 0) {
     // Every provider failed. Report why rather than returning an empty chart,
     // which reads as "this symbol has no history".

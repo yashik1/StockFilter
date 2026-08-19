@@ -67,3 +67,41 @@ describe("price", () => {
     expect(price(42.5, "PLN")).toContain("PLN");
   });
 });
+
+/**
+ * Prices that are not ordinary share prices.
+ *
+ * Two ways a price renders as a lie rather than as missing: a token worth a
+ * few millionths of a cent rounding to zero, and a contract quoted in cents
+ * being read as dollars. Both produce a confident, wrong number, which is
+ * worse than a dash.
+ */
+describe("price, for instruments that are not shares", () => {
+  it("marks a cents-quoted contract as cents, not dollars", () => {
+    // Wheat at 695.5 is $6.955 a bushel. Rendering "$695.50" overstates it
+    // a hundredfold, and nothing on the page would contradict it.
+    expect(price(695.5, "USX")).toBe("695.50¢");
+    expect(price(17.64, "USX")).toBe("17.64¢");
+  });
+
+  it("handles London's pence quotes the same way", () => {
+    expect(price(240.5, "GBX")).toBe("240.50p");
+  });
+
+  it("does not round a sub-cent token down to zero", () => {
+    // Shiba Inu really does trade here. toFixed(2) would say "$0.00".
+    expect(price(0.00000456, "USD")).toBe("$0.00000456");
+    expect(price(0.07271, "USD")).toBe("$0.0727");
+    expect(price(0.000629029, "USD")).toBe("$0.000629");
+  });
+
+  it("leaves ordinary prices at two places so columns line up", () => {
+    expect(price(68_708.36, "USD")).toBe("$68708.36");
+    expect(price(4.3, "USD")).toBe("$4.30");
+    expect(price(1, "USD")).toBe("$1.00");
+  });
+
+  it("keeps the sign on a negative", () => {
+    expect(price(-12.5, "USD")).toBe("$-12.50");
+  });
+});

@@ -35,6 +35,21 @@ const SYMBOLS: Record<string, string> = {
 };
 
 /**
+ * Units that are written after the number rather than before it.
+ *
+ * `USX` is Yahoo's code for US cents, and it is what eleven of the agricultural
+ * and livestock contracts are quoted in — wheat at "695" is 695 cents a bushel,
+ * or $6.95. Rendering that as "$695" overstates the price of a bushel of wheat
+ * by a hundred times, which is the same shape of mistake as reading a won
+ * figure as dollars. Cents conventionally trail the number, so this map exists
+ * separately rather than being forced into the prefix table.
+ */
+const SUFFIX_SYMBOLS: Record<string, string> = {
+  USX: "¢",
+  GBX: "p", // London quotes many shares in pence for the same reason.
+};
+
+/**
  * How a figure is labelled.
  *
  * A currency with no symbol here keeps its ISO code as a suffix rather than
@@ -43,9 +58,29 @@ const SYMBOLS: Record<string, string> = {
  */
 function label(currency: string): { prefix: string; suffix: string } {
   const code = currency.toUpperCase();
+
+  const trailing = SUFFIX_SYMBOLS[code];
+  if (trailing) return { prefix: "", suffix: trailing };
+
   const symbol = SYMBOLS[code];
   if (symbol) return { prefix: symbol, suffix: "" };
   return { prefix: "", suffix: ` ${code}` };
+}
+
+/**
+ * How many decimals a price needs to still say something.
+ *
+ * Two is right for a share and useless for a token: Shiba Inu trades near
+ * 0.0000045, and `toFixed(2)` renders that as "$0.00" — a price of zero, which
+ * is both wrong and the kind of wrong a reader cannot detect. Small numbers
+ * get enough places to keep four significant figures, capped so nothing turns
+ * into a wall of zeroes.
+ */
+function decimalsFor(abs: number): number {
+  if (abs >= 1) return 2;
+  if (abs >= 0.01) return 4;
+  if (abs <= 0) return 2;
+  return Math.min(12, 3 - Math.floor(Math.log10(abs)));
 }
 
 /** Formats a large money figure as $1.23B / €456M / ₩12.3T. */
@@ -67,7 +102,17 @@ export function money(value: number | null | undefined, currency = "USD"): strin
 export function price(value: number | null | undefined, currency = "USD"): string {
   if (value == null || !Number.isFinite(value)) return "—";
   const { prefix, suffix } = label(currency);
-  return `${prefix}${value.toFixed(2)}${suffix}`;
+
+  const abs = Math.abs(value);
+  const places = decimalsFor(abs);
+  let text = value.toFixed(places);
+
+  // Trailing zeroes past two places are noise — "0.00000456" not
+  // "0.000004560" — but the first two are kept so ordinary prices still line
+  // up in a column as "12.30" rather than "12.3".
+  if (places > 2) text = text.replace(/(\.\d\d\d*?)0+$/, "$1");
+
+  return `${prefix}${text}${suffix}`;
 }
 
 /** Formats a ratio as a percentage. `0.253` becomes `25.3%`. */

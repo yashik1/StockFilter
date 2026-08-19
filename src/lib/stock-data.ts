@@ -15,6 +15,7 @@ import { getRate } from "./fx";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
 import { resolveType } from "./compare";
+import { classify, findInstrument, type AssetClass, type Instrument } from "./instruments";
 
 export interface StockPageData {
   symbol: string;
@@ -46,6 +47,18 @@ export interface StockPageData {
   /** Funds file no statements, so scoring is suppressed rather than computed. */
   instrumentType: InstrumentType;
   /**
+   * What kind of thing this is, in the terms a reader thinks in.
+   *
+   * Separate from `instrumentType`, which answers the provider's question of
+   * whether financial statements exist. These answer differently for the same
+   * symbol and both are needed: gold has no statements *and* is not a fund,
+   * and telling somebody looking up gold that "this is a fund, not a company"
+   * would be a confident, wrong explanation.
+   */
+  assetClass: AssetClass;
+  /** Catalogue entry, when this is a listed commodity, contract or coin. */
+  instrument: Instrument | null;
+  /**
    * Currency the statements were reported in. A Canadian filer reports CAD, so
    * absolute figures are not comparable with a US company's even though the
    * ratios are.
@@ -74,6 +87,14 @@ export interface StockPageData {
 export async function getStockPageData(symbol: string): Promise<StockPageData> {
   const provider = getProvider();
   const upper = symbol.toUpperCase();
+
+  // Bitcoin and the December wheat contract file no accounts anywhere, so the
+  // whole fundamentals path is skipped rather than run and discarded. That is
+  // not only tidier: getFundamentalsWithSource would otherwise go and ask SEC
+  // EDGAR about "GC=F" on every page view, spending a request on a question
+  // whose answer is knowable from the symbol.
+  const assetClass = classify(upper);
+  if (assetClass) return getInstrumentPageData(upper, assetClass);
 
   const [profile, fundamentals, quote, news, filings, peers, providerType] =
     await Promise.all([
@@ -146,6 +167,13 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     ? buildHealthReport(resolvedFundamentals, sector, marketCap)
     : null;
 
+  const instrumentType = resolveType(
+    providerType,
+    Boolean(resolvedFundamentals?.annual.length),
+    profile?.entityType,
+    profile?.sicCode,
+  );
+
   return {
     symbol: upper,
     profile,
@@ -159,12 +187,9 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     sector,
     marketCap,
     report,
-    instrumentType: resolveType(
-      providerType,
-      Boolean(resolvedFundamentals?.annual.length),
-      profile?.entityType,
-      profile?.sicCode,
-    ),
+    instrumentType,
+    assetClass: instrumentType === "etf" ? "etf" : "equity",
+    instrument: null,
     reportingCurrency,
     displayCurrency,
     converted,
@@ -201,4 +226,64 @@ export function yearlySeries(
     .map((p) => ({ year: p.fiscalYear, value: fieldValue(p, field) }))
     .filter((d): d is { year: number; value: number } => d.value != null)
     .reverse();
+}
+
+/**
+ * The page payload for something that is not a company.
+ *
+ * A deliberately thin version of the assembly above. There is no profile to
+ * fetch, no filings, no peers and no fundamentals — asking for them would be
+ * four network calls whose answers are known in advance to be empty, and the
+ * emptiness would then have to be distinguished from a genuine failure further
+ * up. Only two things exist for these symbols: a price and, sometimes, news.
+ *
+ * The currency comes from the quote rather than being assumed. That is what
+ * carries `USX` through for the eleven contracts quoted in cents, and it is
+ * the single point where reading corn as dollars per bushel gets prevented.
+ */
+async function getInstrumentPageData(
+  upper: string,
+  assetClass: AssetClass,
+): Promise<StockPageData> {
+  const provider = getProvider();
+  const instrument = findInstrument(upper);
+
+  const [quote, news] = await Promise.all([
+    provider.getQuote(upper).catch(() => null),
+    getNewsWithSource(upper, 12).then(
+      ({ news: items, source }) => ({ items, source, error: null as Error | null }),
+      (err: unknown) => ({
+        items: [] as NewsItem[],
+        source: null as string | null,
+        error: err instanceof Error ? err : new Error(String(err)),
+      }),
+    ),
+  ]);
+
+  const displayCurrency = quote?.currency ?? "USD";
+
+  return {
+    symbol: upper,
+    profile: null,
+    fundamentals: null,
+    quote,
+    news: news.items,
+    newsStatus: describeNews(news.error),
+    newsSource: news.source,
+    filings: [],
+    peers: [],
+    // Sector only ever steers which scoring model applies, and none applies
+    // here. "other" is the neutral value rather than a claim about gold.
+    sector: "other",
+    // A commodity has a spot price, not a market capitalisation. Deriving one
+    // from a contract price and an invented share count would be meaningless.
+    marketCap: null,
+    report: null,
+    instrumentType: "unknown",
+    assetClass,
+    instrument,
+    reportingCurrency: null,
+    displayCurrency,
+    converted: null,
+  };
 }
