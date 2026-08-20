@@ -11,7 +11,7 @@ import { signOut } from "next-auth/react";
  * the pages that gate on it, and a badge in the header would be one more
  * place for that answer to go stale.
  *
- * The address itself is not printed. It used to be, and at up to ten rem it
+ * The name or address is not printed in full. It used to be, and at up to ten rem it
  * was most of the reason the header could not fit on one row: the bar is
  * capped at the same width as the page content so the logo lines up with the
  * text beneath it, which left 1248px to hold 1292px of controls. Signed out it
@@ -20,7 +20,7 @@ import { signOut } from "next-auth/react";
  * back to them on every page — it is on the account page, on hover, and to a
  * screen reader through the label.
  */
-export function AccountMenu({ email }: { email: string | null }) {
+export function AccountMenu({ email, name }: { email: string | null; name?: string | null }) {
   if (!email) {
     return (
       <Link
@@ -32,17 +32,23 @@ export function AccountMenu({ email }: { email: string | null }) {
     );
   }
 
-  // First letter of the address. Not initials from a name: the name is
-  // optional at sign-up and a blank circle for anyone who skipped it would be
-  // worse than a letter everybody has.
-  const initial = email.trim().charAt(0).toUpperCase();
+  /*
+    The name if there is one, the address if not.
+
+    A name is optional at sign-up, so it cannot be relied on — but when
+    somebody has given one it is what they would expect to be called, and
+    "attur.yashik@gmail.com" is not a name. The address remains the fallback
+    because everybody has one, which keeps the circle from ever being blank.
+  */
+  const display = name?.trim() || email;
+  const initial = display.charAt(0).toUpperCase();
 
   return (
     <div className="flex shrink-0 items-center gap-2">
       <Link
         href="/account"
-        title={email}
-        aria-label={`Account — signed in as ${email}`}
+        title={display === email ? email : `${display} (${email})`}
+        aria-label={`Account — signed in as ${display}`}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-[0.6875rem] font-semibold text-muted-strong ring-1 ring-border transition-colors hover:text-accent hover:ring-accent"
       >
         {initial}

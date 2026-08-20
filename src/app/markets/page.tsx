@@ -69,7 +69,7 @@ export default async function MarketsPage() {
             <Link
               key={symbol}
               href={`/stock/${encodeURIComponent(symbol)}`}
-              className="bg-surface px-4 py-3 transition-colors hover:bg-surface-2"
+              className="bg-surface px-5 py-3 transition-colors hover:bg-surface-2"
             >
               <div className="text-xs font-semibold tracking-tight text-muted">
                 {nameOf(symbol)}
@@ -160,7 +160,7 @@ function AssetSection({
               <li key={item.symbol}>
                 <Link
                   href={`/stock/${encodeURIComponent(item.symbol)}`}
-                  className="flex h-full items-baseline justify-between gap-3 bg-surface px-4 py-3 transition-colors hover:bg-surface-2"
+                  className="flex h-full items-baseline justify-between gap-3 bg-surface px-5 py-3 transition-colors hover:bg-surface-2"
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{item.name}</span>

@@ -156,7 +156,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             */}
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <SearchBox className="w-44 lg:w-56 xl:w-72" />
-              <AccountMenu email={session?.user?.email ?? null} />
+              <AccountMenu email={session?.user?.email ?? null} name={session?.user?.name ?? null} />
               <ThemeToggle />
             </div>
           </div>

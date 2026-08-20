@@ -38,9 +38,20 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 py-2">
+      {/*
+        Led by the name when there is one, with the address underneath rather
+        than dropped: this is the page somebody opens to check which account
+        they are in, so the address has to be readable somewhere, and the
+        header no longer prints it.
+      */}
       <header className="pt-1">
         <p className="eyebrow">Account</p>
-        <h1 className="font-display mt-2 text-3xl sm:text-4xl">{session.user.email}</h1>
+        <h1 className="font-display mt-2 text-3xl break-words sm:text-4xl">
+          {session.user.name?.trim() || session.user.email}
+        </h1>
+        {session.user.name?.trim() && (
+          <p className="mt-1 text-sm break-words text-muted">{session.user.email}</p>
+        )}
       </header>
 
       {justPaid && !entitlement.subscribed && (
