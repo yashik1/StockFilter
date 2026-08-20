@@ -180,7 +180,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
           <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
             <button
               type="submit"
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
+              className="rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
             >
               Apply filters
             </button>

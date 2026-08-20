@@ -129,7 +129,7 @@ export default async function ScreenerBacktestPage({
           </div>
           <button
             type="submit"
-            className="h-fit self-end rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
+            className="h-fit self-end rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
           >
             Run
           </button>

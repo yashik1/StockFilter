@@ -112,7 +112,7 @@ export function NewEntryForm() {
           type="submit"
           disabled={pending}
           className={cn(
-            "h-fit rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity",
+            "h-fit rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity",
             pending ? "cursor-wait opacity-60" : "hover:opacity-90",
           )}
         >
