@@ -212,6 +212,52 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------------------------------------------------------------------------
+   Form controls.
+
+   Two element-level rules rather than a utility repeated across seven forms,
+   because both problems they fix are properties of the elements themselves and
+   would come back on the next form somebody writes.
+
+   Labels: a bare <label> is inline. Every form here writes the label above its
+   field and relies on the field being `w-full` to force the wrap — which works
+   until a field is not full width. The journal's conviction box is `w-20`, so
+   it fitted on the same line and sat jammed against the end of its own label
+   while every other field on the card sat below one. Making labels block means
+   the layout no longer depends on how wide the field underneath happens to be.
+
+   Selects: a <select> sizes to the browser's intrinsic control metrics and
+   ignores line-height for its box height, so one carrying byte-identical
+   padding, border and font classes to the input beside it still came out
+   shorter — 36px against 38px. In a row of fields that reads as one box
+   sitting low, which looks like carelessness rather than a browser default.
+   Setting the height explicitly is the only thing that moves it; line-height
+   has no effect, which is why it is spelled out here as the box math the
+   inputs already resolve to rather than as a magic number.
+
+   Every select in the app carries `px-3 py-2 text-sm border`, so one rule
+   covers them. A select styled differently would need its own height, and
+   would be the point to stop doing this globally.
+
+   Both sit in `@layer base`, and that is load-bearing rather than tidy.
+   Tailwind v4 puts its utilities in a cascade layer, and an unlayered rule
+   beats every layered one whatever the specificity — so writing these at the
+   top level silently overrode `display` on every label in the app, including
+   the screener's `flex items-center gap-1` filter labels, which collapsed
+   their icon alignment. Inside the base layer a utility class wins again,
+   which is the whole point of a base style.
+   --------------------------------------------------------------------------- */
+@layer base {
+  label {
+    display: block;
+  }
+
+  select {
+    /* text-sm line-height + py-2 top and bottom + 1px border each side. */
+    height: calc(1.25rem + 1rem + 2px);
+  }
+}
+
 /* Every figure in the interface goes through this, so numbers are always mono
    and always tabular. */
 .tnum {
