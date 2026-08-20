@@ -146,8 +146,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               ))}
             </nav>
 
-            <div className="ml-auto flex items-center gap-2">
-              <SearchBox className="w-44 sm:w-72" />
+            {/*
+              shrink-0 so this group keeps its size and the row stays on one
+              line, and a search field that grows with the viewport rather than
+              claiming 18rem from the first breakpoint up. Between them the bar
+              needs 1184px where it has 1248px, against 1292px before — the
+              44px that used to push it onto a second row whenever somebody was
+              signed in.
+            */}
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <SearchBox className="w-44 lg:w-56 xl:w-72" />
               <AccountMenu email={session?.user?.email ?? null} />
               <ThemeToggle />
             </div>
