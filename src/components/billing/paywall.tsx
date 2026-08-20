@@ -64,10 +64,10 @@ export function Paywall({
       </div>
 
       <p className="mt-5 border-t border-border pt-4 text-xs leading-relaxed text-muted">
-        Three things need a subscription: the screener backtest, the trade journal, and the
-        moving averages drawn over a result. Everything else is free — company pages, the
-        screener, comparisons, charts, crypto and commodities, and working out what an
-        investment would have been worth.
+        Four things need a subscription: the screener backtest, the trade journal, the trading
+        strategies, and the moving averages drawn over a result. Everything else is free —
+        company pages, the screener, comparisons, charts, crypto and commodities, and working
+        out what an investment would have been worth.
       </p>
     </Card>
   );

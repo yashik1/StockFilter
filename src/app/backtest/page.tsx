@@ -6,9 +6,18 @@ import { LocalTime } from "@/components/local-time";
 import {
   bestByAnnualised,
   runHorizonSweep,
+  runOpeningRange,
   runSingleStockBacktest,
+  runStrategyComparison,
   type HorizonResult,
+  type OpeningRangeRun,
 } from "@/lib/backtest/run";
+import type { StrategyResult } from "@/lib/backtest/strategies";
+import {
+  OpeningRangeCard,
+  StrategyComparison,
+} from "@/components/backtest/strategy-comparison";
+import { Paywall } from "@/components/billing/paywall";
 import { isInvestmentError, type InvestmentResult } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
 import { getEntitlement } from "@/lib/billing/entitlement";
@@ -20,7 +29,8 @@ export const metadata: Metadata = {
   title: "What if I had invested…",
   description:
     "See what an investment in any stock, crypto or commodity would be worth today, " +
-    "and how the same holding did over one, three, five and ten years.",
+    "how the same holding did over one, three, five and ten years, and how well-known " +
+    "trading rules would have done with it.",
 };
 
 const SUGGESTIONS = [
@@ -60,19 +70,33 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
   const entitlement = await getEntitlement();
 
   /*
-    Both run together rather than one after the other.
+    All four run together rather than one after another.
 
-    The sweep fetches its own series for the longest horizon and the chosen
-    date may fall outside that, so they cannot share one fetch — but they are
-    independent, so there is no reason to pay for them serially.
+    They cannot share a fetch — the headline backtest starts from the reader's
+    own date, the sweep needs the full ten years, and the opening-range test
+    needs intraday bars entirely — but they are independent, so there is no
+    reason to pay for them serially. The strategy and intraday runs are only
+    started for subscribers, since they are the paid half of the page and
+    fetching for a reader who will see a paywall is pure waste.
   */
-  const [backtest, horizons] =
+  const wantsPaidWork = hasQuery && validDate && entitlement.subscribed;
+
+  const [backtest, horizons, strategies, openingRange] =
     hasQuery && validDate
       ? await Promise.all([
           runSingleStockBacktest(symbol, startDate!, amount, reinvest),
           runHorizonSweep(symbol, amount, reinvest).catch((): HorizonResult[] => []),
+          wantsPaidWork
+            ? runStrategyComparison(symbol, amount).catch(() => ({
+                source: null,
+                results: [] as StrategyResult[],
+              }))
+            : Promise.resolve({ source: null, results: [] as StrategyResult[] }),
+          wantsPaidWork
+            ? runOpeningRange(symbol, amount).catch((): OpeningRangeRun | null => null)
+            : Promise.resolve(null),
         ])
-      : [null, []];
+      : [null, [], { source: null, results: [] as StrategyResult[] }, null];
 
   return (
     <div className="space-y-5">
@@ -191,13 +215,31 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
           <EmptyState title="That date didn't parse" description="Pick a date and try again." />
         </Card>
       ) : (
-        <BacktestResults
-          backtest={backtest!}
-          horizons={horizons}
-          amount={amount}
-          reinvest={reinvest}
-          canUseAverages={entitlement.subscribed}
-        />
+        <>
+          <BacktestResults
+            backtest={backtest!}
+            horizons={horizons}
+            amount={amount}
+            reinvest={reinvest}
+            canUseAverages={entitlement.subscribed}
+          />
+
+          {entitlement.subscribed ? (
+            <>
+              <StrategyComparison symbol={symbol} results={strategies.results} amount={amount} />
+              {openingRange && (
+                <OpeningRangeCard symbol={symbol} run={openingRange} amount={amount} />
+              )}
+            </>
+          ) : (
+            <Paywall
+              entitlement={entitlement}
+              feature="Trading strategies"
+              description="Run mean reversion, RSI dip buying, the golden cross, a 200-day trend rule and an intraday opening-range breakout over the same stock — each against simply buying and holding it."
+              returnTo={`/backtest?symbol=${encodeURIComponent(symbol)}&start=${start}&amount=${amount}`}
+            />
+          )}
+        </>
       )}
 
       <Card className="p-5">

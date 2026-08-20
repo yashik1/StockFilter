@@ -110,6 +110,11 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
             — your own notes on what you did and why.
           </li>
           <li>
+            <Link href="/backtest" className="text-accent underline">Trading strategies</Link>{" "}
+            — mean reversion, RSI dip buying, the golden cross, a 200-day trend rule and an
+            intraday opening-range breakout, each against buying and holding.
+          </li>
+          <li>
             <Link href="/backtest" className="text-accent underline">Moving averages</Link>{" "}
             — SMA and EMA overlays, at any period, on a backtest result.
           </li>

@@ -1,6 +1,9 @@
 import { getBarsWithSource } from "../providers";
 import { yahoo } from "../providers/yahoo";
+import type { Timeframe } from "../providers/types";
 import { simulateInvestment, type InvestmentError, type InvestmentResult } from "./single-stock";
+import { runAllStrategies, type StrategyResult } from "./strategies";
+import { runOpeningRangeBreakout, type OrbResult } from "./opening-range";
 
 /** Matches the daily-bar ceiling already used by /api/bars, for the same reason. */
 const MAX_DAYS = 365 * 10;
@@ -322,4 +325,87 @@ export async function runHorizonSweep(
       shortOfLabel: shortfallDays > MEANINGFUL_SHORTFALL_DAYS,
     };
   });
+}
+
+/**
+ * Runs every daily rule-based strategy over one symbol.
+ *
+ * Shares the fetch shape the horizon sweep uses — one series, many
+ * simulations — since each strategy reads the same closes and differs only in
+ * what it decides to do with them.
+ */
+export async function runStrategyComparison(
+  symbol: string,
+  amount: number,
+): Promise<{ source: string | null; results: StrategyResult[]; error?: string }> {
+  const to = new Date();
+  const from = new Date(to.getTime() - MAX_DAYS * 86_400_000);
+  const series = await fetchSeries(symbol.toUpperCase(), from, to);
+
+  if (series.error) return { source: null, results: [], error: series.error };
+
+  /*
+    Dividends are deliberately not applied here.
+
+    Every strategy is in and out of the market at different times, so crediting
+    a dividend to whichever ones happened to be holding on the pay date would
+    make the comparison partly a comparison of dividend timing luck. These are
+    price-return figures across the board, which keeps the only difference
+    between the rows the rule itself. The headline backtest above still shows
+    total return, which is the number that matters for actually holding it.
+  */
+  return { source: series.source, results: runAllStrategies(series.bars, amount) };
+}
+
+/** Intraday granularity used for the opening-range test. Five minutes divides
+ *  the common 15- and 30-minute opening ranges exactly, and is the finest
+ *  interval the free sources serve over a useful span. */
+const ORB_TIMEFRAME: Timeframe = "5Min";
+const ORB_BAR_MINUTES = 5;
+
+export interface OpeningRangeRun {
+  source: string | null;
+  /** Minutes of each session treated as the opening range. */
+  rangeMinutes: number;
+  result: OrbResult;
+  error?: string;
+}
+
+/**
+ * Runs the opening-range breakout over whatever intraday history is available.
+ *
+ * That window is the constraint worth knowing about: the free sources serve
+ * roughly sixty days of five-minute bars, so this tests on the order of sixty
+ * sessions where the daily strategies get ten years. The page says so, because
+ * a win rate over sixty trades is not a measurement — it is an anecdote with a
+ * percentage sign.
+ */
+export async function runOpeningRange(
+  symbol: string,
+  amount: number,
+  rangeMinutes = 15,
+): Promise<OpeningRangeRun> {
+  const to = new Date();
+  // Sixty days is what the intraday endpoints will actually serve; asking for
+  // more returns an error rather than a longer series.
+  const from = new Date(to.getTime() - 59 * 86_400_000);
+
+  try {
+    const { bars, source } = await getBarsWithSource(symbol.toUpperCase(), ORB_TIMEFRAME, from, to);
+    return {
+      source,
+      rangeMinutes,
+      result: runOpeningRangeBreakout(bars, amount, {
+        rangeMinutes,
+        barMinutes: ORB_BAR_MINUTES,
+      }),
+    };
+  } catch (err) {
+    return {
+      source: null,
+      rangeMinutes,
+      result: runOpeningRangeBreakout([], amount, { rangeMinutes, barMinutes: ORB_BAR_MINUTES }),
+      error: err instanceof Error ? err.message : "Could not load intraday prices.",
+    };
+  }
 }

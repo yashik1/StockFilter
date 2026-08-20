@@ -23,6 +23,11 @@ there accounting red flags — and links every figure back to the filing it came
 - **Market movers and sector performance**, plus peer comparison on any stock chart.
 - **Saved companies and recent history**, kept in your browser with no account.
 - **Every source linked** — 10-K, 10-Q, 8-K and 40-F filings straight from SEC EDGAR.
+- **Trading strategies backtested** on `/backtest` — mean reversion (Bollinger + RSI),
+  Connors RSI(2), the 50/200 golden cross, a 200-day trend rule, and an intraday
+  opening-range breakout, each shown against simply buying and holding. Textbook
+  parameters, left untuned: a rule tuned until it looks good on the decade being
+  displayed will always look good on that decade.
 - **Crypto, commodities and futures** at `/markets` — Bitcoin, gold, oil, wheat and the
   index contracts. None of them file accounts, so none of them get a health score; they
   get the chart, the comparison and the backtest, and the page says plainly why the rest
@@ -199,10 +204,11 @@ Everything runs on **Railway** — the app and Postgres as two services in one p
    `db:migrate` is safe to re-run: every statement tolerates "already exists",
    so a schema that is half-applied catches up rather than needing a reset.
 
-**What is paid.** Three things: the screener backtest, the trade journal, and the
-moving-average overlays on a backtest chart. Everything else is free and works
-signed-out — the screener, health reports, comparison and stock pages, crypto and
-commodities, and the single-instrument "what if I had invested".
+**What is paid.** Four things: the screener backtest, the trade journal, the trading
+strategies, and the moving-average overlays on a backtest chart. Everything else is
+free and works signed-out — the screener, health reports, comparison and stock pages,
+crypto and commodities, and the single-instrument "what if I had invested" including
+its one/three/five/ten-year holding-period table.
 
 The first two are gated at the page *and* at the API route or server action behind
 it, since a paywall that only covers the rendered page is answered in JSON to

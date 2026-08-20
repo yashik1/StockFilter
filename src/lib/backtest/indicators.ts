@@ -112,3 +112,48 @@ function toRsi(avgGain: number, avgLoss: number): number {
   const rs = avgGain / avgLoss;
   return 100 - 100 / (1 + rs);
 }
+
+/**
+ * Bollinger Bands: a moving average with a band drawn a number of standard
+ * deviations either side of it.
+ *
+ * The width is the point. The bands widen when the recent closes have been
+ * scattered and narrow when they have been tight, so "price is at the lower
+ * band" means "unusually low *for how much this thing has been moving
+ * lately*" rather than a fixed percentage below average. That is what makes it
+ * usable as a mean-reversion trigger across instruments with very different
+ * volatility.
+ *
+ * Uses the population standard deviation over the same window as the average,
+ * which is what Bollinger defined and what every charting package draws. The
+ * sample deviation (dividing by n-1) gives visibly wider bands on short
+ * periods and would not line up with the same symbol viewed elsewhere.
+ */
+export function bollinger(
+  values: number[],
+  period = 20,
+  deviations = 2,
+): { middle: (number | null)[]; upper: (number | null)[]; lower: (number | null)[] } {
+  const middle = sma(values, period);
+  const upper: (number | null)[] = new Array(values.length).fill(null);
+  const lower: (number | null)[] = new Array(values.length).fill(null);
+
+  if (period <= 0) return { middle, upper, lower };
+
+  for (let i = period - 1; i < values.length; i++) {
+    const mean = middle[i];
+    if (mean == null) continue;
+
+    let sumSquares = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const diff = values[j] - mean;
+      sumSquares += diff * diff;
+    }
+
+    const sd = Math.sqrt(sumSquares / period);
+    upper[i] = mean + deviations * sd;
+    lower[i] = mean - deviations * sd;
+  }
+
+  return { middle, upper, lower };
+}
