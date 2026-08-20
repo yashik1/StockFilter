@@ -6,8 +6,6 @@ import { yahoo } from "../providers/yahoo";
 import { getUniverse } from "../universe";
 import type { SectorKind } from "../scoring/applicability";
 import { runScreenerBacktest, type CandidateData, type ScreenerBacktestResult } from "./screener";
-import { runSingleStockBacktest, DEFAULT_BENCHMARK } from "./run";
-import type { InvestmentError, InvestmentResult } from "./single-stock";
 
 /** Matches the daily-bar ceiling already used elsewhere in this app. */
 const MAX_DAYS = 365 * 10;
@@ -52,10 +50,6 @@ export interface ScreenerBacktestRun {
   /** How many of those had both price history and financial history to score with. */
   candidatesScored: number;
   topN: number;
-  benchmark: {
-    symbol: string;
-    result: InvestmentResult | InvestmentError;
-  } | null;
 }
 
 async function mapLimit<T, R>(
@@ -112,7 +106,6 @@ export async function runFullScreenerBacktest(
   startDate: Date,
   amount: number,
   topN: number,
-  benchmarkSymbol: string | null = DEFAULT_BENCHMARK,
 ): Promise<ScreenerBacktestRun> {
   if (!isDatabaseConfigured()) {
     return {
@@ -124,7 +117,6 @@ export async function runFullScreenerBacktest(
       universeSize: 0,
       candidatesScored: 0,
       topN,
-      benchmark: null,
     };
   }
 
@@ -168,7 +160,6 @@ export async function runFullScreenerBacktest(
       universeSize: 0,
       candidatesScored: 0,
       topN,
-      benchmark: null,
     };
   }
 
@@ -226,15 +217,10 @@ export async function runFullScreenerBacktest(
       ? runScreenerBacktest(candidates, rebalanceDates, amount, topN)
       : { error: "None of today's universe had both stored financials and price history to test with." };
 
-  const benchmark = benchmarkSymbol
-    ? await runSingleStockBacktest(benchmarkSymbol, cappedFrom, amount, true, null)
-    : null;
-
   return {
     result,
     universeSize: inUniverse.length,
     candidatesScored: candidates.length,
     topN,
-    benchmark: benchmark ? { symbol: benchmark.symbol, result: benchmark.result } : null,
   };
 }

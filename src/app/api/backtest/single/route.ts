@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_BENCHMARK, runSingleStockBacktest } from "@/lib/backtest/run";
+import { runSingleStockBacktest } from "@/lib/backtest/run";
 
 export const dynamic = "force-dynamic";
 
 /**
- * "What if I had invested $X in this stock on this date?" — against a
- * benchmark by default, so a return is read next to the market rather than
- * in isolation.
+ * "What if I had invested $X in this stock on this date?"
+ *
+ * Answers only for the symbol asked about. Comparing it against the market
+ * belongs to /compare, which does that job properly for any set of symbols —
+ * this route reports what one holding actually did.
  */
 /*
   Open, like the page it serves.
@@ -24,9 +26,6 @@ export async function GET(request: Request) {
   const startParam = params.get("start");
   const amount = Number(params.get("amount") ?? 10_000);
   const reinvest = params.get("reinvest") !== "false";
-  const benchmarkParam = params.get("benchmark");
-  const benchmark = benchmarkParam === "" || benchmarkParam === "none" ? null : (benchmarkParam ?? DEFAULT_BENCHMARK);
-
   if (!symbol) {
     return NextResponse.json({ error: "symbol is required" }, { status: 400 });
   }
@@ -43,23 +42,22 @@ export async function GET(request: Request) {
       new Date(startParam),
       amount,
       reinvest,
-      benchmark,
     );
     return NextResponse.json(backtest, {
       headers: { "Cache-Control": "public, max-age=3600" },
     });
   } catch (err) {
     // Matches the shape runSingleStockBacktest itself returns — the page
-    // reads run.result and run.benchmark unconditionally, and a bare
-    // {error} here would have nothing for either to destructure.
+    // reads run.result unconditionally, and a bare {error} here would have
+    // nothing for it to destructure.
     return NextResponse.json(
       {
         symbol,
         source: null,
         result: { error: err instanceof Error ? err.message : "Could not run the backtest." },
         splits: [],
-        benchmark: null,
         dividendDataAvailable: false,
+        dividendsBakedIn: false,
       },
       { status: 200 },
     );

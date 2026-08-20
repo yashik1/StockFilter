@@ -3,7 +3,12 @@ import Link from "next/link";
 import { Card, CardHeader, EmptyState, Metric } from "@/components/ui";
 import { EquityChart } from "@/components/backtest/equity-chart";
 import { LocalTime } from "@/components/local-time";
-import { runSingleStockBacktest, DEFAULT_BENCHMARK } from "@/lib/backtest/run";
+import {
+  bestByAnnualised,
+  runHorizonSweep,
+  runSingleStockBacktest,
+  type HorizonResult,
+} from "@/lib/backtest/run";
 import { isInvestmentError, type InvestmentResult } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
 import { getEntitlement } from "@/lib/billing/entitlement";
@@ -15,7 +20,7 @@ export const metadata: Metadata = {
   title: "What if I had invested…",
   description:
     "See what an investment in any stock, crypto or commodity would be worth today, " +
-    "next to the market as a whole.",
+    "and how the same holding did over one, three, five and ten years.",
 };
 
 const SUGGESTIONS = [
@@ -39,9 +44,6 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
   const amountParam = typeof params.amount === "string" ? Number(params.amount) : 10_000;
   const amount = Number.isFinite(amountParam) && amountParam > 0 ? amountParam : 10_000;
   const reinvest = params.reinvest !== "cash";
-  const benchmarkParam = typeof params.benchmark === "string" ? params.benchmark.trim() : "";
-  const benchmark =
-    benchmarkParam === "none" ? null : benchmarkParam || DEFAULT_BENCHMARK;
 
   const hasQuery = Boolean(symbol && start);
   const startDate = hasQuery ? new Date(start) : null;
@@ -57,10 +59,20 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
   */
   const entitlement = await getEntitlement();
 
-  const backtest =
+  /*
+    Both run together rather than one after the other.
+
+    The sweep fetches its own series for the longest horizon and the chosen
+    date may fall outside that, so they cannot share one fetch — but they are
+    independent, so there is no reason to pay for them serially.
+  */
+  const [backtest, horizons] =
     hasQuery && validDate
-      ? await runSingleStockBacktest(symbol, startDate!, amount, reinvest, benchmark)
-      : null;
+      ? await Promise.all([
+          runSingleStockBacktest(symbol, startDate!, amount, reinvest),
+          runHorizonSweep(symbol, amount, reinvest).catch((): HorizonResult[] => []),
+        ])
+      : [null, []];
 
   return (
     <div className="space-y-5">
@@ -181,6 +193,7 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
       ) : (
         <BacktestResults
           backtest={backtest!}
+          horizons={horizons}
           amount={amount}
           reinvest={reinvest}
           canUseAverages={entitlement.subscribed}
@@ -202,16 +215,18 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
 
 function BacktestResults({
   backtest,
+  horizons,
   amount,
   reinvest,
   canUseAverages,
 }: {
   backtest: Awaited<ReturnType<typeof runSingleStockBacktest>>;
+  horizons: HorizonResult[];
   amount: number;
   reinvest: boolean;
   canUseAverages: boolean;
 }) {
-  const { result, benchmark } = backtest;
+  const { result } = backtest;
   const assetClass = classify(backtest.symbol);
   const instrument = findInstrument(backtest.symbol);
 
@@ -223,9 +238,6 @@ function BacktestResults({
     );
   }
 
-  const benchResult = benchmark && !isInvestmentError(benchmark.result) ? benchmark.result : null;
-  const benchError = benchmark && isInvestmentError(benchmark.result) ? benchmark.result.error : null;
-
   // Only splits inside the window actually held. One before the purchase date
   // is already baked into the starting price and is not this holding's story.
   const splitsInWindow = backtest.splits
@@ -234,11 +246,25 @@ function BacktestResults({
 
   return (
     <div className="space-y-4">
-      {result.startedLate && (
+      {/*
+        Two different reasons a window starts late, and they used to share one
+        sentence that was false for the commoner of them. Backtesting Apple
+        from 2015 announced that Apple "has no price history back to your
+        chosen date", of a company listed since 1980 — the ten-year fetch
+        ceiling was ours, and the wording blamed the data.
+      */}
+      {backtest.startedLateBecause === "fetch-limit" && (
+        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+          This app fetches at most ten years of daily prices, so the test starts from{" "}
+          <LocalTime value={result.startTime * 1000} mode="date" /> rather than the date you
+          chose. {backtest.symbol} may well have traded before then.
+        </p>
+      )}
+      {backtest.startedLateBecause === "history" && (
         <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
           {backtest.symbol} has no price history back to your chosen date — this starts from{" "}
-          <LocalTime value={result.startTime * 1000} mode="date" /> instead, its earliest
-          available price.
+          <LocalTime value={result.startTime * 1000} mode="date" /> instead, the earliest price
+          available for it.
         </p>
       )}
       {/*
@@ -277,7 +303,7 @@ function BacktestResults({
         <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
           Crypto trades every day of the year, including weekends, so this curve has roughly
           40% more points than a stock over the same window. Returns are still annualised on
-          calendar days, so the comparison against the benchmark is like for like.
+          calendar days, so the yearly average is on the same footing as a share&apos;s.
         </p>
       )}
       {/*
@@ -306,53 +332,128 @@ function BacktestResults({
         </p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* "Gold" reads better than "GC=F" on the headline card. */}
-        <ResultCard
-          label={instrument?.name ?? backtest.symbol}
-          amount={amount}
-          result={result}
-          reinvest={reinvest}
-          dividendsBakedIn={backtest.dividendsBakedIn}
-        />
-        {benchmark && benchResult && (
-          <ResultCard
-            label={benchmark.symbol}
-            amount={amount}
-            result={benchResult}
-            reinvest={reinvest}
-            dividendsBakedIn={backtest.dividendsBakedIn}
-            isBenchmark
-          />
-        )}
-        {benchmark && benchError && (
-          <Card>
-            <EmptyState
-              title={`No benchmark data for ${benchmark.symbol}`}
-              description={benchError}
-            />
-          </Card>
-        )}
-      </div>
+      {/* "Gold" reads better than "GC=F" on the headline card. */}
+      <ResultCard
+        label={instrument?.name ?? backtest.symbol}
+        amount={amount}
+        result={result}
+        reinvest={reinvest}
+        dividendsBakedIn={backtest.dividendsBakedIn}
+      />
 
       <Card>
-        <CardHeader
-          title="Value over time"
-          subtitle={
-            benchResult
-              ? `${backtest.symbol} against ${benchmark!.symbol}, both starting from the same ${money(amount)}`
-              : `${backtest.symbol} alone`
-          }
-        />
+        <CardHeader title="Value over time" subtitle={`Starting from ${money(amount)}`} />
         <div className="p-5">
           <EquityChart
             target={{ label: backtest.symbol, series: result.series }}
-            benchmark={benchResult ? { label: benchmark!.symbol, series: benchResult.series } : null}
+            benchmark={null}
             canUseAverages={canUseAverages}
           />
         </div>
       </Card>
+
+      <HorizonTable
+        symbol={instrument?.name ?? backtest.symbol}
+        horizons={horizons}
+        amount={amount}
+      />
+
+      <Card className="p-5">
+        <p className="text-sm text-muted">
+          Want to see this against the market, or against anything else?{" "}
+          <Link
+            href={`/compare?symbols=${encodeURIComponent(backtest.symbol)},SPY`}
+            className="text-accent underline"
+          >
+            Compare {backtest.symbol} with SPY
+          </Link>
+          {" "}— that page charts any set of symbols side by side, which is the job it
+          does properly.
+        </p>
+      </Card>
     </div>
+  );
+}
+
+/**
+ * The same holding over several standard windows, all ending today.
+ *
+ * One start date answers one question, and it is the question the reader
+ * happened to type. This answers the more useful one: was the result
+ * consistent, or did a single window carry it? A stock that returned 30% a
+ * year over five and 4% over ten made almost all of it recently, and someone
+ * deciding what to expect next should see both rather than whichever the date
+ * field defaulted to.
+ */
+function HorizonTable({
+  symbol,
+  horizons,
+  amount,
+}: {
+  symbol: string;
+  horizons: HorizonResult[];
+  amount: number;
+}) {
+  const usable = horizons.filter(
+    (h): h is HorizonResult & { result: InvestmentResult } => !isInvestmentError(h.result),
+  );
+
+  if (usable.length === 0) return null;
+
+  const best = bestByAnnualised(usable);
+
+  return (
+    <Card>
+      <CardHeader
+        title={`${symbol} over different holding periods`}
+        subtitle={`The same ${money(amount)}, invested that long ago and held until today`}
+      />
+      <div className="scroll-x">
+        <table className="w-full min-w-[30rem] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50 text-left text-xs text-muted">
+              <th scope="col" className="px-5 py-2.5 font-medium">Held for</th>
+              <th scope="col" className="px-3 py-2.5 text-right font-medium">Would be worth</th>
+              <th scope="col" className="px-3 py-2.5 text-right font-medium">Total return</th>
+              <th scope="col" className="px-5 py-2.5 text-right font-medium">Yearly average</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {usable.map((h) => (
+              <tr key={h.label} className={h === best ? "bg-good-soft/40" : undefined}>
+                <td className="px-5 py-3">
+                  <span className="font-medium">{h.label}</span>
+                  {h === best && usable.length > 1 && (
+                    <span className="ml-2 text-xs text-good-fg">best annualised</span>
+                  )}
+                  {h.shortOfLabel && (
+                    <span className="ml-2 text-xs text-faint">
+                      from <LocalTime value={h.result.startTime * 1000} mode="date" /> only
+                    </span>
+                  )}
+                </td>
+                <td className="tnum px-3 py-3 text-right">{money(h.result.finalValue)}</td>
+                <td
+                  className={`tnum px-3 py-3 text-right ${
+                    h.result.totalReturn >= 0 ? "text-good-fg" : "text-poor-fg"
+                  }`}
+                >
+                  {signedPercent(h.result.totalReturn, 1)}
+                </td>
+                <td className="tnum px-5 py-3 text-right font-medium">
+                  {h.result.cagr == null ? "—" : signedPercent(h.result.cagr, 1)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted">
+        Each row is the same lump sum invested that far back and held to today — not a
+        strategy, just a different starting date. A row marked &ldquo;from … only&rdquo; is
+        shorter than its label because the price history does not reach back that far.
+      </p>
+    </Card>
   );
 }
 
@@ -362,14 +463,12 @@ function ResultCard({
   result,
   reinvest,
   dividendsBakedIn,
-  isBenchmark,
 }: {
   label: string;
   amount: number;
   result: InvestmentResult;
   reinvest: boolean;
   dividendsBakedIn: boolean;
-  isBenchmark?: boolean;
 }) {
   return (
     <Card>
@@ -379,7 +478,6 @@ function ResultCard({
           <>
             <LocalTime value={result.startTime * 1000} mode="date" /> —{" "}
             <LocalTime value={result.endTime * 1000} mode="date" />
-            {isBenchmark && " · benchmark"}
           </>
         }
       />

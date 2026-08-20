@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getEntitlement } from "@/lib/billing/entitlement";
-import { DEFAULT_BENCHMARK } from "@/lib/backtest/run";
 import { runFullScreenerBacktest } from "@/lib/backtest/run-screener";
 
 export const dynamic = "force-dynamic";
@@ -41,10 +40,6 @@ export async function GET(request: Request) {
   const startParam = params.get("start");
   const amount = Number(params.get("amount") ?? 10_000);
   const topN = Math.max(1, Math.min(25, Number(params.get("topN") ?? 10)));
-  const benchmarkParam = params.get("benchmark");
-  const benchmark =
-    benchmarkParam === "" || benchmarkParam === "none" ? null : (benchmarkParam ?? DEFAULT_BENCHMARK);
-
   if (!startParam || Number.isNaN(Date.parse(startParam))) {
     return NextResponse.json({ error: "start must be a valid date" }, { status: 400 });
   }
@@ -53,7 +48,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const run = await runFullScreenerBacktest(new Date(startParam), amount, topN, benchmark);
+    const run = await runFullScreenerBacktest(new Date(startParam), amount, topN);
     return NextResponse.json(run, { headers: { "Cache-Control": "public, max-age=3600" } });
   } catch (err) {
     // Matches the shape runFullScreenerBacktest itself returns on a handled
@@ -67,7 +62,6 @@ export async function GET(request: Request) {
         universeSize: 0,
         candidatesScored: 0,
         topN,
-        benchmark: null,
       },
       { status: 200 },
     );

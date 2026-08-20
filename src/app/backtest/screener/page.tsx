@@ -4,8 +4,6 @@ import { Card, CardHeader, EmptyState, Metric, RatingBadge } from "@/components/
 import { EquityChart } from "@/components/backtest/equity-chart";
 import { LocalTime } from "@/components/local-time";
 import { runFullScreenerBacktest } from "@/lib/backtest/run-screener";
-import { DEFAULT_BENCHMARK } from "@/lib/backtest/run";
-import { isInvestmentError } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
 import type { Rating } from "@/lib/scoring/types";
 import { getEntitlement } from "@/lib/billing/entitlement";
@@ -16,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Backtest the screener",
   description:
-    "Would buying this app's healthiest-rated companies and rebalancing every year have beaten the market?",
+    "What buying this app's healthiest-rated companies and rebalancing every year would have returned.",
 };
 
 const SUGGESTIONS = [
@@ -43,8 +41,6 @@ export default async function ScreenerBacktestPage({
   const amount = Number.isFinite(amountParam) && amountParam > 0 ? amountParam : 10_000;
   const topNParam = typeof params.topN === "string" ? Number(params.topN) : 10;
   const topN = Number.isFinite(topNParam) ? Math.max(1, Math.min(25, topNParam)) : 10;
-  const benchmarkParam = typeof params.benchmark === "string" ? params.benchmark.trim() : "";
-  const benchmark = benchmarkParam === "none" ? null : benchmarkParam || DEFAULT_BENCHMARK;
 
   const hasQuery = Boolean(start);
   const startDate = hasQuery ? new Date(start) : null;
@@ -57,18 +53,27 @@ export default async function ScreenerBacktestPage({
 
   const run =
     entitlement.subscribed && hasQuery && validDate
-      ? await runFullScreenerBacktest(startDate!, amount, topN, benchmark)
+      ? await runFullScreenerBacktest(startDate!, amount, topN)
       : null;
 
   return (
     <div className="space-y-5">
       <header className="pt-1">
         <p className="eyebrow">Backtest</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">Would the healthiest have won?</h1>
+        <h1 className="font-display mt-2 text-4xl sm:text-5xl">
+          What the healthiest returned
+        </h1>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
           Ranks today&apos;s screening universe by health score at each rebalance date, using only
           what was actually filed by then, and buys the top scorers. This is the one test that
           actually checks whether a higher score on this app has meant anything.
+        </p>
+        <p className="mt-1.5 max-w-2xl text-sm text-muted">
+          To judge this against the market, put the same window into{" "}
+          <Link href="/compare?symbols=SPY,QQQ" className="text-accent underline">
+            Compare
+          </Link>
+          {" "}— that is where an index is charted properly, against as many symbols as you like.
         </p>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
           Want to test one stock instead?{" "}
@@ -80,7 +85,7 @@ export default async function ScreenerBacktestPage({
       </header>
 
       <Card>
-        <form method="get" className="grid gap-3 p-5 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+        <form method="get" className="grid gap-3 p-5 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <div>
             <label htmlFor="start" className="text-xs text-muted">
               Starting from
@@ -122,18 +127,6 @@ export default async function ScreenerBacktestPage({
               className="tnum mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
           </div>
-          <div>
-            <label htmlFor="benchmark" className="text-xs text-muted">
-              Benchmark
-            </label>
-            <input
-              id="benchmark"
-              name="benchmark"
-              defaultValue={benchmark ?? ""}
-              placeholder="SPY"
-              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm uppercase placeholder:normal-case placeholder:text-muted/60"
-            />
-          </div>
           <button
             type="submit"
             className="h-fit self-end rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
@@ -163,7 +156,7 @@ export default async function ScreenerBacktestPage({
         <Paywall
           entitlement={entitlement}
           feature="Screener backtesting"
-          description="Test whether buying this app's highest-scoring companies would actually have beaten the market, scored point-in-time at every rebalance date."
+          description="See what buying this app's highest-scoring companies would actually have returned, scored point-in-time at every rebalance date."
           returnTo="/backtest/screener"
         />
       ) : !hasQuery ? (
@@ -210,7 +203,7 @@ function ScreenerResults({
   amount: number;
   topN: number;
 }) {
-  const { result, benchmark } = run;
+  const { result } = run;
 
   if ("error" in result) {
     return (
@@ -220,7 +213,6 @@ function ScreenerResults({
     );
   }
 
-  const benchResult = benchmark && !isInvestmentError(benchmark.result) ? benchmark.result : null;
   const lastPeriod = result.periods[result.periods.length - 1];
 
   return (
@@ -230,7 +222,7 @@ function ScreenerResults({
         the rest had no stored financial history, or no price history, to test with.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <Card>
           <CardHeader
             title={`Top ${topN} by health score`}
@@ -242,7 +234,7 @@ function ScreenerResults({
               </>
             }
           />
-          <dl className="grid grid-cols-2 gap-4 p-5">
+          <dl className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
             <Metric
               label="Would be worth"
               value={money(result.finalValue)}
@@ -269,45 +261,15 @@ function ScreenerResults({
           </dl>
         </Card>
 
-        {benchmark && benchResult && (
-          <Card>
-            <CardHeader title={benchmark.symbol} subtitle="Buy and hold, same starting amount" />
-            <dl className="grid grid-cols-2 gap-4 p-5">
-              <Metric
-                label="Would be worth"
-                value={money(benchResult.finalValue)}
-                size="lg"
-                tone={benchResult.totalReturn >= 0 ? "up" : "down"}
-              />
-              <Metric
-                label="Total return"
-                value={signedPercent(benchResult.totalReturn, 1)}
-                tone={benchResult.totalReturn >= 0 ? "up" : "down"}
-              />
-              <Metric
-                label="Yearly average"
-                value={benchResult.cagr == null ? "—" : signedPercent(benchResult.cagr, 1)}
-              />
-              <div />
-            </dl>
-          </Card>
-        )}
       </div>
 
       <Card>
         <CardHeader
           title="Value over time"
-          subtitle={
-            benchResult
-              ? `The strategy against ${benchmark!.symbol}, both starting from the same ${money(amount)}`
-              : "The strategy alone"
-          }
+          subtitle={`Starting from ${money(amount)}`}
         />
         <div className="p-5">
-          <EquityChart
-            target={{ label: "Strategy", series: result.series }}
-            benchmark={benchResult ? { label: benchmark!.symbol, series: benchResult.series } : null}
-          />
+          <EquityChart target={{ label: "Strategy", series: result.series }} benchmark={null} />
         </div>
       </Card>
 
