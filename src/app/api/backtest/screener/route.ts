@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEntitlement } from "@/lib/billing/entitlement";
+import { ACCESS_MODE, getEntitlement, hasAccess } from "@/lib/billing/entitlement";
 import { runFullScreenerBacktest } from "@/lib/backtest/run-screener";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +25,23 @@ export async function GET(request: Request) {
     gating.
   */
   const entitlement = await getEntitlement();
-  if (!entitlement.subscribed) {
+  if (!hasAccess(entitlement)) {
+    /*
+      402 regardless of which mode is in force.
+
+      "Payment Required" is the honest status while a subscription is the
+      gate, and stays the closest available one while the gate is merely an
+      account — the resource exists and is being withheld pending something
+      the caller has not done. Flipping the status alongside the mode would
+      change the API's contract every time the pricing did.
+    */
     return NextResponse.json(
       {
         error: entitlement.signedIn
           ? "Backtesting needs a subscription."
-          : "Sign in and subscribe to use backtesting.",
+          : ACCESS_MODE === "sign-in"
+            ? "Sign in to use backtesting."
+            : "Sign in and subscribe to use backtesting.",
       },
       { status: 402 },
     );

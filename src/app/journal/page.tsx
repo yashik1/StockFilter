@@ -4,7 +4,7 @@ import { Badge, Card, CardHeader, EmptyState } from "@/components/ui";
 import { Paywall } from "@/components/billing/paywall";
 import { NewEntryForm, DeleteEntryButton } from "@/components/journal/journal-form";
 import { LocalTime } from "@/components/local-time";
-import { getEntitlement } from "@/lib/billing/entitlement";
+import { getEntitlement, hasAccess } from "@/lib/billing/entitlement";
 import { listEntries } from "@/lib/journal/actions";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function JournalPage() {
   const entitlement = await getEntitlement();
   // listEntries re-checks entitlement itself and returns nothing without it,
   // so this cannot expose anything even if the branch below were wrong.
-  const entries = entitlement.subscribed ? await listEntries() : [];
+  const entries = hasAccess(entitlement) ? await listEntries() : [];
 
   return (
     <div className="space-y-5">
@@ -41,7 +41,7 @@ export default async function JournalPage() {
         </p>
       </header>
 
-      {!entitlement.subscribed ? (
+      {!hasAccess(entitlement) ? (
         <Paywall
           entitlement={entitlement}
           feature="Trade journal"

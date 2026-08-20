@@ -204,9 +204,11 @@ Everything runs on **Railway** — the app and Postgres as two services in one p
    `db:migrate` is safe to re-run: every statement tolerates "already exists",
    so a schema that is half-applied catches up rather than needing a reset.
 
-**What is paid.** Four things: the screener backtest, the trade journal, the trading
-strategies, and the moving-average overlays on a backtest chart. Everything else is
-free and works signed-out — the screener, health reports, comparison and stock pages,
+**What needs an account.** Four things: the screener backtest, the trade journal, the
+trading strategies, and the moving-average overlays on a backtest chart. These are
+currently open to anyone signed in — the Stripe billing behind them is fully wired up
+but not enforced, and switching it on is `ACCESS_MODE` in
+`src/lib/billing/access-mode.ts` and nothing else. Everything else works signed-out — the screener, health reports, comparison and stock pages,
 crypto and commodities, and the single-instrument "what if I had invested" including
 its one/three/five/ten-year holding-period table.
 

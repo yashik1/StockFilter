@@ -2,6 +2,9 @@ import { eq } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "../db";
 import { subscriptions } from "../db/schema";
 import { auth } from "../auth";
+import { ACCESS_MODE, accountIsEnough, hasAccess } from "./access-mode";
+
+export { ACCESS_MODE, accountIsEnough, hasAccess };
 
 /**
  * Who is allowed to use the paid features.

@@ -20,7 +20,7 @@ import {
 import { Paywall } from "@/components/billing/paywall";
 import { isInvestmentError, type InvestmentResult } from "@/lib/backtest/single-stock";
 import { money, signedPercent } from "@/lib/format";
-import { getEntitlement } from "@/lib/billing/entitlement";
+import { getEntitlement, hasAccess } from "@/lib/billing/entitlement";
 import { classify, findInstrument } from "@/lib/instruments";
 
 export const dynamic = "force-dynamic";
@@ -76,10 +76,10 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
     own date, the sweep needs the full ten years, and the opening-range test
     needs intraday bars entirely — but they are independent, so there is no
     reason to pay for them serially. The strategy and intraday runs are only
-    started for subscribers, since they are the paid half of the page and
-    fetching for a reader who will see a paywall is pure waste.
+    started for readers who can actually see them, since fetching for someone
+    who will be shown a sign-in prompt instead is pure waste.
   */
-  const wantsPaidWork = hasQuery && validDate && entitlement.subscribed;
+  const wantsPaidWork = hasQuery && validDate && hasAccess(entitlement);
 
   const [backtest, horizons, strategies, openingRange] =
     hasQuery && validDate
@@ -221,10 +221,10 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
             horizons={horizons}
             amount={amount}
             reinvest={reinvest}
-            canUseAverages={entitlement.subscribed}
+            canUseAverages={hasAccess(entitlement)}
           />
 
-          {entitlement.subscribed ? (
+          {hasAccess(entitlement) ? (
             <>
               <StrategyComparison symbol={symbol} results={strategies.results} amount={amount} />
               {openingRange && (

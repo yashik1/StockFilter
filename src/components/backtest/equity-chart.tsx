@@ -9,6 +9,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import Link from "next/link";
+import { accountIsEnough } from "@/lib/billing/access-mode";
 import { useEffect, useRef, useState } from "react";
 import type { InvestmentPoint } from "@/lib/backtest/single-stock";
 import { ema, sma } from "@/lib/backtest/indicators";
@@ -246,11 +247,13 @@ export function EquityChart({
             Overlay a simple or exponential moving average, at any period, to see the
             trend under the noise.
           </span>
+          {/* Sends people where they can actually unlock it, which depends on
+              what unlocking it currently costs. */}
           <Link
-            href="/account"
+            href={accountIsEnough ? "/signup" : "/account"}
             className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
           >
-            Subscribe
+            {accountIsEnough ? "Create an account" : "Subscribe"}
           </Link>
         </div>
       ) : (

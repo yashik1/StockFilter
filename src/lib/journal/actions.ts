@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "../db";
 import { journalEntries } from "../db/schema";
-import { getEntitlement } from "../billing/entitlement";
+import { ACCESS_MODE, getEntitlement, hasAccess } from "../billing/entitlement";
 import type { JournalEntry } from "../db/schema";
 
 /**
- * The trade journal — a subscriber's own notes.
+ * The trade journal — a signed-in reader's own notes.
  *
  * Every function here re-checks entitlement and scopes to the caller's own
  * userId. Not because the pages do not already gate: because an action is a
@@ -30,13 +30,25 @@ const KINDS = new Set(["note", "buy", "sell", "watch"]);
 const MAX_TITLE = 200;
 const MAX_BODY = 20_000;
 
-async function requireSubscriber(): Promise<{ userId: string } | JournalResult> {
+/**
+ * Named for what it checks rather than for what it costs. Whether that is an
+ * account or a paid one is ACCESS_MODE's business, and the last time this was
+ * called requireSubscriber it went on saying "subscriber" through a period
+ * when no subscription was required.
+ */
+async function requireAccess(): Promise<{ userId: string } | JournalResult> {
   if (!isDatabaseConfigured()) {
     return { ok: false, message: "The journal is unavailable on this deployment." };
   }
   const entitlement = await getEntitlement();
-  if (!entitlement.subscribed || !entitlement.userId) {
-    return { ok: false, message: "The journal needs a subscription." };
+  if (!hasAccess(entitlement) || !entitlement.userId) {
+    return {
+      ok: false,
+      message:
+        ACCESS_MODE === "sign-in"
+          ? "The journal needs an account."
+          : "The journal needs a subscription.",
+    };
   }
   return { userId: entitlement.userId };
 }
@@ -46,7 +58,7 @@ function isDenied(v: { userId: string } | JournalResult): v is JournalResult {
 }
 
 export async function listEntries(): Promise<JournalEntry[]> {
-  const gate = await requireSubscriber();
+  const gate = await requireAccess();
   if (isDenied(gate)) return [];
 
   return getDb()
@@ -60,7 +72,7 @@ export async function createEntry(
   _prev: JournalResult | null,
   form: FormData,
 ): Promise<JournalResult> {
-  const gate = await requireSubscriber();
+  const gate = await requireAccess();
   if (isDenied(gate)) return gate;
 
   const title = String(form.get("title") ?? "").trim();
@@ -107,7 +119,7 @@ export async function deleteEntry(
   _prev: JournalResult | null,
   form: FormData,
 ): Promise<JournalResult> {
-  const gate = await requireSubscriber();
+  const gate = await requireAccess();
   if (isDenied(gate)) return gate;
 
   const id = Number(form.get("id"));

@@ -5,6 +5,7 @@ import { Card, CardHeader, Metric } from "@/components/ui";
 import { BillingButton } from "@/components/billing/subscribe-button";
 import { LocalTime } from "@/components/local-time";
 import { getEntitlement } from "@/lib/billing/entitlement";
+import { accountIsEnough } from "@/lib/billing/access-mode";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { auth } from "@/lib/auth";
 
@@ -97,7 +98,9 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-sm font-semibold">What a subscription covers</h2>
+        <h2 className="text-sm font-semibold">
+          {accountIsEnough ? "What your account unlocks" : "What a subscription covers"}
+        </h2>
         <ul className="mt-2 space-y-1.5 text-sm text-muted">
           <li>
             <Link href="/backtest/screener" className="text-accent underline">
@@ -120,8 +123,9 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
           </li>
         </ul>
         <p className="mt-3 text-xs leading-relaxed text-muted">
-          Company pages, the screener, comparisons, charts, crypto and commodities, and
-          working out what an investment would have been worth all stay free.
+          {accountIsEnough
+            ? "These are open to anyone with an account at the moment — no subscription needed. Company pages, the screener, comparisons, charts, crypto and commodities, and working out what an investment would have been worth need no account at all."
+            : "Company pages, the screener, comparisons, charts, crypto and commodities, and working out what an investment would have been worth all stay free."}
         </p>
       </Card>
     </div>
