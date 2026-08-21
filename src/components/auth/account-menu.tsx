@@ -25,7 +25,7 @@ export function AccountMenu({ email, name }: { email: string | null; name?: stri
     return (
       <Link
         href="/signin"
-        className="shrink-0 rounded-lg border border-transparent bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted-strong transition-colors hover:text-accent"
+        className="flex h-[34px] shrink-0 items-center border border-border px-3 text-xs font-medium text-muted-strong transition-colors hover:border-accent hover:text-accent"
       >
         Sign in
       </Link>
@@ -49,14 +49,14 @@ export function AccountMenu({ email, name }: { email: string | null; name?: stri
         href="/account"
         title={display === email ? email : `${display} (${email})`}
         aria-label={`Account — signed in as ${display}`}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-[0.6875rem] font-semibold text-muted-strong ring-1 ring-border transition-colors hover:text-accent hover:ring-accent"
+        className="flex h-[34px] w-[34px] items-center justify-center border border-border text-[0.6875rem] font-semibold text-muted-strong transition-colors hover:border-accent hover:text-accent"
       >
         {initial}
       </Link>
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: "/" })}
-        className="rounded-lg border border-border px-2 py-1 text-xs text-muted transition-colors hover:text-foreground"
+        className="flex h-[34px] items-center border border-border px-2.5 text-xs text-muted transition-colors hover:border-accent hover:text-foreground"
       >
         Sign out
       </button>

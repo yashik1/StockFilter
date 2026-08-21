@@ -2,27 +2,76 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Rating } from "@/lib/scoring/types";
 
+/**
+ * A registration mark — the `+` at the corner of a framed object.
+ *
+ * Drawn from two 1px rules rather than a glyph so it stays exactly one device
+ * pixel at any zoom, and sits half outside the frame so the corner reads as a
+ * drawing's crop mark rather than as decoration inside a box.
+ */
+function Corner({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
+  const place = {
+    tl: "-top-[6px] -left-[6px]",
+    tr: "-top-[6px] -right-[6px]",
+    bl: "-bottom-[6px] -left-[6px]",
+    br: "-bottom-[6px] -right-[6px]",
+  }[pos];
+
+  return (
+    <span
+      aria-hidden
+      className={cn("pointer-events-none absolute size-[11px] text-border-strong", place)}
+    >
+      <span className="absolute left-[5px] top-0 h-full w-px bg-current" />
+      <span className="absolute top-[5px] left-0 h-px w-full bg-current" />
+    </span>
+  );
+}
+
+/**
+ * Every framed object in the interface.
+ *
+ * A line drawing rather than a raised surface: square, transparent, one
+ * hairline rule, and four registration marks. The marks live here rather than
+ * at each call site so no page can forget them and none can add a fifth — the
+ * frame is the system's single most repeated shape, and it has to be identical
+ * everywhere or the whole language stops reading as drawn.
+ *
+ * `overflow-visible` is not incidental. The marks sit outside the border, so a
+ * card that clips its overflow would shave them off at exactly the corners
+ * they exist to mark.
+ */
 export function Card({
   children,
   className,
   as: Tag = "div",
   interactive,
+  marks = true,
 }: {
   children: ReactNode;
   className?: string;
   as?: "div" | "section" | "article";
   interactive?: boolean;
+  /** Off only where a frame is nested inside another frame's marks. */
+  marks?: boolean;
 }) {
   return (
     <Tag
       className={cn(
-        "rounded-[var(--radius)] border border-border bg-surface shadow-[var(--shadow-sm)]",
-        interactive &&
-          "transition-all hover:border-border-strong hover:shadow-[var(--shadow)]",
+        "relative overflow-visible border border-border bg-transparent",
+        interactive && "transition-colors hover:border-accent",
         className,
       )}
     >
       {children}
+      {marks && (
+        <>
+          <Corner pos="tl" />
+          <Corner pos="tr" />
+          <Corner pos="bl" />
+          <Corner pos="br" />
+        </>
+      )}
     </Tag>
   );
 }
@@ -105,12 +154,12 @@ export function RatingBadge({
   return (
     <span
       className={cn(
-        "tnum inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
+        "tnum inline-flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
         RATING_STYLES[rating],
         className,
       )}
     >
-      <span aria-hidden className="size-1.5 rounded-full bg-current" />
+      <span aria-hidden className="size-1.5 bg-current" />
       {label ?? RATING_LABELS[rating]}
     </span>
   );
@@ -136,7 +185,7 @@ export function Badge({
     <span
       title={title}
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
         tones[tone],
       )}
     >

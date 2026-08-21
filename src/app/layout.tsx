@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
+import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
-import { BoltMark } from "@/components/waveform";
+import { SieveMark } from "@/components/waveform";
+import { NavTabs } from "@/components/nav-tabs";
 import { SearchBox } from "@/components/search-box";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SessionProvider } from "next-auth/react";
@@ -21,21 +22,31 @@ import { AccountMenu } from "@/components/auth/account-menu";
  * Self-hosted by next/font: no third-party request on page load, and no chance
  * of a silent fallback if a CDN is unreachable.
  */
-const serif = Newsreader({
+/*
+  Two faces where there were three.
+
+  The variable names are deliberately unchanged. `--font-serif` no longer
+  carries a serif — it carries the condensed face — because the name marks a
+  role (headlines) rather than a classification, and every `.font-display` in
+  the app keeps working untouched. `--font-mono` is the same story: figures
+  need tabular digits, not a monospaced face, and Barlow provides them, so
+  `.tnum` keeps its contract while the numerals stop looking like code.
+*/
+const serif = Barlow_Condensed({
   variable: "--font-serif",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
+  weight: ["400", "600"],
   display: "swap",
 });
 
-const sans = Inter({
+const sans = Barlow({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
   display: "swap",
 });
 
-const mono = JetBrains_Mono({
+const mono = Barlow({
   variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
@@ -74,8 +85,8 @@ export const viewport: Viewport = {
   // Matches the canvas token in each theme, so the mobile browser chrome does
   // not sit on a colour the page never uses.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#08070f" },
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#14191e" },
   ],
 };
 
@@ -116,100 +127,104 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col font-sans">
         <SessionProvider session={session}>
-        <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+        {/*
+          Three explicit columns rather than a wrapping flex row.
+
+          The old header let a fixed-width right-hand group sit in a flex-wrap
+          row, so below roughly 1050px it overflowed and the whole document
+          scrolled sideways. `minmax(0, 1fr)` on the middle column is the part
+          that matters: a bare `1fr` is `minmax(auto, 1fr)`, which refuses to
+          shrink below its content and pushes the overflow outward instead.
+
+          The right-hand band is its own grid with every control the same
+          height, so search, account and theme read as one ruled row rather
+          than three objects of different sizes that happen to be adjacent.
+        */}
+        <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_92%,transparent)] backdrop-blur-[8px]">
+          <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-3 px-7 py-2.5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(180px,320px)]">
             <Link
               href="/"
-              className="flex shrink-0 items-center gap-2.5 text-[0.9375rem] font-bold tracking-tight"
+              className="flex shrink-0 items-center gap-2.5 text-foreground"
             >
-              <BoltMark />
-              <span>StockFilter</span>
+              {/* The mark sits in its own hairline tile — the smallest framed
+                  object in the system, and the same shape as every card. */}
+              <span className="flex size-7 shrink-0 items-center justify-center border border-border text-accent">
+                <SieveMark />
+              </span>
+              <span className="font-display text-[1.1875rem] leading-none font-semibold tracking-[-0.01em]">
+                StockFilter
+              </span>
             </Link>
 
-            {/*
-              Wraps rather than overflowing. At five items the row no longer
-              fits a 375px phone — it needed 424px in a 343px space, which
-              pushed the whole page 65px wide and made every screen scroll
-              sideways, not just the one the fifth item was added for. Wrapping
-              costs a second row on small screens; scrolling would have hidden
-              a nav item behind a gesture nobody thinks to try.
-            */}
-            <nav className="order-3 flex w-full flex-wrap gap-1 sm:order-none sm:w-auto sm:flex-nowrap">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-lg px-3 py-1.5 text-sm text-muted-strong transition-colors hover:bg-surface-2 hover:text-foreground"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <NavTabs items={NAV} />
 
-            {/*
-              shrink-0 so this group keeps its size and the row stays on one
-              line, and a search field that grows with the viewport rather than
-              claiming 18rem from the first breakpoint up. Between them the bar
-              needs 1184px where it has 1248px, against 1292px before — the
-              44px that used to push it onto a second row whenever somebody was
-              signed in.
-            */}
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <SearchBox className="w-44 lg:w-56 xl:w-72" />
+            <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto_34px] items-center gap-2 lg:col-span-1">
+              <SearchBox className="w-full" />
               <AccountMenu email={session?.user?.email ?? null} name={session?.user?.name ?? null} />
               <ThemeToggle />
             </div>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1360px] flex-1 px-7 py-8">{children}</main>
 
-        <footer className="mt-8 border-t border-border bg-surface">
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 text-xs text-muted">
-            {/*
-              Prominent and unconditional. This tool describes what filings say;
-              it does not evaluate anyone's circumstances and must never be read
-              as a recommendation to buy or sell.
-            */}
-            <p className="font-medium text-muted-strong">
-              Educational information only — not investment advice.
-            </p>
-            <p className="mt-1 max-w-3xl">
-              StockFilter summarises public regulatory filings and computes well-known
-              academic financial scores. It does not know your circumstances, does not
-              recommend buying or selling anything, and may contain errors or stale data.
-              Always check the linked source filings and speak to a licensed adviser
-              before making financial decisions.
-            </p>
-            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Link href="/terms" className="underline hover:text-foreground">
-                Terms &amp; privacy
-              </Link>
-              <Link href="/learn" className="underline hover:text-foreground">
-                How the scores work
-              </Link>
-              <a
-                className="underline hover:text-foreground"
-                href="https://github.com/yashik1/StockFilter"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                Source code
-              </a>
-            </p>
+        {/*
+          Three columns that collapse on their own.
 
-            <p className="mt-3">
-              Fundamentals and filings from{" "}
-              <a
-                className="underline hover:text-foreground"
-                href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                SEC EDGAR
-              </a>
-              . Prices from Twelve Data. News from Finnhub.
-            </p>
+          The disclaimer keeps column one and stays verbatim and unconditional
+          — it is the one thing on the page that must never be conditional on
+          state, a breakpoint, or a reader having scrolled. The links move into
+          named groups beside it rather than running as a sentence, which is
+          what let them read as an afterthought before.
+        */}
+        <footer className="mt-10 border-t border-border bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)]">
+          <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-8 px-7 pt-[26px] pb-[34px]">
+            <div>
+              <p className="font-display text-sm font-semibold text-foreground">
+                Educational information only — not investment advice.
+              </p>
+              <p className="mt-1.5 max-w-[62ch] text-[0.78125rem] leading-relaxed text-muted">
+                StockFilter summarises public regulatory filings and computes well-known
+                academic financial scores. It does not know your circumstances, does not
+                recommend buying or selling anything, and may contain errors or stale data.
+                Always check the linked source filings and speak to a licensed adviser
+                before making financial decisions.
+              </p>
+            </div>
+
+            <div>
+              <p className="eyebrow mb-2">Product</p>
+              <p className="grid gap-1 text-[0.8125rem]">
+                <Link href="/screen" className="text-muted hover:text-accent">Screener</Link>
+                <Link href="/markets" className="text-muted hover:text-accent">Markets</Link>
+                <Link href="/backtest" className="text-muted hover:text-accent">Backtest</Link>
+                <Link href="/journal" className="text-muted hover:text-accent">Journal</Link>
+              </p>
+            </div>
+
+            <div>
+              <p className="eyebrow mb-2">Sources</p>
+              <p className="grid gap-1 text-[0.8125rem]">
+                <a
+                  className="text-muted hover:text-accent"
+                  href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  SEC EDGAR
+                </a>
+                <Link href="/learn" className="text-muted hover:text-accent">How the scores work</Link>
+                <Link href="/terms" className="text-muted hover:text-accent">Terms &amp; privacy</Link>
+                <a
+                  className="text-muted hover:text-accent"
+                  href="https://github.com/yashik1/StockFilter"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Source code
+                </a>
+              </p>
+            </div>
           </div>
         </footer>
         </SessionProvider>

@@ -52,16 +52,31 @@ export function Waveform({ className }: { className?: string }) {
   );
 }
 
-/** The wordmark's bolt tile, carrying the same gradient. */
-export function BoltMark({ className }: { className?: string }) {
+/**
+ * The wordmark's mark: a sieve.
+ *
+ * Four rules narrowing to one, with a single drop falling through — what the
+ * product does, drawn rather than described. No gradient and no fill: it is a
+ * stroked technical object like everything else in the system, which is also
+ * what lets it survive being printed, reversed on a dark tile, or shown at
+ * 16px in a browser tab, where the old gradient bolt turned to mud.
+ *
+ * Inherits `currentColor`, so the caller decides whether it is accent on the
+ * canvas or the canvas reversed out of an accent tile.
+ */
+export function SieveMark({ className }: { className?: string }) {
   return (
-    <span
+    <svg
       aria-hidden
-      className={`inline-flex items-center justify-center rounded-md bg-accent text-accent-fg ${className ?? "size-7"}`}
+      viewBox="0 0 24 24"
+      className={className ?? "size-[18px]"}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      focusable="false"
     >
-      <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" focusable="false">
-        <path d="M13 2 L4.5 13.5 H10.5 L9.5 22 L19 10.5 H13 Z" />
-      </svg>
-    </span>
+      <path d="M3 5h18M6 11h12M10 17h4M12 17v4" />
+    </svg>
   );
 }

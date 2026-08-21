@@ -1,181 +1,187 @@
 @import "tailwindcss";
 
 /*
- * LEDGER — an editorial treatment for a reading tool.
+ * INDUSTRY — a technical wireframe for a reading tool.
  *
- * Warm paper and warm off-black rather than cool slate, because the product is
- * read like a publication rather than operated like a dashboard. Burnt amber
- * carries interaction; status keeps its own separate hues so meaning and brand
- * never blur.
+ * Steel blue on cool grey, drawn rather than decorated: square corners,
+ * hairline rules, and registration marks at the corner of every framed object.
+ * The product reads a filing and shows its working, so the interface is a
+ * drawing of that working rather than a surface with things sitting on it.
  *
  * Light lives on bare :root so it applies with no theme stamp present. Dark is
  * declared twice: under prefers-color-scheme for viewers on "system", and under
  * [data-theme="dark"] so the manual toggle wins in both directions.
  *
- * Categorical series colours were checked with the data-viz palette validator,
- * not chosen by eye. Both modes pass the lightness band, chroma floor, adjacent
- * CVD separation, the normal-vision floor and 3:1 contrast on their own surface.
+ * Token *names* are unchanged from the theme this replaces. Only the values
+ * moved, so every component and page keeps working without a find-and-replace
+ * — which is also why --font-serif now carries a condensed sans rather than a
+ * serif: the name marks the role (headlines), not the classification.
+ *
+ * Every text colour here was measured against the ground it sits on rather
+ * than picked by eye. The handoff's base steel (#5980a6) is 3.7:1 on the light
+ * canvas — its own note says so — which is under AA for body text and for a
+ * 14px button label, so --accent carries accent-700 and the brighter steel
+ * lives in --accent-bright for chart series, the logo tile and other places
+ * nothing is read off it.
  */
+
 :root {
-  /* Warm paper rather than a cool grey — a financial publication reads as
-     printed, not as a dashboard. */
-  --background: #f7f5f2;
-  --surface: #ffffff;
-  --surface-2: #f2efea;
-  --surface-3: #e7e2da;
-  --border: #e3ded5;
-  --border-strong: #c9c2b6;
+  --background: #f2f2f3;
+  --surface: #e9e9ea;
+  --surface-2: #e7e7ea;
+  --surface-3: #d4d4d7;
+  --border: color-mix(in srgb, #1d1f20 16%, transparent);
+  --border-strong: color-mix(in srgb, #1d1f20 34%, transparent);
 
-  --foreground: #16150f;
-  /*
-     The three text tiers, set so each one clears WCAG AA on the page ground
-     (4.5:1 for normal-size text) while staying visibly apart: 8.5, 6.2 and
-     4.5 to one. They previously ran 8.5, 4.6 and 2.6 — the faint tier failed
-     outright, and it carries dates, units, hints and the eyebrow label that
-     sits on every page. Raising it alone would have pushed it past muted, so
-     the middle tier moved down to keep the order intact.
-  */
-  --muted-strong: #4a4740;
-  --muted: #5f5b53;
-  --faint: #767065;
+  --foreground: #1d1f20;
+  /* Three text tiers at roughly 9.0, 5.9 and 4.7 to one — each clears AA on
+     the canvas, and they stay far enough apart to read as a hierarchy. */
+  --muted-strong: #424244;
+  --muted: #5d5d60;
+  --faint: #656568;
 
-  /* Burnt amber: the product's job is clarity, and amber reads as insight
-     rather than as "buy", which green would imply in a tool that never
-     recommends anything. */
-  --accent: #a35d00;
-  --accent-hover: #8a4e00;
-  --accent-fg: #ffffff;
-  --accent-soft: #fbf0df;
+  --accent: #416180;
+  --accent-hover: #2c455d;
+  --accent-fg: #f2f2f3;
+  --accent-soft: #d6ebff;
+  /* Chrome only — never text. See the note above. */
+  --accent-bright: #5980a6;
 
-  /* Status stays separate from the accent. "Mixed" is a neutral slate rather
-     than amber — it is genuinely neutral, not a warning, and sharing the
-     accent's hue would blur the two meanings. */
-  --good: #00806e;
-  --good-soft: #dcf3ee;
-  --good-fg: #005647;
-  --fair: #5d6673;
-  --fair-soft: #eceef1;
-  --fair-fg: #3f4650;
-  --poor: #b3243f;
-  --poor-soft: #fce8ec;
-  --poor-fg: #86142c;
-  --unknown: #a09a8f;
-  --unknown-soft: #f2efea;
-  --unknown-fg: #5b564e;
+  /* Status stays off the accent hue entirely: a rising price and a brand
+     colour must never be the same signal. Every rating carries its word as
+     well as its colour, so none of this is load-bearing on its own. */
+  --good: #2b7259;
+  --good-soft: #dbe9e3;
+  --good-fg: #245e4a;
+  --fair: #5d5d60;
+  --fair-soft: #e7e7ea;
+  --fair-fg: #424244;
+  --poor: #a83a4c;
+  --poor-soft: #f3dfe2;
+  --poor-fg: #8d3040;
+  --unknown: #7a7a7d;
+  --unknown-soft: #e7e7ea;
+  --unknown-fg: #5d5d60;
 
-  --up: #00806e;
-  --down: #b3243f;
+  --up: #2b7259;
+  --down: #a83a4c;
 
-  --series-1: #a35d00;
-  --series-2: #00937f;
-  --series-3: #5148d8;
-  --series-4: #c42a68;
+  /* One hue, stepped. The old set was categorical across four hues; this
+     system is mono, so series read as a ramp and the last step drops to
+     neutral rather than introducing a colour. */
+  --series-1: #416180;
+  --series-2: #749dc4;
+  --series-3: #94bce3;
+  --series-4: #7a7a7d;
 
-  --radius-sm: 0.375rem;
-  --radius: 0.625rem;
-  --radius-lg: 0.875rem;
+  /* Square. The wireframe language has no rounded corners; these stay as
+     tokens so anything that wants a radius has to ask for one explicitly. */
+  --radius-sm: 0px;
+  --radius: 0px;
+  --radius-lg: 0px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(22 21 15 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(22 21 15 / 0.08), 0 1px 2px -1px rgb(22 21 15 / 0.04);
-  --shadow-lg: 0 10px 30px -12px rgb(22 21 15 / 0.16), 0 2px 8px -2px rgb(22 21 15 / 0.06);
-  --glow: 0 0 0 1px rgb(163 93 0 / 0.16), 0 10px 30px -12px rgb(163 93 0 / 0.24);
+  /* Cards are line drawings and carry no shadow. These are for things that
+     genuinely float: the search dropdown, a dialog. */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
+  --shadow: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
+  --glow: none;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* Warm off-black, not slate: a hint of brown keeps it from reading cold. */
-    --background: #121214;
-    --surface: #1a1a1d;
-    --surface-2: #232326;
-    --surface-3: #2e2e32;
-    --border: #2a2a2e;
-    --border-strong: #43434a;
+    --background: #14191e;
+    --surface: #1b2228;
+    --surface-2: #212a31;
+    --surface-3: #2a343c;
+    --border: color-mix(in srgb, #e7eaec 20%, transparent);
+    --border-strong: color-mix(in srgb, #e7eaec 38%, transparent);
 
-    --foreground: #f5f3ef;
-    /* 10.1, 7.4 and 5.2 to one against the dark ground. */
-    --muted-strong: #c2beb6;
-    --muted: #a8a29a;
-    --faint: #8b867d;
+    --foreground: #e7eaec;
+    --muted-strong: #c3c9ce;
+    --muted: #a4acb2;
+    --faint: #8d949a;
 
-    --accent: #e0a458;
-    --accent-hover: #edb771;
-    --accent-fg: #121214;
-    --accent-soft: #33260f;
+    --accent: #8db0d1;
+    --accent-hover: #a3c0da;
+    --accent-fg: #14191e;
+    --accent-soft: #22303c;
+    --accent-bright: #8db0d1;
 
-    --good: #2fbfa2;
-    --good-soft: #0d332c;
-    --good-fg: #86e5d0;
-    --fair: #8b95a5;
-    --fair-soft: #262a31;
-    --fair-fg: #c3cad6;
-    --poor: #ef5f78;
-    --poor-soft: #3a141f;
-    --poor-fg: #f8b0be;
-    --unknown: #6b6760;
-    --unknown-soft: #232326;
-    --unknown-fg: #b0aba2;
+    --good: #5fae92;
+    --good-soft: #1c2f29;
+    --good-fg: #7cc4a9;
+    --fair: #8d949a;
+    --fair-soft: #212a31;
+    --fair-fg: #a4acb2;
+    --poor: #d97b8a;
+    --poor-soft: #332226;
+    --poor-fg: #e396a3;
+    --unknown: #8d949a;
+    --unknown-soft: #212a31;
+    --unknown-fg: #a4acb2;
 
-    --up: #2fbfa2;
-    --down: #ef5f78;
+    --up: #5fae92;
+    --down: #d97b8a;
 
-    --series-1: #c47d0e;
-    --series-2: #12a594;
-    --series-3: #6d6ff0;
-    --series-4: #d9538a;
+    --series-1: #8db0d1;
+    --series-2: #6f93b4;
+    --series-3: #b9d0e3;
+    --series-4: #8d949a;
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.55), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.5);
-    --glow: 0 0 0 1px rgb(224 164 88 / 0.24), 0 12px 40px -14px rgb(224 164 88 / 0.4);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow: 0 3px 10px rgb(0 0 0 / 0.55);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+    --glow: none;
   }
 }
 
 :root[data-theme="dark"] {
-  /* Warm off-black, not slate: a hint of brown keeps it from reading cold. */
-  --background: #121214;
-  --surface: #1a1a1d;
-  --surface-2: #232326;
-  --surface-3: #2e2e32;
-  --border: #2a2a2e;
-  --border-strong: #43434a;
+  --background: #14191e;
+  --surface: #1b2228;
+  --surface-2: #212a31;
+  --surface-3: #2a343c;
+  --border: color-mix(in srgb, #e7eaec 20%, transparent);
+  --border-strong: color-mix(in srgb, #e7eaec 38%, transparent);
 
-  --foreground: #f5f3ef;
-  /* 10.1, 7.4 and 5.2 to one against the dark ground. */
-  --muted-strong: #c2beb6;
-  --muted: #a8a29a;
-  --faint: #8b867d;
+  --foreground: #e7eaec;
+  --muted-strong: #c3c9ce;
+  --muted: #a4acb2;
+  --faint: #8d949a;
 
-  --accent: #e0a458;
-  --accent-hover: #edb771;
-  --accent-fg: #121214;
-  --accent-soft: #33260f;
+  --accent: #8db0d1;
+  --accent-hover: #a3c0da;
+  --accent-fg: #14191e;
+  --accent-soft: #22303c;
+  --accent-bright: #8db0d1;
 
-  --good: #2fbfa2;
-  --good-soft: #0d332c;
-  --good-fg: #86e5d0;
-  --fair: #8b95a5;
-  --fair-soft: #262a31;
-  --fair-fg: #c3cad6;
-  --poor: #ef5f78;
-  --poor-soft: #3a141f;
-  --poor-fg: #f8b0be;
-  --unknown: #6b6760;
-  --unknown-soft: #232326;
-  --unknown-fg: #b0aba2;
+  --good: #5fae92;
+  --good-soft: #1c2f29;
+  --good-fg: #7cc4a9;
+  --fair: #8d949a;
+  --fair-soft: #212a31;
+  --fair-fg: #a4acb2;
+  --poor: #d97b8a;
+  --poor-soft: #332226;
+  --poor-fg: #e396a3;
+  --unknown: #8d949a;
+  --unknown-soft: #212a31;
+  --unknown-fg: #a4acb2;
 
-  --up: #2fbfa2;
-  --down: #ef5f78;
+  --up: #5fae92;
+  --down: #d97b8a;
 
-  --series-1: #c47d0e;
-  --series-2: #12a594;
-  --series-3: #6d6ff0;
-  --series-4: #d9538a;
+  --series-1: #8db0d1;
+  --series-2: #6f93b4;
+  --series-3: #b9d0e3;
+  --series-4: #8d949a;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.55), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 12px 40px -14px rgb(0 0 0 / 0.75), 0 2px 8px -2px rgb(0 0 0 / 0.5);
-  --glow: 0 0 0 1px rgb(224 164 88 / 0.24), 0 12px 40px -14px rgb(224 164 88 / 0.4);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow: 0 3px 10px rgb(0 0 0 / 0.55);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+  --glow: none;
 }
+
 
 @theme inline {
   --color-background: var(--background);
@@ -192,6 +198,7 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-bright: var(--accent-bright);
   --color-good: var(--good);
   --color-good-soft: var(--good-soft);
   --color-good-fg: var(--good-fg);
@@ -214,6 +221,23 @@
   --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
   --radius-card: var(--radius);
+
+  /*
+    The radius scale, zeroed at the source.
+
+    Tailwind resolves rounded-sm/md/lg/xl from these, so setting them here
+    squares every one of the ninety-odd call sites at once — rather than
+    editing each, which would leave the next `rounded-lg` somebody types
+    quietly reintroducing the old language. rounded-full is deliberately left
+    alone: a status dot and the account initial are circles because they are
+    marks, not boxes, and squaring them would make a dot look like a bug.
+  */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
 }
 
 body {
@@ -268,29 +292,31 @@ body {
   }
 }
 
-/* Every figure in the interface goes through this, so numbers are always mono
-   and always tabular. */
+/* Every figure in the interface goes through this. Tabular rather than
+   monospaced: columns still align and a price cannot jitter as it updates,
+   but the numerals belong to the same family as the words around them. */
 .tnum {
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--font-mono), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 /* Large headline numerals — the health score, a share price. */
 .display {
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--font-serif), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-  line-height: 1.02;
+  letter-spacing: -0.015em;
+  line-height: 1;
 }
 
 /* Section eyebrow: small, wide-tracked, quiet. */
 .eyebrow {
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.6875rem;
+  font-family: var(--font-serif), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.71875rem;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -309,20 +335,20 @@ body {
  * translated sentences, which are the thing worth reading.
  */
 .font-display {
-  font-family: var(--font-serif), ui-serif, Georgia, serif;
-  font-weight: 500;
+  font-family: var(--font-serif), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
   letter-spacing: -0.015em;
-  line-height: 1.08;
+  line-height: 1.06;
   text-wrap: balance;
 }
 
 /* Figures, tickers and percentages. Tabular so columns align and a price
    cannot jitter by a pixel as it updates. */
 .font-data {
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--font-mono), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 /* Wide content scrolls inside its own container so the page body never scrolls

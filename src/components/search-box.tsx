@@ -128,7 +128,7 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
+          className="h-[34px] w-full border border-border bg-transparent pl-9 pr-3 text-[0.84375rem] outline-none transition-colors placeholder:text-faint focus:border-accent"
         />
       </div>
 
@@ -136,7 +136,7 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-lg border border-border bg-surface py-1 shadow-[var(--shadow-lg)]"
+          className="absolute z-50 mt-1 max-h-80 w-full overflow-auto border border-border bg-surface py-1 shadow-[var(--shadow-lg)]"
         >
           {results.length === 0 && loading && (
             <li className="px-3 py-2 text-sm text-muted">Searching…</li>
