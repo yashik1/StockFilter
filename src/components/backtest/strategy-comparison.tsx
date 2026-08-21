@@ -127,22 +127,31 @@ export function StrategyComparison({
         </table>
       </div>
 
-      <div className="space-y-2 border-t border-border px-5 py-3 text-xs leading-relaxed text-muted">
-        <p>
-          <span className="font-medium text-ink">Read the win rate alongside the return.</span>{" "}
-          A rule can be right most of the time and still finish behind, because it wins small and
-          loses big, or because it sits in cash through the rise that mattered — the
-          &ldquo;invested&rdquo; column is how much of the decade it was actually holding
-          anything.
-        </p>
-        <p>
-          These are price returns with no dividends, so that the only difference between rows is
-          the rule itself rather than which one happened to be holding on a pay date. No fees,
-          spreads, slippage or taxes are modelled, and a rule that trades often would pay all
-          four. Every rule is long-or-flat — never short — and uses its conventional textbook
-          settings, left untuned on purpose: a rule adjusted until it looks good on the ten years
-          being shown will always look good on those ten years.
-        </p>
+      {/*
+        The rule and its padding stay on the outer block so the divider spans
+        the card; the text is capped inside it. Run at the full width these
+        footnotes reached about 200 characters a line, which is where a reader
+        starts losing the return to the next line — and these are the
+        paragraphs saying what the numbers above do not account for.
+      */}
+      <div className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted">
+        <div className="max-w-2xl space-y-2">
+          <p>
+            <span className="font-medium text-ink">Read the win rate alongside the return.</span>{" "}
+            A rule can be right most of the time and still finish behind, because it wins small
+            and loses big, or because it sits in cash through the rise that mattered — the
+            &ldquo;invested&rdquo; column is how much of the decade it was actually holding
+            anything.
+          </p>
+          <p>
+            These are price returns with no dividends, so that the only difference between rows
+            is the rule itself rather than which one happened to be holding on a pay date. No
+            fees, spreads, slippage or taxes are modelled, and a rule that trades often would pay
+            all four. Every rule is long-or-flat — never short — and uses its conventional
+            textbook settings, left untuned on purpose: a rule adjusted until it looks good on
+            the ten years being shown will always look good on those ten years.
+          </p>
+        </div>
       </div>
     </Card>
   );

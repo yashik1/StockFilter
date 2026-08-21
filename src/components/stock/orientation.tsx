@@ -80,7 +80,16 @@ function Column({
         >
           <Icon className="size-3.5" />
         </span>
-        <h3 className="text-[0.9375rem] font-semibold tracking-tight">{title}</h3>
+        {/*
+          h2, matching every other card title on the page.
+
+          This is a card header in the same role as the ones CardHeader
+          renders, and it sat directly under the page's h1 as an h3 — a level
+          skipped, which is a gap for anyone moving through the page by
+          heading rather than by eye. The h3s further down are correctly
+          nested beneath "The five questions".
+        */}
+        <h2 className="text-[0.9375rem] font-semibold tracking-tight">{title}</h2>
       </div>
 
       {items.length === 0 ? (

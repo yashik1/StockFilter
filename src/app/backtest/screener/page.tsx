@@ -175,7 +175,7 @@ export default async function ScreenerBacktestPage({
       )}
 
       <Card className="p-5">
-        <p className="text-xs leading-relaxed text-muted">
+        <p className="max-w-2xl text-xs leading-relaxed text-muted">
           Educational only, not investment advice. Several real limitations apply, and are worth
           weighing before reading much into the result: the universe is fixed at today&apos;s
           ~500 screened companies rather than whoever was actually screenable on each historical

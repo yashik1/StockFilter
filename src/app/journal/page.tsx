@@ -104,8 +104,12 @@ export default async function JournalPage() {
                       </span>
                     </div>
 
+                    {/* The body is capped to the same text column as the rest
+                        of the app: this is the part the page exists to have
+                        read back, and a long entry would otherwise run the
+                        full width of the card. */}
                     {entry.body && (
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-strong">
+                      <p className="mt-2 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-muted-strong">
                         {entry.body}
                       </p>
                     )}

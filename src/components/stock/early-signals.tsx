@@ -53,11 +53,13 @@ export function EarlySignals({ symbol, insider, stakes, upcoming }: Props) {
         </div>
       )}
 
-      <p className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted">
-        Not investment advice, and not a signal to act on by itself — a filing says what
-        happened, not why, and insiders trade for ordinary reasons having nothing to do with
-        where they think the company is headed.
-      </p>
+      <div className="border-t border-border px-5 py-3">
+        <p className="max-w-2xl text-xs leading-relaxed text-muted">
+          Not investment advice, and not a signal to act on by itself — a filing says what
+          happened, not why, and insiders trade for ordinary reasons having nothing to do with
+          where they think the company is headed.
+        </p>
+      </div>
     </Card>
   );
 }

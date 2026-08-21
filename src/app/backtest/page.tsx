@@ -243,7 +243,7 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
       )}
 
       <Card className="p-5">
-        <p className="text-xs leading-relaxed text-muted">
+        <p className="max-w-2xl text-xs leading-relaxed text-muted">
           Educational only, not investment advice. This uses real historical prices and, where
           available, real dividend payments — but it assumes a lump sum invested on one day and
           held without ever selling, which is rarely how anyone actually invests. No fees,
@@ -296,18 +296,18 @@ function BacktestResults({
         ceiling was ours, and the wording blamed the data.
       */}
       {backtest.startedLateBecause === "fetch-limit" && (
-        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+        <Caveat>
           This app fetches at most ten years of daily prices, so the test starts from{" "}
           <LocalTime value={result.startTime * 1000} mode="date" /> rather than the date you
           chose. {backtest.symbol} may well have traded before then.
-        </p>
+        </Caveat>
       )}
       {backtest.startedLateBecause === "history" && (
-        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+        <Caveat>
           {backtest.symbol} has no price history back to your chosen date — this starts from{" "}
           <LocalTime value={result.startTime * 1000} mode="date" /> instead, the earliest price
           available for it.
-        </p>
+        </Caveat>
       )}
       {/*
         The dividend caveat is for things that pay dividends.
@@ -318,10 +318,10 @@ function BacktestResults({
         only honest when the data could have been there.
       */}
       {reinvest && !backtest.dividendDataAvailable && assetClass === null && (
-        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+        <Caveat>
           Dividend data isn&apos;t available on this deployment, so this shows price return only
           — any dividends {backtest.symbol} paid are not included.
-        </p>
+        </Caveat>
       )}
       {/*
         A futures curve is not a thing anybody could have bought and held.
@@ -334,19 +334,19 @@ function BacktestResults({
         ended up with, and the difference compounds.
       */}
       {(assetClass === "commodity" || assetClass === "future") && (
-        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+        <Caveat>
           This tracks the front-month futures price, stitched across contracts as each one
           expires. Nobody can actually buy and hold that — a real position has to be rolled
           into the next contract again and again, and the cost of doing so is not modelled
           here. Read it as how the price moved, not as what a holder would have made.
-        </p>
+        </Caveat>
       )}
       {assetClass === "crypto" && (
-        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+        <Caveat>
           Crypto trades every day of the year, including weekends, so this curve has roughly
           40% more points than a stock over the same window. Returns are still annualised on
           calendar days, so the yearly average is on the same footing as a share&apos;s.
-        </p>
+        </Caveat>
       )}
       {/*
         Without this, a split makes a correct result look broken. NVDA split
@@ -357,7 +357,7 @@ function BacktestResults({
         that out loud.
       */}
       {splitsInWindow.length > 0 && (
-        <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs text-muted-strong">
+        <Caveat>
           {backtest.symbol} split its shares{" "}
           {splitsInWindow.map((s, i) => (
             <span key={s.time}>
@@ -371,7 +371,7 @@ function BacktestResults({
           will not match the headline price you remember from before the split. Your money
           was unaffected either way: a split hands you more shares at a proportionally
           lower price.
-        </p>
+        </Caveat>
       )}
 
       {/* "Gold" reads better than "GC=F" on the headline card. */}
@@ -490,11 +490,13 @@ function HorizonTable({
           </tbody>
         </table>
       </div>
-      <p className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted">
-        Each row is the same lump sum invested that far back and held to today — not a
-        strategy, just a different starting date. A row marked &ldquo;from … only&rdquo; is
-        shorter than its label because the price history does not reach back that far.
-      </p>
+      <div className="border-t border-border px-5 py-3">
+        <p className="max-w-2xl text-xs leading-relaxed text-muted">
+          Each row is the same lump sum invested that far back and held to today — not a
+          strategy, just a different starting date. A row marked &ldquo;from … only&rdquo; is
+          shorter than its label because the price history does not reach back that far.
+        </p>
+      </div>
     </Card>
   );
 }
@@ -577,5 +579,22 @@ function ResultCard({
         </p>
       )}
     </Card>
+  );
+}
+
+/**
+ * A caveat above a result — the things the number does not account for.
+ *
+ * The box keeps the full width so it still reads as a notice, but its text is
+ * held to the same column as every other explanatory passage in the app. Run
+ * edge to edge these reached about 208 characters a line over three lines,
+ * which is where a reader starts losing the return to the next line — and
+ * these are precisely the sentences that stop a figure being misread.
+ */
+function Caveat({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-2 px-4 py-2.5">
+      <p className="max-w-2xl text-xs leading-relaxed text-muted-strong">{children}</p>
+    </div>
   );
 }

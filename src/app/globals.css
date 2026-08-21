@@ -27,9 +27,17 @@
   --border-strong: #c9c2b6;
 
   --foreground: #16150f;
+  /*
+     The three text tiers, set so each one clears WCAG AA on the page ground
+     (4.5:1 for normal-size text) while staying visibly apart: 8.5, 6.2 and
+     4.5 to one. They previously ran 8.5, 4.6 and 2.6 — the faint tier failed
+     outright, and it carries dates, units, hints and the eyebrow label that
+     sits on every page. Raising it alone would have pushed it past muted, so
+     the middle tier moved down to keep the order intact.
+  */
   --muted-strong: #4a4740;
-  --muted: #736f66;
-  --faint: #a09a8f;
+  --muted: #5f5b53;
+  --faint: #767065;
 
   /* Burnt amber: the product's job is clarity, and amber reads as insight
      rather than as "buy", which green would imply in a tool that never
@@ -84,9 +92,10 @@
     --border-strong: #43434a;
 
     --foreground: #f5f3ef;
+    /* 10.1, 7.4 and 5.2 to one against the dark ground. */
     --muted-strong: #c2beb6;
-    --muted: #928d84;
-    --faint: #6b6760;
+    --muted: #a8a29a;
+    --faint: #8b867d;
 
     --accent: #e0a458;
     --accent-hover: #edb771;
@@ -131,9 +140,10 @@
   --border-strong: #43434a;
 
   --foreground: #f5f3ef;
+  /* 10.1, 7.4 and 5.2 to one against the dark ground. */
   --muted-strong: #c2beb6;
-  --muted: #928d84;
-  --faint: #6b6760;
+  --muted: #a8a29a;
+  --faint: #8b867d;
 
   --accent: #e0a458;
   --accent-hover: #edb771;

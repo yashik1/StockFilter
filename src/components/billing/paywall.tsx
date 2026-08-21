@@ -79,7 +79,8 @@ export function Paywall({
         )}
       </div>
 
-      <p className="mt-5 border-t border-border pt-4 text-xs leading-relaxed text-muted">
+      <div className="mt-5 border-t border-border pt-4">
+        <p className="max-w-2xl text-xs leading-relaxed text-muted">
         {accountIsEnough ? (
           <>
             Four things need a free account: the screener backtest, the trade journal, the
@@ -94,8 +95,9 @@ export function Paywall({
             free — company pages, the screener, comparisons, charts, crypto and commodities, and
             working out what an investment would have been worth.
           </>
-        )}
-      </p>
+          )}
+        </p>
+      </div>
     </Card>
   );
 }

@@ -117,7 +117,7 @@ export default async function MarketsPage() {
       />
 
       <Card className="p-5">
-        <p className="text-xs leading-relaxed text-muted">
+        <p className="max-w-2xl text-xs leading-relaxed text-muted">
           Educational only, not investment advice. Prices here come from the same free data
           sources as the rest of the site and can be delayed or wrong. Commodities and futures
           are shown as continuous front-month series, which is a research convention rather
