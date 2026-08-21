@@ -94,7 +94,12 @@ export function NewEntryForm() {
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      {/*
+        The action sits at the far end rather than tucked against the last
+        field, which is where a form's submit is looked for and which stops
+        the row reading as one small cluster adrift in empty space.
+      */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <label htmlFor="conviction" className="text-xs text-muted">
             Conviction 1–5 (optional)
@@ -108,24 +113,32 @@ export function NewEntryForm() {
             className="tnum mt-1 w-20 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={pending}
-          className={cn(
-            "h-fit rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity",
-            pending ? "cursor-wait opacity-60" : "hover:opacity-90",
+        {/*
+          Grouped with the button rather than left as a third child of the
+          row: under justify-between a loose third item is pushed to the
+          middle, so "Saved." would have drifted away from the control that
+          caused it.
+        */}
+        <div className="flex items-center gap-3">
+          {state && (
+            <span
+              role="status"
+              className={cn("text-xs", state.ok ? "text-good-fg" : "text-poor-fg")}
+            >
+              {state.message}
+            </span>
           )}
-        >
-          {pending ? "Saving…" : "Save entry"}
-        </button>
-        {state && (
-          <span
-            role="status"
-            className={cn("text-xs", state.ok ? "text-good-fg" : "text-poor-fg")}
+          <button
+            type="submit"
+            disabled={pending}
+            className={cn(
+              "h-fit rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity",
+              pending ? "cursor-wait opacity-60" : "hover:opacity-90",
+            )}
           >
-            {state.message}
-          </span>
-        )}
+            {pending ? "Saving…" : "Save entry"}
+          </button>
+        </div>
       </div>
     </form>
   );

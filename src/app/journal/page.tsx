@@ -30,7 +30,18 @@ export default async function JournalPage() {
   const entries = hasAccess(entitlement) ? await listEntries() : [];
 
   return (
-    <div className="space-y-5">
+    /*
+      Held to a reading measure rather than the full content column.
+
+      This page is text — a form you write into and a list of what you wrote —
+      and stretched across the whole 1248px column it read as broken rather
+      than roomy: a single-line "what happened" field 770px wide, and a footer
+      holding an 80px box and a button with 970px of nothing beside them. The
+      pages that keep the full width earn it by having something to put there,
+      a table or a chart. This one does not, so it sits at a width that suits
+      prose, the way /account and /terms already do.
+    */
+    <div className="mx-auto w-full max-w-4xl space-y-5">
       <header className="pt-1">
         <p className="eyebrow">Your record</p>
         <h1 className="font-display mt-2 text-4xl sm:text-5xl">Trade journal</h1>

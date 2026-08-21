@@ -118,7 +118,15 @@ const SCORES: Entry[] = [
 
 export default function LearnPage() {
   return (
-    <div className="space-y-6">
+    /*
+      Held to the same measure as /terms, the app's other long-form page.
+
+      Left at the full content column its paragraphs ran to about 172
+      characters a line, against roughly 104 on /terms — past the width where
+      the eye reliably finds the start of the next line, on the one page whose
+      entire job is being read.
+    */
+    <div className="mx-auto w-full max-w-3xl space-y-6">
       <header className="pt-1">
         <p className="eyebrow">Reference</p>
         <h1 className="font-display mt-2 text-4xl sm:text-5xl">What the numbers mean</h1>

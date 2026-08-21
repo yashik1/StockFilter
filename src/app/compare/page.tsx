@@ -48,7 +48,13 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
 
       <Card>
         <form method="get" className="flex flex-wrap items-end gap-3 p-5">
-          <div className="min-w-0 flex-1">
+          {/*
+            Capped rather than left to take the whole row. Four tickers is
+            about thirty characters, and flex-1 alone stretched the field to
+            1099px — a box twenty times longer than anything anyone types into
+            it, with the button marooned at the far end.
+          */}
+          <div className="min-w-0 flex-1 sm:max-w-md">
             <label htmlFor="symbols" className="text-xs text-muted">
               Tickers, separated by commas
             </label>
