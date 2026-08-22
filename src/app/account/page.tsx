@@ -46,7 +46,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
       */}
       <header className="pt-1">
         <p className="eyebrow">Account</p>
-        <h1 className="font-display mt-2 text-3xl break-words sm:text-4xl">
+        <h1 className="font-display mt-2 text-[2.75rem] leading-none break-words">
           {session.user.name?.trim() || session.user.email}
         </h1>
         {session.user.name?.trim() && (

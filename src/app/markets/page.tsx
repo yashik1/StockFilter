@@ -104,7 +104,7 @@ export default async function MarketsPage() {
       <header className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-end gap-6 border-b border-border pt-10 pb-[22px]">
         <div>
           <p className="eyebrow">Crypto · metals · energy · agriculture · index futures</p>
-          <h1 className="font-display mt-2 text-[2.75rem]">Markets</h1>
+          <h1 className="font-display mt-2 text-[2.75rem] leading-none">Markets</h1>
           <p className="mt-2 max-w-[56ch] text-sm leading-relaxed text-muted">
             None of these file accounts, so none of them get a health score. They get the
             chart, the comparison and the backtest — and this page says so rather than

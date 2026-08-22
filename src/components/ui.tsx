@@ -216,11 +216,14 @@ export function Metric({
   const sizes = {
     sm: "text-[0.8125rem]",
     md: "text-[0.9375rem]",
-    lg: "text-xl",
+    lg: "font-display text-[1.625rem] leading-none",
   };
   return (
     <div className="min-w-0">
-      <dt className="flex items-center gap-1 text-xs text-muted" title={hint}>
+      {/* The same eyebrow every other measure label in the app uses, so a
+          figure reads identically whether it sits on the dashboard strip, a
+          backtest panel or a company page. */}
+      <dt className="eyebrow flex items-center gap-1 text-[0.625rem]" title={hint}>
         <span className="truncate">{label}</span>
         {hint && (
           <>
@@ -234,6 +237,7 @@ export function Metric({
       <dd
         className={cn(
           "tnum mt-1 font-semibold",
+          size === "lg" && "mt-1.5",
           sizes[size],
           tone === "up" && "text-up",
           tone === "down" && "text-down",

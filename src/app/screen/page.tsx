@@ -95,10 +95,10 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
               <Link
                 key={key}
                 href={active ? "/screen" : `/screen?preset=${key}`}
-                className={`rounded-[var(--radius)] border p-4 shadow-[var(--shadow-sm)] transition-all ${
+                className={`border p-4 transition-colors ${
                   active
-                    ? "border-accent bg-accent-soft ring-1 ring-accent/20"
-                    : "border-border bg-surface hover:border-border-strong hover:shadow-[var(--shadow)]"
+                    ? "border-accent bg-accent-soft"
+                    : "border-border hover:border-accent"
                 }`}
               >
                 <p className={`text-sm font-semibold ${active ? "text-accent" : ""}`}>
@@ -113,10 +113,20 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
         </div>
       </section>
 
-      {/* Custom filters. A plain GET form keeps every screen shareable as a URL
-          and working without JavaScript. */}
-      <Card>
-        <form method="get" className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/*
+        Filters beside the results rather than above them.
+
+        Stacked, every adjustment pushed the table off-screen and the reader
+        lost the thing they were adjusting it against. Side by side, a changed
+        threshold and its effect are visible at once. The rail is held between
+        240 and 268px — wide enough for the longest field label to sit on one
+        line, narrow enough that the table keeps the space a table needs — and
+        the results column is minmax(0, 1fr) so a wide row scrolls inside its
+        own box instead of stretching the page sideways.
+      */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(240px,268px)_minmax(0,1fr)] lg:items-start">
+        <Card className="min-w-0 lg:sticky lg:top-5">
+          <form method="get" className="grid grid-cols-[minmax(0,1fr)] gap-4 p-5">
           {filters.preset && <input type="hidden" name="preset" value={filters.preset} />}
 
           <Field label="Sector" name="sector" value={filters.sector} options={SECTORS} />
@@ -160,7 +170,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
             hint="What the whole company is worth at today's share price."
           />
 
-          <div>
+          <div className="min-w-0">
             <label htmlFor="sort" className="text-xs text-muted">
               Sort by
             </label>
@@ -168,7 +178,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
               id="sort"
               name="sort"
               defaultValue={filters.sort}
-              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="mt-1 w-full min-w-0 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             >
               {(Object.keys(SORTS) as SortKey[]).map((k) => (
                 <option key={k} value={k}>
@@ -178,7 +188,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
             </select>
           </div>
 
-          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+          <div className="flex flex-wrap items-end gap-2 pt-1">
             <button
               type="submit"
               className="rounded-lg border border-transparent bg-accent px-4 py-2 text-sm font-medium text-accent-fg transition-opacity hover:opacity-90"
@@ -192,58 +202,61 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
               Reset
             </Link>
           </div>
-        </form>
-      </Card>
-
-      {/* Results */}
-      {result.status !== "ok" ? (
-        <SetupNotice status={result.status} detail={result.detail} />
-      ) : (
-        <Card>
-          <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <p className="text-sm text-muted">
-              {result.total} {result.total === 1 ? "company" : "companies"}
-              {filters.preset && ` · ${PRESETS[filters.preset].label}`}
-            </p>
-          </div>
-          <ResultsTable rows={result.rows} />
+          </form>
         </Card>
-      )}
 
-      {result.status === "ok" && result.rows.length === 0 && (
-        <Card>
-          {result.missingData ? (
-            // This preset can never match until the data it needs exists, so
-            // saying "no companies match" would send people to adjust filters
-            // that were never the problem.
-            <EmptyState
-              title="This screen needs price data"
-              description={`"${filters.preset ? PRESETS[filters.preset].label : "This screen"}" needs ${result.missingData.needs}. No company in the database has that yet, because no price source was configured when the data was loaded. Add a free TWELVEDATA_API_KEY or FINNHUB_API_KEY, then run the ingest again — every other screen works without it.`}
-              action={
-                <Link
-                  href="/screen?preset=healthy"
-                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg"
-                >
-                  Try &ldquo;Financially healthy&rdquo; instead
-                </Link>
-              }
-            />
-          ) : (
-            <EmptyState
-              title="No companies match these filters"
-              description="Every filter applied, but nothing cleared them all. Try relaxing a threshold, or reset and start from a preset."
-              action={
-                <Link
-                  href="/screen"
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
-                >
-                  Reset filters
-                </Link>
-              }
-            />
-          )}
-        </Card>
-      )}
+        <div className="min-w-0 space-y-5">
+          {/* Results */}
+          {result.status !== "ok" ? (
+          <SetupNotice status={result.status} detail={result.detail} />
+        ) : (
+          <Card>
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <p className="text-sm text-muted">
+                {result.total} {result.total === 1 ? "company" : "companies"}
+                {filters.preset && ` · ${PRESETS[filters.preset].label}`}
+              </p>
+            </div>
+            <ResultsTable rows={result.rows} />
+          </Card>
+        )}
+
+        {result.status === "ok" && result.rows.length === 0 && (
+          <Card>
+            {result.missingData ? (
+              // This preset can never match until the data it needs exists, so
+              // saying "no companies match" would send people to adjust filters
+              // that were never the problem.
+              <EmptyState
+                title="This screen needs price data"
+                description={`"${filters.preset ? PRESETS[filters.preset].label : "This screen"}" needs ${result.missingData.needs}. No company in the database has that yet, because no price source was configured when the data was loaded. Add a free TWELVEDATA_API_KEY or FINNHUB_API_KEY, then run the ingest again — every other screen works without it.`}
+                action={
+                  <Link
+                    href="/screen?preset=healthy"
+                    className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg"
+                  >
+                    Try &ldquo;Financially healthy&rdquo; instead
+                  </Link>
+                }
+              />
+            ) : (
+              <EmptyState
+                title="No companies match these filters"
+                description="Every filter applied, but nothing cleared them all. Try relaxing a threshold, or reset and start from a preset."
+                action={
+                  <Link
+                    href="/screen"
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
+                  >
+                    Reset filters
+                  </Link>
+                }
+              />
+            )}
+          </Card>
+        )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -329,7 +342,7 @@ function Field({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label htmlFor={name} className="text-xs text-muted">
         {label}
       </label>
@@ -337,7 +350,7 @@ function Field({
         id={name}
         name={name}
         defaultValue={value ?? ""}
-        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+        className="mt-1 w-full min-w-0 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
