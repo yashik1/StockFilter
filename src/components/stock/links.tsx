@@ -36,31 +36,57 @@ export function FilingsList({ filings }: { filings: Filing[] }) {
           description="This company has no recent filings indexed on EDGAR."
         />
       ) : (
-        <ul className="divide-y divide-border">
-          {filings.map((f, i) => (
-            <li key={`${f.form}-${f.filedAt}-${i}`}>
-              <a
-                href={f.url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-2"
-              >
-                <FileText aria-hidden className="size-4 shrink-0 text-muted" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {formLabel(f.form)}{" "}
-                    <span className="font-normal text-muted">({f.form})</span>
-                  </p>
-                  <p className="text-xs text-muted">
-                    Filed {f.filedAt}
-                    {f.periodOfReport && ` · covers period ending ${f.periodOfReport}`}
-                  </p>
-                </div>
-                <ExternalLink aria-hidden className="size-3.5 shrink-0 text-muted" />
-              </a>
-            </li>
-          ))}
-        </ul>
+        /*
+          A table, because this is tabular: the same three facts about each of
+          a dozen filings. As a list the date lived in the secondary line under
+          the title, so "what has been filed lately" meant reading every row;
+          in a column it can be scanned straight down.
+        */
+        <div className="scroll-x">
+          <table className="w-full min-w-[30rem] text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th scope="col" className="eyebrow px-5 py-2 text-left text-[0.6875rem]">
+                  Filing
+                </th>
+                <th scope="col" className="eyebrow px-3 py-2 text-left text-[0.6875rem]">
+                  Filed
+                </th>
+                <th scope="col" className="eyebrow px-5 py-2 text-left text-[0.6875rem]">
+                  Covers to
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filings.map((f, i) => (
+                <tr
+                  key={`${f.form}-${f.filedAt}-${i}`}
+                  className="border-b border-border transition-colors last:border-0 hover:bg-surface-2"
+                >
+                  <td className="px-5 py-2.5">
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="group inline-flex items-center gap-2"
+                    >
+                      <FileText aria-hidden className="size-4 shrink-0 text-muted" />
+                      <span className="font-medium group-hover:underline">
+                        {formLabel(f.form)}
+                      </span>
+                      <span className="text-muted">({f.form})</span>
+                      <ExternalLink aria-hidden className="size-3.5 shrink-0 text-muted" />
+                    </a>
+                  </td>
+                  <td className="tnum px-3 py-2.5 whitespace-nowrap text-muted">{f.filedAt}</td>
+                  <td className="tnum px-5 py-2.5 whitespace-nowrap text-muted">
+                    {f.periodOfReport || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </Card>
   );
