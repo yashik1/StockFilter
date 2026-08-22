@@ -167,11 +167,11 @@ export function SearchBox({
             className="font-display relative h-11 border border-accent bg-accent text-[0.90625rem] font-semibold text-accent-fg transition-colors hover:bg-accent-hover hover:border-accent-hover"
           >
             {submitLabel}
-            {/* The one solid object on the board still carries its marks. */}
-            <span aria-hidden className="pointer-events-none absolute -top-[6px] -left-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
-            <span aria-hidden className="pointer-events-none absolute -top-[6px] -right-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
-            <span aria-hidden className="pointer-events-none absolute -bottom-[6px] -left-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
-            <span aria-hidden className="pointer-events-none absolute -bottom-[6px] -right-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
+            {/* The one solid object on the board still carries its brackets. */}
+            <span aria-hidden className="pointer-events-none absolute -top-px -left-px size-3.5"><span className="absolute top-0 h-px w-full bg-border-strong" /><span className="absolute left-0 h-full w-px bg-border-strong" /></span>
+            <span aria-hidden className="pointer-events-none absolute -top-px -right-px size-3.5"><span className="absolute top-0 h-px w-full bg-border-strong" /><span className="absolute right-0 h-full w-px bg-border-strong" /></span>
+            <span aria-hidden className="pointer-events-none absolute -bottom-px -left-px size-3.5"><span className="absolute bottom-0 h-px w-full bg-border-strong" /><span className="absolute left-0 h-full w-px bg-border-strong" /></span>
+            <span aria-hidden className="pointer-events-none absolute -bottom-px -right-px size-3.5"><span className="absolute bottom-0 h-px w-full bg-border-strong" /><span className="absolute right-0 h-full w-px bg-border-strong" /></span>
           </button>
         )}
       </div>

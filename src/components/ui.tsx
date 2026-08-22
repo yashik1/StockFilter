@@ -3,27 +3,32 @@ import { cn } from "@/lib/utils";
 import type { Rating } from "@/lib/scoring/types";
 
 /**
- * A registration mark — the `+` at the corner of a framed object.
+ * A corner bracket — a short L sitting on the frame's own line.
  *
- * Drawn from two 1px rules rather than a glyph so it stays exactly one device
- * pixel at any zoom, and sits half outside the frame so the corner reads as a
- * drawing's crop mark rather than as decoration inside a box.
+ * This replaces the `+` crop marks the frames used to carry. Those sat half a
+ * dozen pixels outside the border, so they floated in the gap between one card
+ * and the next and read as a rendering fault rather than as a detail: four
+ * small crosses adrift in whitespace, touching nothing. A bracket laid over
+ * the corner itself thickens a line that is already there, which is the whole
+ * difference between an ornament and a finish.
+ *
+ * Still two 1px rules rather than a glyph, so it stays exactly one device pixel
+ * at any zoom. Quiet by default; on a card you can click, the brackets pick up
+ * the accent with the border so the whole frame answers as one object.
  */
 function Corner({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
-  const place = {
-    tl: "-top-[6px] -left-[6px]",
-    tr: "-top-[6px] -right-[6px]",
-    bl: "-bottom-[6px] -left-[6px]",
-    br: "-bottom-[6px] -right-[6px]",
+  const box = {
+    tl: "-top-px -left-px",
+    tr: "-top-px -right-px",
+    bl: "-bottom-px -left-px",
+    br: "-bottom-px -right-px",
   }[pos];
+  const arm = "absolute bg-border-strong transition-colors group-hover:bg-accent";
 
   return (
-    <span
-      aria-hidden
-      className={cn("pointer-events-none absolute size-[11px] text-border-strong", place)}
-    >
-      <span className="absolute left-[5px] top-0 h-full w-px bg-current" />
-      <span className="absolute top-[5px] left-0 h-px w-full bg-current" />
+    <span aria-hidden className={cn("pointer-events-none absolute size-3.5", box)}>
+      <span className={cn(arm, "h-px w-full", pos.startsWith("t") ? "top-0" : "bottom-0")} />
+      <span className={cn(arm, "h-full w-px", pos.endsWith("l") ? "left-0" : "right-0")} />
     </span>
   );
 }
@@ -32,14 +37,10 @@ function Corner({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
  * Every framed object in the interface.
  *
  * A line drawing rather than a raised surface: square, transparent, one
- * hairline rule, and four registration marks. The marks live here rather than
- * at each call site so no page can forget them and none can add a fifth — the
- * frame is the system's single most repeated shape, and it has to be identical
- * everywhere or the whole language stops reading as drawn.
- *
- * `overflow-visible` is not incidental. The marks sit outside the border, so a
- * card that clips its overflow would shave them off at exactly the corners
- * they exist to mark.
+ * hairline rule, and a bracket laid over each corner. The brackets live here
+ * rather than at each call site so no page can forget them and none can add a
+ * fifth — the frame is the system's single most repeated shape, and it has to
+ * be identical everywhere or the whole language stops reading as drawn.
  */
 export function Card({
   children,
@@ -52,14 +53,14 @@ export function Card({
   className?: string;
   as?: "div" | "section" | "article";
   interactive?: boolean;
-  /** Off only where a frame is nested inside another frame's marks. */
+  /** Off only where a frame is nested inside another frame's brackets. */
   marks?: boolean;
 }) {
   return (
     <Tag
       className={cn(
-        "relative overflow-visible border border-border bg-transparent",
-        interactive && "transition-colors hover:border-accent",
+        "relative border border-border bg-transparent",
+        interactive && "group transition-colors hover:border-accent",
         className,
       )}
     >

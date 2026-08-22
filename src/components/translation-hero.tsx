@@ -15,21 +15,28 @@ import { SearchBox } from "@/components/search-box";
  * one the live scoring engine produces — not a mockup.
  */
 
-/** The registration marks, inline: these are figures rather than Cards. */
+/** The corner brackets, inline: these are figures rather than Cards. */
 function Marks() {
-  const mark = "pointer-events-none absolute size-[11px] text-border-strong";
-  const v = "absolute left-[5px] top-0 h-full w-px bg-current";
-  const h = "absolute top-[5px] left-0 h-px w-full bg-current";
+  const arm = "absolute bg-border-strong";
+  const corners = [
+    { box: "-top-px -left-px", h: "top-0", v: "left-0" },
+    { box: "-top-px -right-px", h: "top-0", v: "right-0" },
+    { box: "-bottom-px -left-px", h: "bottom-0", v: "left-0" },
+    { box: "-bottom-px -right-px", h: "bottom-0", v: "right-0" },
+  ] as const;
+
   return (
     <>
-      {(["-top-[6px] -left-[6px]", "-top-[6px] -right-[6px]", "-bottom-[6px] -left-[6px]", "-bottom-[6px] -right-[6px]"] as const).map(
-        (pos) => (
-          <span key={pos} aria-hidden className={`${mark} ${pos}`}>
-            <span className={v} />
-            <span className={h} />
-          </span>
-        ),
-      )}
+      {corners.map(({ box, h, v }) => (
+        <span
+          key={box}
+          aria-hidden
+          className={`pointer-events-none absolute size-3.5 ${box}`}
+        >
+          <span className={`${arm} h-px w-full ${h}`} />
+          <span className={`${arm} h-full w-px ${v}`} />
+        </span>
+      ))}
     </>
   );
 }
