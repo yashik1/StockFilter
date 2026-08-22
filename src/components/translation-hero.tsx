@@ -14,77 +14,103 @@ import { SearchBox } from "@/components/search-box";
  * The figures are Apple's real FY2025 balance sheet, and the sentence is the
  * one the live scoring engine produces — not a mockup.
  */
+
+/** The registration marks, inline: these are figures rather than Cards. */
+function Marks() {
+  const mark = "pointer-events-none absolute size-[11px] text-border-strong";
+  const v = "absolute left-[5px] top-0 h-full w-px bg-current";
+  const h = "absolute top-[5px] left-0 h-px w-full bg-current";
+  return (
+    <>
+      {(["-top-[6px] -left-[6px]", "-top-[6px] -right-[6px]", "-bottom-[6px] -left-[6px]", "-bottom-[6px] -right-[6px]"] as const).map(
+        (pos) => (
+          <span key={pos} aria-hidden className={`${mark} ${pos}`}>
+            <span className={v} />
+            <span className={h} />
+          </span>
+        ),
+      )}
+    </>
+  );
+}
+
 export function TranslationHero() {
   return (
-    <section className="pt-10 sm:pt-16">
-      <p className="eyebrow">Company filings, in plain English</p>
+    <section
+      className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-12 border-b border-border pt-[52px] pb-11"
+    >
+      <div>
+        <p className="eyebrow">Company filings, in plain English</p>
 
-      <h1 className="font-display mt-4 max-w-[18ch] text-[2.5rem] sm:text-6xl">
-        Annual reports are written to be filed, not read.
-      </h1>
+        <h1 className="font-display mt-3.5 max-w-[15ch] text-[3.25rem] leading-[1.02] [text-wrap:pretty]">
+          Annual reports are written to be filed, not read.
+        </h1>
 
-      <p className="prose-measure mt-5 text-lg leading-relaxed text-muted-strong">
-        StockFilter reads them for you and answers the five questions that
-        actually matter — in sentences, with a link to every source.
-      </p>
+        <p className="mt-4 max-w-[44ch] text-[1.03125rem] leading-relaxed text-muted">
+          StockFilter reads them for you and answers the five questions that
+          actually matter — in sentences, with a link to every source.
+        </p>
 
-      <div className="mt-8 max-w-xl">
-        <SearchBox />
+        <div className="mt-6 max-w-[520px]">
+          <SearchBox variant="hero" submitLabel="Analyse" />
+        </div>
+
+        <p className="mt-3.5 text-[0.8125rem] text-faint">
+          Try{" "}
+          <Link href="/stock/AAPL" className="text-accent hover:underline">AAPL</Link> ·{" "}
+          <Link href="/stock/RY" className="text-accent hover:underline">RY</Link> ·{" "}
+          <Link href="/stock/SHOP" className="text-accent hover:underline">SHOP</Link>{" "}
+          — no account, no API key.
+        </p>
       </div>
 
-      {/* The demonstration */}
-      <div className="mt-12 grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1fr]">
-        {/* Before: what the filing gives you */}
-        <figure className="m-0 rounded-[var(--radius)] border border-border bg-surface-2/50 p-5">
-          <figcaption className="eyebrow mb-4 flex items-center gap-2">
-            <span className="inline-block size-1.5 rounded-full bg-faint" aria-hidden />
-            What the filing says
-          </figcaption>
+      {/*
+        The demonstration. `minmax(0, 1fr)` on both figures rather than a bare
+        `1fr`: the XBRL concept names are unbreakable strings, and a bare `1fr`
+        is `minmax(auto, 1fr)`, which takes its floor from them — which is how
+        these two panels ended up 269px against 114px instead of matching.
+      */}
+      <div className="grid grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] items-stretch">
+        <figure className="relative m-0 border border-border px-[18px] pt-[18px] pb-4">
+          <figcaption className="eyebrow mb-3.5">What the filing says</figcaption>
 
-          <dl className="space-y-2.5 text-[0.8125rem]">
+          <dl className="m-0 grid [overflow-wrap:anywhere]">
             {[
               ["us-gaap:Assets", "359,240,000,000"],
               ["us-gaap:Liabilities", "285,510,000,000"],
               ["us-gaap:StockholdersEquity", "73,730,000,000"],
-            ].map(([tag, value]) => (
+            ].map(([tag, value], i, all) => (
               <div
                 key={tag}
-                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-border/60 pb-2 last:border-0"
+                className={`flex justify-between gap-3 py-[7px] text-[0.78125rem] ${
+                  i < all.length - 1 ? "border-b border-border" : ""
+                }`}
               >
-                <dt className="font-data text-muted">{tag}</dt>
-                <dd className="font-data tabular-nums text-muted-strong">{value}</dd>
+                <dt className="text-muted">{tag}</dt>
+                <dd className="tnum m-0 text-foreground">{value}</dd>
               </div>
             ))}
           </dl>
 
-          <p className="mt-4 text-xs leading-relaxed text-faint">
-            Apple&apos;s FY2025 balance sheet, exactly as tagged in its filing.
+          <p className="mt-4 text-[0.71875rem] text-faint">
+            Apple&apos;s FY2025 balance sheet, exactly as tagged.
           </p>
+          <Marks />
         </figure>
 
-        {/* The turn */}
-        <div
-          aria-hidden
-          className="flex items-center justify-center py-1 lg:py-0"
-        >
-          <span className="flex size-8 items-center justify-center rounded-full border border-border bg-surface text-accent">
-            <ArrowRight className="size-4 lg:rotate-0" />
-          </span>
+        <div aria-hidden className="flex items-center justify-center text-accent">
+          <ArrowRight className="size-[18px]" strokeWidth={1.5} />
         </div>
 
-        {/* After: what we say */}
-        <figure className="m-0 rounded-[var(--radius)] border border-accent/25 bg-accent-soft/40 p-5 shadow-[var(--shadow-sm)]">
-          <figcaption className="eyebrow mb-4 flex items-center gap-2 text-accent">
-            <span className="inline-block size-1.5 rounded-full bg-accent" aria-hidden />
-            What it means
-          </figcaption>
+        <figure className="relative m-0 border border-border bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] p-[18px]">
+          <figcaption className="eyebrow mb-3.5 text-accent">What it means</figcaption>
 
-          <p className="font-display text-2xl leading-snug sm:text-[1.75rem]">
+          <p className="font-display text-[1.625rem] leading-[1.14]">
             For every $1 Apple owes, it owns{" "}
             <span className="tnum text-accent">$1.26</span> in assets.
           </p>
 
-          <p className="mt-4 text-sm leading-relaxed text-muted-strong">
+          <p className="mt-3 text-[0.84375rem] leading-relaxed text-muted">
             After paying off everything it owes,{" "}
             <span className="tnum">$73.73B</span> would be left for
             shareholders — about a fifth of everything it owns.
@@ -92,11 +118,12 @@ export function TranslationHero() {
 
           <Link
             href="/stock/AAPL"
-            className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+            className="font-display mt-3.5 inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-accent hover:underline"
           >
-            See the full analysis for Apple
-            <ArrowRight aria-hidden className="size-3.5" />
+            See the full analysis
+            <ArrowRight aria-hidden className="size-3.5" strokeWidth={1.5} />
           </Link>
+          <Marks />
         </figure>
       </div>
     </section>

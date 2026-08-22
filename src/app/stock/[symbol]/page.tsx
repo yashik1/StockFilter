@@ -10,8 +10,9 @@ import { RecordVisit, WatchButton } from "@/components/watchlist";
 import { StrengthsAndRisks, WhatItDoes } from "@/components/stock/orientation";
 import { buildBusinessSummary } from "@/lib/scoring/business";
 import { buildHighlights } from "@/lib/scoring/highlights";
-import { Badge, Card, CardHeader, EmptyState, SectionHeading } from "@/components/ui";
+import { Badge, Card, CardHeader, EmptyState, RatingBadge, SectionHeading } from "@/components/ui";
 import { fieldValue } from "@/lib/fundamentals/normalize";
+import { money, price as fmtPrice, signedPercent } from "@/lib/format";
 import { getStockPageData, yearlySeries } from "@/lib/stock-data";
 import { Suspense } from "react";
 import { StockSkeleton } from "@/components/stock/skeleton";
@@ -23,6 +24,21 @@ import { NotACompany } from "@/components/stock/not-a-company";
 import { EarlySignals } from "@/components/stock/early-signals";
 
 export const revalidate = 900;
+
+/**
+ * How fresh a price is, as a word.
+ *
+ * Sits beside the figure rather than in a badge: a reader scanning the change
+ * needs to know it is fifteen minutes old at the same moment they read it,
+ * and a word survives greyscale and a screen reader where a coloured pill
+ * does not.
+ */
+const FRESHNESS_WORD: Record<string, string> = {
+  "realtime-iex": "live",
+  "delayed-15min": "delayed 15 min",
+  "end-of-day": "at close",
+  unknown: "timing unknown",
+};
 
 export async function generateMetadata({
   params,
@@ -162,19 +178,45 @@ async function StockBody({
 
   return (
     <div className="space-y-5">
-      {/* ---- header ---- */}
-      <header className="flex flex-wrap items-start justify-between gap-4 pt-1">
+      {/*
+        The head answers "what am I looking at, and what is it worth" before
+        anything else on the page.
+
+        The company's name carries the h1 and the ticker sits beside it, which
+        is the way round a reader thinks: the symbol is an identifier, the name
+        is the subject. The price moved here from the verdict card, where it
+        sat next to a health score computed from an annual filing — two
+        figures on utterly different clocks, presented as a pair.
+      */}
+      <header className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-end gap-6 border-b border-border pt-10 pb-[22px]">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="display text-3xl font-bold sm:text-4xl">{upper}</h1>
-            {data.instrument && (
-              <Badge tone="accent">{ASSET_CLASS_LABEL[data.assetClass]}</Badge>
-            )}
-            {(profile?.exchange ?? unsupported?.exchange) && (
-              <Badge>{profile?.exchange ?? unsupported?.exchange}</Badge>
-            )}
-            {(profile?.country === "CA" || unsupported?.country === "Canada") && (
-              <Badge tone="accent">Canadian</Badge>
+          <p className="eyebrow mb-2">
+            {[
+              profile?.exchange ?? unsupported?.exchange,
+              data.instrument ? ASSET_CLASS_LABEL[data.assetClass] : profile?.industry,
+              profile?.cik ? `CIK ${profile.cik}` : null,
+              data.instrument?.unit,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "Company filing"}
+          </p>
+
+          <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-2">
+            <h1 className="font-display text-[2.75rem] leading-none">
+              {data.instrument?.name ??
+                profile?.name ??
+                unsupported?.name ??
+                fundamentals?.entityName ??
+                upper}
+            </h1>
+            <span className="text-[1.1875rem] font-bold tracking-[0.06em] text-muted">
+              {upper}
+            </span>
+            {report?.score != null && (
+              <RatingBadge
+                rating={report.score >= 7.5 ? "good" : report.score >= 5 ? "fair" : "poor"}
+                label={`Health ${report.score.toFixed(1)} / 10`}
+              />
             )}
             {sector === "financial" && (
               <Badge title="Some scoring models do not apply to financial companies.">
@@ -182,19 +224,39 @@ async function StockBody({
               </Badge>
             )}
           </div>
-          <p className="mt-1.5 text-sm text-muted">
-            {data.instrument?.name ?? profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
-            {/* The unit is the difference between "4554" and "$4,554 an ounce". */}
-            {data.instrument?.unit && ` · ${data.instrument.unit}`}
-            {profile?.industry && ` · ${profile.industry}`}
-            {!profile && unsupported?.country && ` · ${unsupported.country}`}
-          </p>
         </div>
 
-        <WatchButton
-          symbol={upper}
-          name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
-        />
+        <div className="flex flex-wrap items-end justify-start gap-x-6 gap-y-3 sm:justify-end">
+          {quote?.price != null && (
+            <div className="text-left sm:text-right">
+              <p className="tnum font-display text-[2.375rem] leading-none">
+                {fmtPrice(quote.price, currency)}
+              </p>
+              <p
+                className={`tnum mt-0.5 text-[0.84375rem] ${
+                  (quote.changePercent ?? 0) >= 0 ? "text-up" : "text-down"
+                }`}
+              >
+                {signedPercent(quote.changePercent)}
+                {/* The word, not just a badge: "delayed" has to survive being
+                    read aloud and being seen in greyscale. */}
+                <span className="text-muted"> · {FRESHNESS_WORD[quote.freshness]}</span>
+              </p>
+              {/* Market value follows the price rather than the health score.
+                  It is the price multiplied by the share count, so it belongs
+                  to the same clock as the figure above it. */}
+              {marketCap != null && (
+                <p className="tnum mt-0.5 text-xs text-faint">
+                  {money(marketCap)} market value
+                </p>
+              )}
+            </div>
+          )}
+          <WatchButton
+            symbol={upper}
+            name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
+          />
+        </div>
       </header>
 
       <RecordVisit
@@ -209,8 +271,6 @@ async function StockBody({
         <VerdictCard
           report={report}
           companyName={profile?.name ?? unsupported?.name ?? upper}
-          quote={quote}
-          marketCap={marketCap}
         />
       ) : data.assetClass === "crypto" ||
         data.assetClass === "commodity" ||

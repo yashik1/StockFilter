@@ -20,7 +20,23 @@ interface Result {
  * Requests are debounced and each one aborts the previous, so fast typing
  * cannot land an older response after a newer one.
  */
-export function SearchBox({ className, autoFocus }: { className?: string; autoFocus?: boolean }) {
+/**
+ * `hero` is the 44px variant with a submit beside it; `chrome` is the 34px
+ * header one. The submit is deliberately wired to the same `go` the keyboard
+ * uses rather than being a separate code path — a button that navigated
+ * differently from Enter would be a bug waiting to happen.
+ */
+export function SearchBox({
+  className,
+  autoFocus,
+  variant = "chrome",
+  submitLabel,
+}: {
+  className?: string;
+  autoFocus?: boolean;
+  variant?: "chrome" | "hero";
+  submitLabel?: string;
+}) {
   const router = useRouter();
   const listId = useId();
 
@@ -105,12 +121,22 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
     }
   }
 
+  /** What Enter does, so the button and the keyboard cannot drift apart. */
+  function submit() {
+    const pick = results[active];
+    if (pick) go(pick.symbol);
+    else if (query.trim()) go(query.trim().toUpperCase());
+  }
+
+  const hero = variant === "hero";
+
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <div className="relative">
+      <div className={cn("relative", hero && submitLabel && "grid grid-cols-[minmax(0,1fr)_132px] gap-2.5")}>
+        <div className="relative">
         <Search
           aria-hidden
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint"
         />
         <input
           type="search"
@@ -128,8 +154,26 @@ export function SearchBox({ className, autoFocus }: { className?: string; autoFo
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="h-[34px] w-full border border-border bg-transparent pl-9 pr-3 text-[0.84375rem] outline-none transition-colors placeholder:text-faint focus:border-accent"
+          className={cn(
+            "w-full border border-border bg-transparent pl-9 pr-3 outline-none transition-colors placeholder:text-faint focus:border-accent",
+            hero ? "h-11 text-[0.90625rem]" : "h-[34px] text-[0.84375rem]",
+          )}
         />
+        </div>
+        {hero && submitLabel && (
+          <button
+            type="button"
+            onClick={submit}
+            className="font-display relative h-11 border border-accent bg-accent text-[0.90625rem] font-semibold text-accent-fg transition-colors hover:bg-accent-hover hover:border-accent-hover"
+          >
+            {submitLabel}
+            {/* The one solid object on the board still carries its marks. */}
+            <span aria-hidden className="pointer-events-none absolute -top-[6px] -left-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
+            <span aria-hidden className="pointer-events-none absolute -top-[6px] -right-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
+            <span aria-hidden className="pointer-events-none absolute -bottom-[6px] -left-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
+            <span aria-hidden className="pointer-events-none absolute -bottom-[6px] -right-[6px] size-[11px] text-border-strong"><span className="absolute left-[5px] top-0 h-full w-px bg-current" /><span className="absolute top-[5px] left-0 h-px w-full bg-current" /></span>
+          </button>
+        )}
       </div>
 
       {open && query.trim().length > 0 && (results.length > 0 || loading || problem || !loading) && (

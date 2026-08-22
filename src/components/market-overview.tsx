@@ -35,7 +35,7 @@ export function MarketOverview({ snapshot }: { snapshot: MarketSnapshot }) {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
         <MoverList
           id="market-heading"
           title="Biggest risers"
@@ -71,23 +71,23 @@ function MoverList({
   const Icon = tone === "up" ? TrendingUp : TrendingDown;
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+    <Card>
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Icon aria-hidden className={tone === "up" ? "size-4 text-up" : "size-4 text-down"} />
-        <h3 id={id} className="text-[0.9375rem] font-semibold tracking-tight">
+        <h3 id={id} className="font-display text-base font-semibold">
           {title}
         </h3>
       </div>
 
       {movers.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-muted">{empty}</p>
+        <p className="px-4 py-8 text-center text-sm text-muted">{empty}</p>
       ) : (
         <ul className="divide-y divide-border">
           {movers.map((m) => (
             <li key={m.symbol}>
               <Link
                 href={`/stock/${encodeURIComponent(m.symbol)}`}
-                className="flex items-center justify-between gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2"
+                className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)]"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-bold tracking-tight">{m.symbol}</p>
@@ -124,14 +124,14 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
   const widest = Math.max(0.0001, ...sectors.map((s) => Math.abs(s.averageChange)));
 
   return (
-    <Card className="overflow-hidden">
-      <div className="border-b border-border px-5 py-3.5">
-        <h3 className="text-[0.9375rem] font-semibold tracking-tight">By sector</h3>
-        <p className="mt-1 text-xs text-muted">Average move across each sector</p>
+    <Card>
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="font-display text-base font-semibold">By sector</h3>
+        <p className="mt-0.5 text-[0.71875rem] text-faint">Average move, anchored at zero</p>
       </div>
 
       {sectors.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-muted">
+        <p className="px-4 py-8 text-center text-sm text-muted">
           Not enough companies with prices yet to compare sectors.
         </p>
       ) : (
@@ -141,7 +141,7 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
             const width = (Math.abs(s.averageChange) / widest) * 50;
 
             return (
-              <li key={s.sector} className="px-5 py-2">
+              <li key={s.sector} className="px-4 py-2">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-xs font-medium">{s.sector}</span>
                   <span
@@ -156,7 +156,7 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
                 {/* Bars grow outward from a shared centre line, so direction is
                     readable without relying on colour. */}
                 <div
-                  className="relative mt-1 h-1.5 w-full rounded-full bg-surface-3"
+                  className="relative mt-1.5 h-1.5 w-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)]"
                   role="img"
                   aria-label={`${s.sector}: ${signedPercent(s.averageChange)} across ${s.companyCount} companies`}
                 >
@@ -166,7 +166,7 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
                   />
                   <span
                     aria-hidden
-                    className={`absolute inset-y-0 rounded-full ${positive ? "bg-up" : "bg-down"}`}
+                    className={`absolute inset-y-0 ${positive ? "bg-up" : "bg-down"}`}
                     style={
                       positive
                         ? { left: "50%", width: `${width}%` }
@@ -198,7 +198,7 @@ export function MarketSetupHint() {
         each page view, which no free plan would sustain. Load them once with the
         command below, then schedule it as often as you like.
       </p>
-      <pre className="scroll-x mt-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs">
+      <pre className="scroll-x mt-3 border border-border bg-surface-2 px-3 py-2 text-xs">
         <code>npm run quotes</code>
       </pre>
       <p className="mt-2 text-xs text-muted">

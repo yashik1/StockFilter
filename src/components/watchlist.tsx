@@ -96,7 +96,7 @@ export function WatchlistPanel() {
         description="Kept in this browser only — no account, and it won't follow you to another device."
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5">
         {watchlist.length > 0 && (
           <Card className="p-5">
             <div className="mb-3 flex items-center gap-2">
@@ -135,10 +135,19 @@ export function WatchlistPanel() {
 
         {recent.length > 0 && (
           <Card className="p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Clock aria-hidden className="size-4 text-muted" />
-              <h3 className="text-sm font-semibold">Recently viewed</h3>
-            </div>
+            {/*
+              Only titled when the section heading is saying something else.
+              With nothing saved the heading above already reads "Recently
+              viewed", and repeating it put the same words twice on the page —
+              once as an h2 and once as an h3 — which reads as a rendering
+              fault to anyone moving through by heading.
+            */}
+            {watchlist.length > 0 && (
+              <div className="mb-3 flex items-center gap-2">
+                <Clock aria-hidden className="size-4 text-faint" strokeWidth={1.5} />
+                <h3 className="font-display text-base font-semibold">Recently viewed</h3>
+              </div>
+            )}
             <ul className="flex flex-wrap gap-2">
               {recent.map((entry) => (
                 <li key={entry.symbol}>

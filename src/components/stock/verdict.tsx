@@ -1,32 +1,9 @@
 import type { HealthReport, Question } from "@/lib/scoring/health";
-import type { PriceFreshness, Quote } from "@/lib/providers/types";
 import type { Rating } from "@/lib/scoring/types";
-import { Badge, Card, Change, MeterBar, Metric, RatingBadge } from "@/components/ui";
-import { money, price as fmtPrice } from "@/lib/format";
+import { Card, MeterBar, Metric, RatingBadge } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-/**
- * Exactly how fresh a price is, so nothing is implied.
- *
- * The hint under "Live" is deliberately provider-agnostic. This category
- * covers more than one source (Finnhub, and EODHD's paid tier for US
- * symbols), and only one of the providers this app has ever used for it —
- * the now-removed Alpaca — was actually IEX-specific. Naming an exchange
- * feed a provider does not use would trade one overclaim for another.
- */
-const FRESHNESS: Record<PriceFreshness, { label: string; hint: string }> = {
-  "realtime-iex": {
-    label: "Live",
-    hint: "Real-time trade data, as reported by the data provider.",
-  },
-  "delayed-15min": {
-    label: "15-min delayed",
-    hint: "Consolidated market data, delayed 15 minutes.",
-  },
-  "end-of-day": { label: "At close", hint: "Last closing price." },
-  unknown: { label: "Delayed", hint: "Freshness unknown." },
-};
-
+/** Where a score sits on the rating scale. */
 function scoreTone(score: number): Rating {
   if (score >= 7.5) return "good";
   if (score >= 5) return "fair";
@@ -44,13 +21,9 @@ function scoreTone(score: number): Rating {
 export function VerdictCard({
   report,
   companyName,
-  quote,
-  marketCap,
 }: {
   report: HealthReport;
   companyName: string;
-  quote?: Quote | null;
-  marketCap?: number | null;
 }) {
   /*
     Market value deliberately takes no reporting currency. It is the traded
@@ -62,16 +35,9 @@ export function VerdictCard({
   const score = report.score;
   const tone = score == null ? "unknown" : scoreTone(score);
 
-  const accents: Record<Rating, string> = {
-    good: "from-good/12",
-    fair: "from-fair/12",
-    poor: "from-poor/12",
-    unknown: "from-unknown/10",
-  };
-
   return (
-    <Card className="overflow-hidden">
-      <div className={cn("bg-gradient-to-br to-transparent", accents[tone])}>
+    <Card>
+      <div>
         <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center">
           {/* Hero score */}
           <div className="flex items-center gap-5">
@@ -87,38 +53,6 @@ export function VerdictCard({
                 annual filing · share price scored separately
               </p>
             </div>
-          </div>
-
-          {/* Price, next to the score — the two figures people check first. */}
-          <div className="flex flex-col gap-1 border-t border-border pt-4 lg:ml-auto lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-            <p className="eyebrow">Share price</p>
-            {quote?.price != null ? (
-              <>
-                <p className="display text-3xl font-bold leading-none">
-                  {fmtPrice(quote.price)}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Change value={quote.change} percent={quote.changePercent} />
-                  <Badge title={FRESHNESS[quote.freshness].hint}>
-                    {FRESHNESS[quote.freshness].label}
-                  </Badge>
-                </div>
-                {quote.previousClose != null && (
-                  <p className="tnum text-xs text-muted">
-                    Previous close {fmtPrice(quote.previousClose)}
-                    {marketCap != null && ` · ${money(marketCap)} market value`}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                <p className="text-lg font-semibold text-muted">Unavailable</p>
-                <p className="max-w-[16rem] text-xs text-muted">
-                  Live prices need a free Twelve Data or Finnhub key. The figures here come
-                  from filings and need none.
-                </p>
-              </>
-            )}
           </div>
 
           {/* Model scores */}
