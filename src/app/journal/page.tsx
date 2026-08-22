@@ -44,7 +44,7 @@ export default async function JournalPage() {
     <div className="mx-auto w-full max-w-4xl space-y-5">
       <header className="pt-1">
         <p className="eyebrow">Your record</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">Trade journal</h1>
+        <h1 className="font-display mt-2 text-[2.75rem] leading-none">Trade journal</h1>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
           What you did and, more usefully, why you thought it was a good idea at the time.
           The reasoning is the part worth having — a price chart can tell you what happened,

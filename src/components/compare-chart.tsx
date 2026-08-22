@@ -180,12 +180,15 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: cssVar("--border", "#e2e8f0") },
-        horzLines: { color: cssVar("--border", "#e2e8f0") },
+        vertLines: { visible: false },
+        // The zero line matters here in a way it does not on a price chart —
+        // this axis is percent change, so "level with where it started" is a
+        // real reading, and the horizontal rules are what make it findable.
+        horzLines: { color: cssVar("--chart-grid", "rgba(29,31,32,0.1)"), style: 0 },
       },
-      rightPriceScale: { borderColor: cssVar("--border", "#e2e8f0") },
+      rightPriceScale: { borderColor: cssVar("--chart-axis", "rgba(29,31,32,0.34)") },
       timeScale: {
-        borderColor: cssVar("--border", "#e2e8f0"),
+        borderColor: cssVar("--chart-axis", "rgba(29,31,32,0.34)"),
         tickMarkFormatter: (time: unknown) => localTick(time, false),
       },
       crosshair: { mode: 1 },

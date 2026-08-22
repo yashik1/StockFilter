@@ -39,7 +39,7 @@ export default async function ComparePage({ searchParams }: PageProps<"/compare"
     <div className="space-y-5">
       <header className="pt-1">
         <p className="eyebrow">Side by side</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">Compare</h1>
+        <h1 className="font-display mt-2 text-[2.75rem] leading-none">Compare</h1>
         <p className="mt-1.5 text-sm text-muted">
           Put up to {MAX_COMPARE} companies, funds, commodities or coins next to each other — health, valuation,
           growth and performance.

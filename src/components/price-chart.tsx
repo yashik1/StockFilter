@@ -305,12 +305,15 @@ export function PriceChart({ symbol }: { symbol: string }) {
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: cssVar("--border", "#e2e8f0") },
-        horzLines: { color: cssVar("--border", "#e2e8f0") },
+        // Vertical rules dropped entirely. The time axis is already ruled by
+        // its own tick labels, and a full cross-hatch competes with the series
+        // it exists to help read.
+        vertLines: { visible: false },
+        horzLines: { color: cssVar("--chart-grid", "rgba(29,31,32,0.1)"), style: 0 },
       },
-      rightPriceScale: { borderColor: cssVar("--border", "#e2e8f0") },
+      rightPriceScale: { borderColor: cssVar("--chart-axis", "rgba(29,31,32,0.34)") },
       timeScale: {
-        borderColor: cssVar("--border", "#e2e8f0"),
+        borderColor: cssVar("--chart-axis", "rgba(29,31,32,0.34)"),
         // Intraday needs the clock; daily and weekly do not.
         timeVisible: timeframe !== "1Day" && timeframe !== "1Week",
         secondsVisible: false,
@@ -346,10 +349,14 @@ export function PriceChart({ symbol }: { symbol: string }) {
         lineWidth: 2,
       });
     } else {
+      // A flat wash rather than a gradient. The area style exists to weight the
+      // space under the line, which one even tint does; a fade implies the
+      // lower half of the range matters less, which is not a claim about the
+      // data.
       priceSeriesRef.current = chart.addSeries(AreaSeries, {
         lineColor: accent,
-        topColor: `${accent}55`,
-        bottomColor: `${accent}05`,
+        topColor: `${accent}1f`,
+        bottomColor: `${accent}1f`,
         lineWidth: 2,
       });
     }

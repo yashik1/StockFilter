@@ -1,62 +1,111 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge, Card, CardHeader, SectionHeading } from "@/components/ui";
-import { getProvider } from "@/lib/providers";
+import { getProvider, getBarsWithSource } from "@/lib/providers";
 import { price, signedPercent } from "@/lib/format";
 import {
+  ASSET_CLASS_LABEL,
   COMMODITIES,
   CRYPTO,
   FUTURES,
+  findInstrument,
   groupByCategory,
   type Instrument,
 } from "@/lib/instruments";
 
 /**
  * Prices move, but not so fast that a directory needs to be dynamic. Five
- * minutes keeps the headline strip current while collapsing every visitor in
+ * minutes keeps the headline tiles current while collapsing every visitor in
  * that window onto one set of provider calls — which matters on a free tier
  * that allows eight requests a minute in total.
  */
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Crypto, commodities and futures",
+  title: "Markets",
   description:
     "Bitcoin, gold, oil, wheat and the index futures — price history and backtesting for " +
     "the markets that file no accounts.",
 };
 
 /**
- * The handful shown with a live price.
+ * The handful shown as full tiles, with a price and a trace.
  *
- * Deliberately not all fifty-nine. Each quote is its own provider call, the
- * free tier allows eight a minute, and a page that fires sixty would rate-limit
- * itself into showing nothing at all — a directory of dashes is worse than a
- * directory that does not pretend. The rest carry their price on their own
- * page, one request at a time.
+ * Deliberately not all fifty-nine. Each tile costs a quote and a bar series,
+ * the free tier allows eight requests a minute, and a page that fired a
+ * hundred and twenty would rate-limit itself into showing nothing at all — a
+ * wall of dashes is worse than a directory that does not pretend. Everything
+ * else carries its price on its own page, one request at a time.
  */
 const HEADLINE = ["BTC-USD", "ETH-USD", "GC=F", "SI=F", "CL=F", "ES=F"];
 
+/** How many daily closes the trace is drawn from. */
+const SPARK_DAYS = 30;
+
+/**
+ * A trace, not a chart.
+ *
+ * No axes, no grid, no labels — it says "which way, and how steadily", and the
+ * printed price above it says the rest. Scaled to its own range rather than a
+ * shared one: these are six unrelated instruments, and a common scale would
+ * flatten five of them to argue a comparison nobody is making.
+ */
+function Sparkline({ closes }: { closes: number[] }) {
+  if (closes.length < 2) {
+    return <div className="h-11" aria-hidden />;
+  }
+
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const span = max - min || 1;
+  const w = 240;
+  const h = 44;
+
+  const d = closes
+    .map((v, i) => {
+      const x = (i / (closes.length - 1)) * w;
+      const y = h - ((v - min) / span) * (h - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" L");
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      width="100%"
+      height={h}
+      preserveAspectRatio="none"
+      className="block text-accent-bright"
+      aria-hidden
+    >
+      <path d={`M${d}`} fill="none" stroke="currentColor" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
 export default async function MarketsPage() {
-  const quotes = await Promise.all(
+  const to = new Date();
+  const from = new Date(to.getTime() - SPARK_DAYS * 86_400_000);
+
+  const headline = await Promise.all(
     HEADLINE.map(async (symbol) => {
-      const quote = await getProvider().getQuote(symbol).catch(() => null);
-      return { symbol, quote };
+      const [quote, bars] = await Promise.all([
+        getProvider().getQuote(symbol).catch(() => null),
+        getBarsWithSource(symbol, "1Day", from, to)
+          .then((r) => r.bars.map((b) => b.close))
+          .catch(() => [] as number[]),
+      ]);
+      return { symbol, quote, closes: bars };
     }),
   );
 
   return (
-    <div className="space-y-5 pb-2">
-      {/*
-        The caveat sits in the head rather than in the small print at the
-        bottom. Eleven of these quote in cents, and a reader who misses that
-        reads a bushel of wheat as costing seven hundred dollars.
-      */}
+    <div className="space-y-11">
       <header className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-end gap-6 border-b border-border pt-10 pb-[22px]">
         <div>
-          <p className="eyebrow mb-2">Crypto · metals · energy · agriculture · index futures</p>
-          <h1 className="font-display mb-2 text-[2.75rem] leading-none">Markets</h1>
-          <p className="max-w-[56ch] text-sm leading-relaxed text-muted">
+          <p className="eyebrow">Crypto · metals · energy · agriculture · index futures</p>
+          <h1 className="font-display mt-2 text-[2.75rem]">Markets</h1>
+          <p className="mt-2 max-w-[56ch] text-sm leading-relaxed text-muted">
             None of these file accounts, so none of them get a health score. They get the
             chart, the comparison and the backtest — and this page says so rather than
             showing an empty panel.
@@ -67,42 +116,49 @@ export default async function MarketsPage() {
         </p>
       </header>
 
-      {/* ---- live strip ---- */}
-      <Card>
-        <CardHeader
-          title="Where things stand"
-          subtitle="A few headline prices. Every instrument below has its own page."
-        />
-        <div className="grid grid-cols-2 gap-px overflow-hidden border-t border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
-          {quotes.map(({ symbol, quote }) => (
-            <Link
-              key={symbol}
-              href={`/stock/${encodeURIComponent(symbol)}`}
-              className="bg-surface px-5 py-3 transition-colors hover:bg-surface-2"
-            >
-              <div className="text-xs font-semibold tracking-tight text-muted">
-                {nameOf(symbol)}
-              </div>
-              <div className="tnum mt-1 text-[0.9375rem] font-semibold">
-                {/* The quote's own currency, so a cents-quoted contract says cents. */}
-                {price(quote?.price, quote?.currency ?? "USD")}
-              </div>
-              <div
-                className={
-                  "tnum text-xs " +
-                  (quote?.changePercent == null
-                    ? "text-faint"
-                    : quote.changePercent >= 0
-                      ? "text-good-fg"
-                      : "text-poor-fg")
-                }
-              >
-                {quote?.changePercent == null ? "—" : signedPercent(quote.changePercent)}
-              </div>
-            </Link>
-          ))}
+      <section>
+        <p className="eyebrow">Where things stand</p>
+        <h2 className="font-display mt-1.5 mb-[18px] text-[1.875rem]">Today</h2>
+
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-5">
+          {headline.map(({ symbol, quote, closes }) => {
+            const instrument = findInstrument(symbol);
+            const change = quote?.changePercent ?? null;
+
+            return (
+              <Card key={symbol} as="article" className="px-4 py-3.5" interactive>
+                <Link href={`/stock/${encodeURIComponent(symbol)}`} className="block">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <p className="text-[0.9375rem] font-bold tracking-[0.02em]">{symbol}</p>
+                    {instrument && (
+                      <Badge>{ASSET_CLASS_LABEL[instrument.assetClass]}</Badge>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-faint">
+                    {instrument?.name ?? symbol}
+                  </p>
+
+                  {/* The quote's own currency, so a cents-quoted contract says cents. */}
+                  <p className="display mt-2.5 text-[1.6875rem]">
+                    {price(quote?.price, quote?.currency ?? "USD")}
+                  </p>
+                  <p
+                    className={`tnum mt-1 text-[0.8125rem] ${
+                      change == null ? "text-faint" : change >= 0 ? "text-up" : "text-down"
+                    }`}
+                  >
+                    {change == null ? "—" : signedPercent(change)}
+                  </p>
+
+                  <div className="mt-3">
+                    <Sparkline closes={closes} />
+                  </div>
+                </Link>
+              </Card>
+            );
+          })}
         </div>
-      </Card>
+      </section>
 
       <AssetSection
         eyebrow="Digital assets"
@@ -138,12 +194,6 @@ export default async function MarketsPage() {
   );
 }
 
-function nameOf(symbol: string): string {
-  return (
-    [...CRYPTO, ...COMMODITIES, ...FUTURES].find((i) => i.symbol === symbol)?.name ?? symbol
-  );
-}
-
 function AssetSection({
   eyebrow,
   title,
@@ -169,10 +219,10 @@ function AssetSection({
               <li key={item.symbol}>
                 <Link
                   href={`/stock/${encodeURIComponent(item.symbol)}`}
-                  className="flex h-full items-baseline justify-between gap-3 bg-surface px-5 py-3 transition-colors hover:bg-surface-2"
+                  className="flex h-full items-baseline justify-between gap-3 bg-background px-5 py-3 transition-colors hover:bg-surface"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{item.name}</span>
+                    <span className="block truncate text-sm">{item.name}</span>
                     {item.unit && (
                       <span className="block truncate text-xs text-faint">{item.unit}</span>
                     )}

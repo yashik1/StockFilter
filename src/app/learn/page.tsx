@@ -129,7 +129,7 @@ export default function LearnPage() {
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <header className="pt-1">
         <p className="eyebrow">Reference</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">What the numbers mean</h1>
+        <h1 className="font-display mt-2 text-[2.75rem] leading-none">What the numbers mean</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           Every term StockFilter uses, explained without assuming you have read a
           balance sheet before. Nothing here is advice — it is just vocabulary.

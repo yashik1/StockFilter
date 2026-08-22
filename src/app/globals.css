@@ -32,6 +32,13 @@
   --surface-3: #d4d4d7;
   --border: color-mix(in srgb, #1d1f20 16%, transparent);
   --border-strong: color-mix(in srgb, #1d1f20 34%, transparent);
+  /* Chart ink. Literal rgba because a canvas strokeStyle is parsed by the
+     canvas, not the cascade — a color-mix() reaching it is a coin toss.
+     Weights follow the drawing convention: the series is the only confident
+     line, the comparison is drawn back, the grid is barely there. */
+  --chart-grid: rgba(29, 31, 32, 0.1);
+  --chart-axis: rgba(29, 31, 32, 0.34);
+  --chart-compare: rgba(29, 31, 32, 0.4);
 
   --foreground: #1d1f20;
   /* Three text tiers at roughly 9.0, 5.9 and 4.7 to one — each clears AA on
@@ -96,6 +103,12 @@
     --surface-3: #2a343c;
     --border: color-mix(in srgb, #e7eaec 20%, transparent);
     --border-strong: color-mix(in srgb, #e7eaec 38%, transparent);
+  --chart-grid: rgba(231, 234, 236, 0.1);
+  --chart-axis: rgba(231, 234, 236, 0.38);
+  --chart-compare: rgba(231, 234, 236, 0.4);
+    --chart-grid: rgba(231, 234, 236, 0.1);
+    --chart-axis: rgba(231, 234, 236, 0.38);
+    --chart-compare: rgba(231, 234, 236, 0.4);
 
     --foreground: #e7eaec;
     --muted-strong: #c3c9ce;

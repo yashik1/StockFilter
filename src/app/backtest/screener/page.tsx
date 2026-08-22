@@ -60,7 +60,7 @@ export default async function ScreenerBacktestPage({
     <div className="space-y-5">
       <header className="pt-1">
         <p className="eyebrow">Backtest</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">
+        <h1 className="font-display mt-2 text-[2.75rem] leading-none">
           What the healthiest returned
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm text-muted">
