@@ -247,7 +247,7 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
   return (
     <div className="flex flex-col gap-3">
       <div className={cn("flex flex-wrap items-center gap-3", status !== "ready" && "hidden")}>
-        <div role="group" aria-label="Date range" className="flex rounded-lg border border-border bg-surface p-0.5">
+        <div role="group" aria-label="Date range" className="flex border border-border">
           {RANGES.map((r) => (
             <button
               key={r.label}
@@ -255,7 +255,7 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
               aria-pressed={rangeLabel === r.label}
               onClick={() => setRangeLabel(r.label)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0",
                 rangeLabel === r.label ? "bg-accent text-accent-fg" : "text-muted hover:text-foreground",
               )}
             >

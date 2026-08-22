@@ -513,7 +513,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
         <div
           role="group"
           aria-label="Date range"
-          className="flex rounded-lg border border-border bg-surface p-0.5"
+          className="flex border border-border"
         >
           {RANGES.map((r) => (
             <button
@@ -525,10 +525,10 @@ export function PriceChart({ symbol }: { symbol: string }) {
                 setTimeframe(r.timeframe);
               }}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0",
                 rangeLabel === r.label
                   ? "bg-accent text-accent-fg"
-                  : "text-muted hover:text-foreground",
+                  : "text-muted hover:bg-surface hover:text-foreground",
               )}
             >
               {r.label}
@@ -540,7 +540,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
         <div
           role="group"
           aria-label="Candle interval"
-          className="flex rounded-lg border border-border bg-surface p-0.5"
+          className="flex border border-border"
         >
           {TIMEFRAMES.map((t) => (
             <button
@@ -549,10 +549,10 @@ export function PriceChart({ symbol }: { symbol: string }) {
               aria-pressed={timeframe === t.value}
               onClick={() => setTimeframe(t.value)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "border-r border-border px-2.5 py-1 text-xs font-medium transition-colors last:border-r-0",
                 timeframe === t.value
-                  ? "bg-surface-2 text-foreground"
-                  : "text-muted hover:text-foreground",
+                  ? "bg-accent text-accent-fg"
+                  : "text-muted hover:bg-surface hover:text-foreground",
               )}
             >
               {t.label}
@@ -589,7 +589,7 @@ export function PriceChart({ symbol }: { symbol: string }) {
         <div
           role="group"
           aria-label="Chart style"
-          className="flex rounded-lg border border-border bg-surface p-0.5"
+          className="flex border border-border"
         >
           {(["candles", "line", "area"] as ChartStyle[]).map((s) => (
             <button
@@ -598,8 +598,10 @@ export function PriceChart({ symbol }: { symbol: string }) {
               aria-pressed={style === s}
               onClick={() => setStyle(s)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
-                style === s ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground",
+                "border-r border-border px-2.5 py-1 text-xs font-medium capitalize transition-colors last:border-r-0",
+                style === s
+                  ? "bg-accent text-accent-fg"
+                  : "text-muted hover:bg-surface hover:text-foreground",
               )}
             >
               {s}
