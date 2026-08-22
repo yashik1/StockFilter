@@ -214,7 +214,7 @@ export function QuestionSummary({ questions }: { questions: Question[] }) {
       <p className="eyebrow mb-3">At a glance</p>
       <ul className="space-y-3">
         {questions.map((q) => (
-          <li key={q.key} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5">
+          <li key={q.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5">
             <span className="truncate text-sm font-medium">{q.question}</span>
             <RatingBadge rating={q.rating} />
             <div className="col-span-2">
