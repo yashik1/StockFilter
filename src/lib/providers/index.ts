@@ -212,7 +212,14 @@ const PRICE_SOURCES: PriceSource[] = [twelveData, finnhub, tiingo, yahoo];
  * only changes who is asked first.
  */
 function sourcesFor(symbol: string): PriceSource[] {
-  if (!classify(symbol)) return PRICE_SOURCES;
+  /*
+    A leading caret is Yahoo's own notation for an index — ^GSPC, ^IXIC,
+    ^TNX — and nothing else in the stack uses it, so the other three would
+    each spend a request learning that before failing over. Same reasoning as
+    the catalogue symbols below.
+  */
+  const yahooOwn = symbol.startsWith("^") || classify(symbol) !== null;
+  if (!yahooOwn) return PRICE_SOURCES;
   return [yahoo, ...PRICE_SOURCES.filter((s) => s !== yahoo)];
 }
 

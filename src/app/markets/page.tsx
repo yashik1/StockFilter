@@ -46,15 +46,24 @@ export default async function MarketsPage() {
   );
 
   return (
-    <div className="space-y-5">
-      <header className="pt-1">
-        <p className="eyebrow">Beyond shares</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">Crypto, commodities and futures</h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
-          None of these file accounts, so none of them get a health score — there is no
-          business underneath to be profitable or carry debt. What they do have is price
-          history, and everything this site does with a price still applies: charting it,
-          comparing it against the market, and backtesting what holding it would have done.
+    <div className="space-y-5 pb-2">
+      {/*
+        The caveat sits in the head rather than in the small print at the
+        bottom. Eleven of these quote in cents, and a reader who misses that
+        reads a bushel of wheat as costing seven hundred dollars.
+      */}
+      <header className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] items-end gap-6 border-b border-border pt-10 pb-[22px]">
+        <div>
+          <p className="eyebrow mb-2">Crypto · metals · energy · agriculture · index futures</p>
+          <h1 className="font-display mb-2 text-[2.75rem] leading-none">Markets</h1>
+          <p className="max-w-[56ch] text-sm leading-relaxed text-muted">
+            None of these file accounts, so none of them get a health score. They get the
+            chart, the comparison and the backtest — and this page says so rather than
+            showing an empty panel.
+          </p>
+        </div>
+        <p className="justify-self-start sm:justify-self-end">
+          <Badge>Eleven agricultural contracts quote in US cents (USX)</Badge>
         </p>
       </header>
 

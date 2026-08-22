@@ -73,11 +73,12 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
 
   return (
     <div className="space-y-5">
-      <header className="pt-1">
-        <p className="eyebrow">Find companies</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">Screener</h1>
-        <p className="mt-1.5 text-sm text-muted">
-          Filter by how the finances actually look — not just by price.
+      <header className="border-b border-border pt-10 pb-[22px]">
+        <p className="eyebrow mb-2">Scores precomputed nightly</p>
+        <h1 className="font-display mb-2 text-[2.75rem] leading-none">Screener</h1>
+        <p className="max-w-[52ch] text-sm leading-relaxed text-muted">
+          Filters on financial health, not price action. Every column traces back to a
+          filing.
         </p>
       </header>
 

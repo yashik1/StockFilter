@@ -100,15 +100,15 @@ export default async function BacktestPage({ searchParams }: PageProps<"/backtes
 
   return (
     <div className="space-y-5">
-      <header className="pt-1">
-        <p className="eyebrow">What if</p>
-        <h1 className="font-display mt-2 text-4xl sm:text-5xl">What if I had invested…</h1>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted">
+      <header className="border-b border-border pt-10 pb-[22px]">
+        <p className="eyebrow mb-2">Textbook parameters, deliberately untuned</p>
+        <h1 className="font-display mb-2 text-[2.75rem] leading-none">Backtest</h1>
+        <p className="max-w-[60ch] text-sm leading-relaxed text-muted">
           Pick a stock, crypto, commodity or futures contract, a date and an amount. This
           shows what that money would be worth today, using the actual price history —
           nothing here is a prediction about what happens next.
         </p>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted">
+        <p className="mt-2 max-w-[60ch] text-sm text-muted">
           Want to test the screener itself, not one stock?{" "}
           <Link href="/backtest/screener" className="text-accent underline">
             Backtest buying the healthiest companies

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { TranslationHero } from "@/components/translation-hero";
 import { WatchlistPanel } from "@/components/watchlist";
 import { MarketOverview, MarketSetupHint } from "@/components/market-overview";
-import { LocalTime } from "@/components/local-time";
 import { getMarketSnapshot, hasMarketData } from "@/lib/market";
+import { getIndexStrip, type IndexReading } from "@/lib/indices";
 import { Badge, Card, RatingBadge } from "@/components/ui";
-import { money, percent, price as fmtPrice, signedPercent } from "@/lib/format";
-import { getProvider, providerStatus } from "@/lib/providers";
+import { LocalTime } from "@/components/local-time";
+import { money, num, percent, signedPercent } from "@/lib/format";
+import { providerStatus } from "@/lib/providers";
 import type { Rating } from "@/lib/scoring/types";
 import { getHealthiest, getUniverseCount } from "@/lib/screener";
 
@@ -19,35 +20,12 @@ function healthRating(score: number | null): Rating {
   return "poor";
 }
 
-/**
- * The index strip's contents.
- *
- * Named for what they actually are rather than for the index they track. The
- * design called for "S&P 500" and a "10-yr yield", and this app has neither:
- * it has quotes. SPY is an ETF that tracks the S&P, and ZN is the note future,
- * whose price moves inversely to the yield and is not the yield. Labelling
- * them as the index and the yield would have been the sort of small
- * inaccuracy the rest of the product exists to avoid.
- */
-const STRIP = [
-  { symbol: "SPY", label: "S&P 500 (SPY)" },
-  { symbol: "QQQ", label: "Nasdaq 100 (QQQ)" },
-  { symbol: "ZN=F", label: "10-yr T-note" },
-];
-
 export default async function HomePage() {
-  const [healthiest, universeCount, market, strip] = await Promise.all([
+  const [healthiest, universeCount, market, indices] = await Promise.all([
     getHealthiest(6),
     getUniverseCount(),
     getMarketSnapshot(5),
-    // Fails soft, one cell at a time: a rate-limited quote should cost that
-    // cell its figure, never the page.
-    Promise.all(
-      STRIP.map(async (s) => ({
-        ...s,
-        quote: await getProvider().getQuote(s.symbol).catch(() => null),
-      })),
-    ),
+    getIndexStrip(),
   ]);
   const status = providerStatus();
 
@@ -55,43 +33,7 @@ export default async function HomePage() {
     <div>
       <TranslationHero />
 
-      {/* ---- index strip ---- */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] border-b border-border">
-        {strip.map(({ symbol, label, quote }) => (
-          <div key={symbol} className="border-r border-border px-5 py-[18px] last:border-r-0">
-            <p className="eyebrow mb-1.5">{label}</p>
-            <p className="tnum font-display text-[1.625rem] leading-none">
-              {fmtPrice(quote?.price, quote?.currency ?? "USD")}
-            </p>
-            <p
-              className={`tnum mt-0.5 text-[0.8125rem] ${
-                quote?.changePercent == null
-                  ? "text-faint"
-                  : quote.changePercent >= 0
-                    ? "text-up"
-                    : "text-down"
-              }`}
-            >
-              {quote?.changePercent == null ? "—" : signedPercent(quote.changePercent)}
-            </p>
-          </div>
-        ))}
-        <div className="px-5 py-[18px]">
-          <p className="eyebrow mb-1.5">Companies scored</p>
-          <p className="tnum font-display text-[1.625rem] leading-none">
-            {universeCount ?? "—"}
-          </p>
-          <p className="mt-0.5 text-[0.8125rem] text-faint">
-            {market.asOf ? (
-              <>
-                refreshed <LocalTime value={market.asOf} mode="datetime" />
-              </>
-            ) : (
-              "not refreshed yet"
-            )}
-          </p>
-        </div>
-      </div>
+      <IndexStrip readings={indices} universeCount={universeCount} asOf={market.asOf} />
 
       <div className="space-y-11 pt-11">
         {hasMarketData(market) ? (
@@ -102,12 +44,11 @@ export default async function HomePage() {
 
         <WatchlistPanel />
 
-        {/* ---- healthiest companies (needs the database) ---- */}
         <section aria-labelledby="healthiest-heading">
-          <div className="mb-[18px] flex flex-wrap items-end justify-between gap-5">
+          <div className="mb-[18px] flex items-end justify-between gap-5">
             <div>
-              <p className="eyebrow mb-1.5">Ranked from the filings</p>
-              <h2 id="healthiest-heading" className="font-display text-[1.875rem]">
+              <p className="eyebrow">Ranked from the filings</p>
+              <h2 id="healthiest-heading" className="font-display mt-1.5 text-[1.875rem]">
                 Financially healthiest right now
               </h2>
             </div>
@@ -135,25 +76,20 @@ export default async function HomePage() {
                       />
                     </div>
 
-                    {/* A floor rather than a clamp, so the three figures below
-                        sit on the same line across every card in the row. */}
+                    {/*
+                      A minimum height rather than a clamp, so the metric rules
+                      below line up across a row whether a headline runs to one
+                      line or three. Cards of unequal internal rhythm are what
+                      makes a grid look assembled rather than drawn.
+                    */}
                     <p className="mt-3 min-h-[2.8em] text-[0.8125rem] leading-relaxed text-muted">
                       {r.headline}
                     </p>
 
                     <dl className="mt-3.5 grid grid-cols-3 gap-2.5 border-t border-border pt-3">
-                      <div>
-                        <dt className="eyebrow mb-0.5 text-[0.625rem]">Value</dt>
-                        <dd className="tnum text-[0.84375rem] font-bold">{money(r.marketCap)}</dd>
-                      </div>
-                      <div>
-                        <dt className="eyebrow mb-0.5 text-[0.625rem]">Growth</dt>
-                        <dd className="tnum text-[0.84375rem] font-bold">{percent(r.revenueGrowth)}</dd>
-                      </div>
-                      <div>
-                        <dt className="eyebrow mb-0.5 text-[0.625rem]">Margin</dt>
-                        <dd className="tnum text-[0.84375rem] font-bold">{percent(r.netMargin)}</dd>
-                      </div>
+                      <Cell label="Value" value={money(r.marketCap)} />
+                      <Cell label="Growth" value={percent(r.revenueGrowth)} />
+                      <Cell label="Margin" value={percent(r.netMargin)} />
                     </dl>
                   </Link>
                 </Card>
@@ -166,7 +102,7 @@ export default async function HomePage() {
                   ? "Rankings need a database"
                   : "No companies loaded yet"}
               </p>
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">
+              <p className="mt-1.5 max-w-2xl text-sm text-muted">
                 Individual stock pages work without any setup — search above or try{" "}
                 <Link href="/stock/AAPL" className="text-accent underline">
                   AAPL
@@ -181,21 +117,26 @@ export default async function HomePage() {
           )}
         </section>
 
-        {/* ---- data provenance ---- */}
         <section aria-labelledby="sources-heading">
-          <p className="eyebrow mb-1.5">Provenance</p>
-          <h2 id="sources-heading" className="font-display mb-[18px] text-[1.875rem]">
+          <p className="eyebrow">Provenance</p>
+          <h2 id="sources-heading" className="font-display mt-1.5 mb-[18px] text-[1.875rem]">
             Where the data comes from
           </h2>
 
+          {/*
+            A table rather than three cards. These rows are the same four facts
+            about four sources, which is what a table is for — and it lets a
+            reader compare the status column straight down the page instead of
+            hunting for it inside three separate blocks.
+          */}
           <div className="scroll-x">
             <table className="w-full min-w-[40rem] text-sm">
               <thead>
                 <tr className="border-b border-border text-left">
-                  <th scope="col" className="eyebrow py-2 pr-4 font-semibold">Source</th>
-                  <th scope="col" className="eyebrow py-2 pr-4 font-semibold">Supplies</th>
-                  <th scope="col" className="eyebrow py-2 pr-4 font-semibold">Why it</th>
-                  <th scope="col" className="eyebrow py-2 font-semibold">Status</th>
+                  <Th>Source</Th>
+                  <Th>Supplies</Th>
+                  <Th>Why it</Th>
+                  <Th>Status</Th>
                 </tr>
               </thead>
               <tbody>
@@ -207,36 +148,51 @@ export default async function HomePage() {
                 />
                 <SourceRow
                   name="Twelve Data"
-                  supplies="OHLCV bars, quotes"
+                  supplies="Price bars and quotes"
                   why="Free tier serves the full intraday range"
                   ok={status.charts}
                 />
                 <SourceRow
                   name="Finnhub"
                   supplies="News, logos, peers"
-                  why="60 quote requests a minute, free"
+                  why="Sixty quote requests a minute, free"
                   ok={status.news}
                 />
                 <SourceRow
                   name="Yahoo Finance"
-                  supplies="Price fallback, dividends, crypto and commodities"
-                  why="Keyless, and the only source covering the non-company markets"
+                  supplies="Dividends, splits, index and commodity prices"
+                  why="Needs no key, and covers what the others do not"
                   ok
                 />
               </tbody>
             </table>
           </div>
 
-          <p className="mt-3.5 max-w-2xl text-xs leading-relaxed text-muted">
+          <p className="mt-3.5 max-w-2xl text-xs leading-relaxed text-faint">
             Coverage: {status.coverage}
             {universeCount != null && ` · ${universeCount} companies loaded`}
-            {status.missing.length > 0 && (
-              <> · Optional keys not set: {status.missing.join(", ")}</>
-            )}
+            {status.missing.length > 0 && <> · Optional keys not set: {status.missing.join(", ")}</>}
           </p>
         </section>
       </div>
     </div>
+  );
+}
+
+function Cell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="eyebrow text-[0.625rem]">{label}</dt>
+      <dd className="tnum mt-0.5 text-[0.84375rem] font-bold">{value}</dd>
+    </div>
+  );
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th scope="col" className="eyebrow px-2 py-2 text-left text-[0.6875rem]">
+      {children}
+    </th>
   );
 }
 
@@ -252,13 +208,67 @@ function SourceRow({
   ok: boolean;
 }) {
   return (
-    <tr className="border-b border-border last:border-b-0">
-      <td className="py-2.5 pr-4 font-semibold">{name}</td>
-      <td className="py-2.5 pr-4 text-muted">{supplies}</td>
-      <td className="py-2.5 pr-4 text-muted">{why}</td>
-      <td className="py-2.5">
+    <tr className="border-b border-border last:border-0">
+      <td className="px-2 py-2.5 font-semibold">{name}</td>
+      <td className="px-2 py-2.5 text-muted">{supplies}</td>
+      <td className="px-2 py-2.5 text-muted">{why}</td>
+      <td className="px-2 py-2.5">
         {ok ? <Badge tone="accent">Active</Badge> : <Badge>Needs key</Badge>}
       </td>
     </tr>
+  );
+}
+
+/**
+ * The orientation strip: what kind of day is it, before anything specific.
+ *
+ * Cells are divided by 1px rules rather than gaps, so the row reads as one
+ * ruled band across the page — the same device the header uses. A gauge that
+ * could not be fetched prints a dash rather than vanishing, because a strip
+ * that silently changes width is harder to trust than one that admits a gap.
+ */
+function IndexStrip({
+  readings,
+  universeCount,
+  asOf,
+}: {
+  readings: IndexReading[];
+  universeCount: number | null;
+  asOf: Date | string | null;
+}) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] border-b border-border">
+      {readings.map((r) => (
+        <div key={r.symbol} className="border-r border-border px-5 py-[18px] last:border-r-0">
+          <p className="eyebrow">{r.label}</p>
+          <p className="display mt-1.5 text-[1.625rem]">
+            {r.value == null ? "—" : r.format === "rate" ? `${num(r.value, 3)}%` : num(r.value, 2)}
+          </p>
+          <p
+            className={`tnum mt-0.5 text-[0.8125rem] ${
+              r.changePercent == null ? "text-faint" : r.changePercent >= 0 ? "text-up" : "text-down"
+            }`}
+          >
+            {r.changePercent == null ? "—" : signedPercent(r.changePercent)}
+          </p>
+        </div>
+      ))}
+
+      <div className="px-5 py-[18px]">
+        <p className="eyebrow">Companies scored</p>
+        <p className="display mt-1.5 text-[1.625rem]">
+          {universeCount == null ? "—" : num(universeCount, 0)}
+        </p>
+        <p className="mt-0.5 text-[0.8125rem] text-faint">
+          {asOf ? (
+            <>
+              refreshed <LocalTime value={asOf} mode="time" />
+            </>
+          ) : (
+            "not yet ingested"
+          )}
+        </p>
+      </div>
+    </div>
   );
 }

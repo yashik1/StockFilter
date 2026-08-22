@@ -87,21 +87,21 @@ function MoverList({
             <li key={m.symbol}>
               <Link
                 href={`/stock/${encodeURIComponent(m.symbol)}`}
-                className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)]"
+                className="flex items-center justify-between gap-3 px-4 py-[9px] transition-colors hover:bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)]"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-bold tracking-tight">{m.symbol}</p>
-                  <p className="max-w-[11rem] truncate text-xs text-muted">{m.name}</p>
+                  <p className="text-[0.84375rem] font-bold tracking-[0.02em]">{m.symbol}</p>
+                  <p className="max-w-[11rem] truncate text-[0.71875rem] text-faint">{m.name}</p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p
-                    className={`tnum text-sm font-semibold ${
+                    className={`tnum text-[0.84375rem] font-bold ${
                       (m.changePercent ?? 0) >= 0 ? "text-up" : "text-down"
                     }`}
                   >
                     {signedPercent(m.changePercent)}
                   </p>
-                  <p className="tnum text-xs text-muted">{fmtPrice(m.price)}</p>
+                  <p className="tnum text-[0.71875rem] text-faint">{fmtPrice(m.price)}</p>
                 </div>
               </Link>
             </li>
@@ -143,9 +143,9 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
             return (
               <li key={s.sector} className="px-4 py-2">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-xs font-medium">{s.sector}</span>
+                  <span className="truncate text-[0.78125rem]">{s.sector}</span>
                   <span
-                    className={`tnum shrink-0 text-xs font-semibold ${
+                    className={`tnum shrink-0 text-[0.78125rem] font-bold ${
                       positive ? "text-up" : "text-down"
                     }`}
                   >
