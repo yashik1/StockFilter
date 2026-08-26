@@ -27,6 +27,8 @@ const MAX_NAME = 120;
 const MAX_RULES = 8_000;
 /** A bound on what a scripted caller can insert, not a limit anybody will meet. */
 const MAX_TRADES = 5_000;
+/** One file's worth. Large enough for a year of trading, small enough to insert at once. */
+const MAX_IMPORT = 2_000;
 
 async function requireAccess(): Promise<{ userId: string } | TradeResult> {
   if (!isDatabaseConfigured()) {
@@ -306,4 +308,99 @@ export async function archivePlaybook(
 
   revalidatePath("/journal");
   return { ok: true, message: "Strategy retired. Its trades keep their history." };
+}
+
+/**
+ * Writing an imported batch.
+ *
+ * Every row is re-validated here rather than trusted from the browser. The
+ * preview the reader confirmed was built client-side, and a server action is
+ * a callable endpoint in its own right — so the parsing being correct in the
+ * page says nothing about what actually arrives at this function.
+ *
+ * Inserted in one statement so a batch either lands or does not. A partial
+ * import is the worst outcome available: the reader cannot tell which rows
+ * made it, and running the file again to be sure would duplicate whatever did.
+ */
+export async function importTrades(
+  drafts: unknown,
+): Promise<TradeResult & { imported?: number }> {
+  const gate = await requireAccess();
+  if (isDenied(gate)) return gate;
+
+  if (!Array.isArray(drafts) || drafts.length === 0) {
+    return { ok: false, message: "There was nothing to import." };
+  }
+  if (drafts.length > MAX_IMPORT) {
+    return { ok: false, message: `Import at most ${MAX_IMPORT} trades at a time.` };
+  }
+
+  const values: (typeof trades.$inferInsert)[] = [];
+
+  for (const raw of drafts) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const d = raw as Record<string, unknown>;
+
+    const symbol = String(d.symbol ?? "").trim().toUpperCase().slice(0, MAX_SYMBOL);
+    const quantity = Number(d.quantity);
+    const entryPrice = Number(d.entryPrice);
+
+    // The same three requirements the manual form enforces. A row that fails
+    // them here is dropped rather than rejecting the batch: the reader has
+    // already been shown which rows were unreadable, and failing the whole
+    // import at this point would be a second, different verdict on the file.
+    if (!symbol || !Number.isFinite(quantity) || quantity <= 0) continue;
+    if (!Number.isFinite(entryPrice) || entryPrice <= 0) continue;
+
+    const openedAt = String(d.openedAt ?? "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(openedAt)) continue;
+
+    const exitRaw = Number(d.exitPrice);
+    const exitPrice = Number.isFinite(exitRaw) && exitRaw > 0 ? exitRaw : null;
+
+    const closedRaw = String(d.closedAt ?? "");
+    const closedAt =
+      exitPrice != null && /^\d{4}-\d{2}-\d{2}$/.test(closedRaw) ? closedRaw : null;
+    if (closedAt && closedAt < openedAt) continue;
+
+    const optionalPrice = (v: unknown): number | null => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+    const fees = Number(d.fees);
+
+    values.push({
+      userId: gate.userId,
+      symbol,
+      side: d.side === "short" ? "short" : "long",
+      quantity,
+      entryPrice,
+      exitPrice,
+      stopPrice: optionalPrice(d.stopPrice),
+      targetPrice: optionalPrice(d.targetPrice),
+      fees: Number.isFinite(fees) ? Math.abs(fees) : 0,
+      openedAt,
+      closedAt,
+      playbookId: null,
+      followedRules: null,
+      notes: String(d.notes ?? "").slice(0, MAX_NOTES),
+    });
+  }
+
+  if (values.length === 0) {
+    return { ok: false, message: "None of those rows could be read as a trade." };
+  }
+
+  try {
+    await getDb().insert(trades).values(values);
+  } catch {
+    return { ok: false, message: "Could not save those trades just now." };
+  }
+
+  revalidatePath("/journal");
+  return {
+    ok: true,
+    imported: values.length,
+    message: `Imported ${values.length} ${values.length === 1 ? "trade" : "trades"}.`,
+  };
 }

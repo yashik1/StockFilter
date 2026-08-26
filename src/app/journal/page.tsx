@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge, Card, CardHeader, EmptyState } from "@/components/ui";
 import { Paywall } from "@/components/billing/paywall";
 import { NewEntryForm, DeleteEntryButton } from "@/components/journal/journal-form";
+import { ImportTrades } from "@/components/journal/import-trades";
 import {
   CloseTradeForm,
   DeleteTradeButton,
@@ -106,6 +107,14 @@ export default async function JournalPage() {
               emptyLabel="Nothing logged yet."
             />
           </div>
+
+          <Card>
+            <CardHeader
+              title="Import from a file"
+              subtitle="A broker export or your own spreadsheet — CSV, TSV or .xlsx"
+            />
+            <ImportTrades />
+          </Card>
 
           <Card>
             <CardHeader
