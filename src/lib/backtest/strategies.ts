@@ -1,5 +1,6 @@
 import type { Bar } from "../providers/types";
 import { bollinger, rsi, sma } from "./indicators";
+import { statsFromPnls, type PnlStats } from "../journal/trade-math";
 
 /**
  * Rule-based trading strategies, simulated over daily bars.
@@ -61,6 +62,14 @@ export interface StrategyResult {
   winRate: number | null;
   /** Share of the tested period actually holding the stock, 0 to 1. */
   timeInMarket: number;
+  /**
+   * The same figures the trade journal reports, computed by the same code.
+   *
+   * Deliberate: the point of having both pages is to put what a strategy did
+   * over history next to what you did trading it, and that comparison is only
+   * honest if "profit factor" means the same arithmetic in both places.
+   */
+  pnl: PnlStats;
   series: { time: number; value: number }[];
 }
 
@@ -86,6 +95,16 @@ export function simulate(
   trades: number;
   wins: number;
   barsHeld: number;
+  /**
+   * What each completed round trip made or lost, in currency, in order.
+   *
+   * Counting wins was enough for a win rate and nothing else. A strategy that
+   * wins seven times out of ten and gives it all back on the other three has
+   * an excellent win rate and no edge, and only the sizes show that — so the
+   * results themselves are kept and handed to the same summariser the trade
+   * journal uses.
+   */
+  roundTrips: number[];
 } {
   const series: { time: number; value: number }[] = [];
   let equity = amount;
@@ -93,6 +112,8 @@ export function simulate(
   let wins = 0;
   let barsHeld = 0;
   let entryPrice: number | null = null;
+  let entryEquity: number | null = null;
+  const roundTrips: number[] = [];
 
   series.push({ time: bars[0].time, value: equity });
 
@@ -103,19 +124,24 @@ export function simulate(
       const change = bars[i].close / bars[i - 1].close - 1;
       equity *= 1 + change;
       barsHeld++;
-      if (entryPrice === null) entryPrice = bars[i - 1].close;
+      if (entryPrice === null) {
+        entryPrice = bars[i - 1].close;
+        entryEquity = equity / (1 + change);
+      }
     } else if (entryPrice !== null) {
       // Position closed at the previous bar's close, which is the last price
       // it was held at.
       if (bars[i - 1].close > entryPrice) wins++;
       trades++;
+      if (entryEquity !== null) roundTrips.push(equity - entryEquity);
       entryPrice = null;
+      entryEquity = null;
     }
 
     series.push({ time: bars[i].time, value: equity });
   }
 
-  return { series, finalValue: equity, trades, wins, barsHeld };
+  return { series, finalValue: equity, trades, wins, barsHeld, roundTrips };
 }
 
 /** Largest peak-to-trough fall along an equity curve, as a positive fraction. */
@@ -139,7 +165,7 @@ export function runStrategy(strategy: Strategy, bars: Bar[], amount: number): St
   if (bars.length < 2) return null;
 
   const signals = strategy.signals(bars);
-  const { series, finalValue, trades, wins, barsHeld } = simulate(bars, signals, amount);
+  const { series, finalValue, trades, wins, barsHeld, roundTrips } = simulate(bars, signals, amount);
 
   const windowDays = (bars[bars.length - 1].time - bars[0].time) / DAY_SECONDS;
   const years = windowDays / DAYS_PER_YEAR;
@@ -158,6 +184,7 @@ export function runStrategy(strategy: Strategy, bars: Bar[], amount: number): St
     wins,
     winRate: trades > 0 ? wins / trades : null,
     timeInMarket: bars.length > 1 ? barsHeld / (bars.length - 1) : 0,
+    pnl: statsFromPnls(roundTrips),
     series,
   };
 }
