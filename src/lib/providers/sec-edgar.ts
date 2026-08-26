@@ -139,22 +139,100 @@ async function fetchFactsByCik(cik: string): Promise<NormalizedFundamentals | nu
   }
 }
 
-export async function cikForSymbol(symbol: string): Promise<string | null> {
+/**
+ * One symbol's entry in the SEC ticker map.
+ *
+ * Extracted so the CIK and the company name are looked up the same way. The
+ * share-class fallback below is the whole reason: written once it is a
+ * correctness fix, copied twice it is a bug waiting for the second copy to
+ * drift.
+ */
+async function lookupTicker(symbol: string): Promise<TickerEntry | null> {
   const map = await loadTickerMap();
   const upper = symbol.toUpperCase();
 
   const direct = map.get(upper);
-  if (direct) return padCik(direct.cik_str);
+  if (direct) return direct;
 
   // Share classes are written with a dot by most data sources (BRK.B) but with
   // a hyphen by EDGAR (BRK-B). Without this, every multi-class company fails.
   if (upper.includes(".")) {
     const hyphenated = map.get(upper.replace(/\./g, "-"));
-    if (hyphenated) return padCik(hyphenated.cik_str);
+    if (hyphenated) return hyphenated;
   }
 
   return null;
 }
+
+export async function cikForSymbol(symbol: string): Promise<string | null> {
+  const entry = await lookupTicker(symbol);
+  return entry ? padCik(entry.cik_str) : null;
+}
+
+/**
+ * The registrant name the SEC has on file for a ticker.
+ *
+ * Reads the same memoised map as cikForSymbol, so on any page that has
+ * already resolved a CIK this costs nothing. Used for page titles, where the
+ * name is what somebody searched for and the ticker is not.
+ *
+ * The map's own casing is inconsistent — "Apple Inc." sits beside
+ * "MICROSOFT CORP" in the same file — so an all-caps entry is de-shouted
+ * rather than printed as a title that looks like a rendering fault.
+ */
+export async function nameForSymbol(symbol: string): Promise<string | null> {
+  const entry = await lookupTicker(symbol);
+  return entry ? deShout(entry.title) : null;
+}
+
+/**
+ * Short tokens that are ordinary words rather than initialisms.
+ *
+ * The default for a two- or three-letter token in a registrant name is that
+ * it is an acronym — AMC, PNC, CSX, IBM, TJX, RTX — so the rule below keeps
+ * those in capitals and this list carries the exceptions. Corporate forms
+ * that are conventionally written in capitals (SA, NV, AG, PLC) are
+ * deliberately absent, because leaving them alone is already correct.
+ */
+const SHORT_WORDS = new Set([
+  "THE", "AND", "FOR", "OF", "CO", "COM", "INC", "LTD",
+  "NEW", "OLD", "ONE", "ALL", "OUR", "OIL", "GAS", "AIR", "SEA", "SUN",
+]);
+
+/**
+ * Title-cases a name that arrived entirely in capitals, leaving mixed-case
+ * names untouched.
+ *
+ * Deliberately conservative: it fires only when there is no lowercase letter
+ * anywhere, so a name the SEC already cased properly is never "corrected" —
+ * "lululemon athletica inc." keeps its lowercase l, and Apple Inc. is left
+ * exactly as filed.
+ *
+ * Within a shouted name, short tokens stay in capitals unless they are in
+ * SHORT_WORDS above. An earlier version tested for a vowel instead, on the
+ * theory that acronyms lack them; AMC disproves that, and the rule now turns
+ * on length and a list rather than on a guess about spelling.
+ */
+function deShout(name: string): string {
+  if (/[a-z]/.test(name)) return name;
+
+  return name
+    .split(/(\s+)/)
+    .map((token) => {
+      if (/^\s+$/.test(token)) return token;
+
+      // Punctuation and digits are not evidence either way — "AT&T" carries
+      // three letters and "3M" carries one.
+      const letters = token.replace(/[^A-Z]/g, "");
+      if (letters.length <= 3 && !SHORT_WORDS.has(letters)) return token;
+
+      return token.charAt(0) + token.slice(1).toLowerCase();
+    })
+    .join("");
+}
+
+/** Exposed for tests only. */
+export const __nameTesting = { deShout };
 
 export interface SecSubmissions {
   cik: string;

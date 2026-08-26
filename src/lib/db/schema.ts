@@ -229,6 +229,24 @@ export const users = pgTable("users", {
   image: text("image"),
   /** bcrypt hash. Null for an account created through an OAuth provider. */
   passwordHash: text("password_hash"),
+  /**
+   * Whether to email this reader a weekly summary of what their saved
+   * companies filed.
+   *
+   * Defaults to false and stays false until somebody asks for it. An account
+   * is permission to sign in, not permission to be emailed, and a digest
+   * switched on by default is the kind of thing that gets a sending domain
+   * blocked as much as it annoys people.
+   */
+  digestOptIn: boolean("digest_opt_in").notNull().default(false),
+  /**
+   * When the last digest actually went out.
+   *
+   * The idempotency key. A cron that is retried, or that runs twice because a
+   * platform redelivered the request, must not send the same summary twice —
+   * so the sender checks this rather than trusting that it runs once a week.
+   */
+  digestLastSentAt: timestamp("digest_last_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -363,9 +381,50 @@ export const journalEntries = pgTable(
   ],
 );
 
+/* ----------------------------------------------------------------- watchlist
+ *
+ * The companies a signed-in reader has saved.
+ *
+ * This existed only in localStorage before accounts did, and stayed there
+ * afterwards — so the app asked people to create an account and then forgot
+ * their saved list the moment they picked up their phone. The browser copy is
+ * still the signed-out path and is merged up on first sign-in, so nobody
+ * loses weeks of saving by finally registering.
+ *
+ * Deliberately *not* gated behind entitlement. Saving a company is how a
+ * newcomer starts using this app at all, and it is the one place a gate would
+ * do active harm.
+ *
+ * `symbol` is free text rather than a foreign key to `companies`, for the same
+ * reason journal entries are: somebody may well save something outside the
+ * screening universe, and a saved company should not vanish because its ticker
+ * left an index.
+ */
+export const watchlistItems = pgTable(
+  "watchlist_items",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    symbol: text("symbol").notNull(),
+    /** Cached at save time so a list renders without a lookup per row. */
+    name: text("name"),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Saving the same company twice is a no-op, not a second row. Enforced
+    // here rather than in the action, so a double-submitted form or a merge
+    // running twice cannot produce duplicates.
+    uniqueIndex("watchlist_user_symbol_idx").on(t.userId, t.symbol),
+    index("watchlist_user_added_idx").on(t.userId, t.addedAt),
+  ],
+);
+
 export type Company = typeof companies.$inferSelect;
 export type Score = typeof scores.$inferSelect;
 export type Financial = typeof financials.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type JournalEntry = typeof journalEntries.$inferSelect;
+export type WatchlistItem = typeof watchlistItems.$inferSelect;

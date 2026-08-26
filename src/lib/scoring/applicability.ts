@@ -38,6 +38,36 @@ export function isFinancial(sector: SectorKind): boolean {
   return sector === "financial";
 }
 
+/**
+ * Whether a filer is a trust that must distribute most of its income.
+ *
+ * A separate question from `sectorFromSic`, and deliberately not derivable
+ * from it. That function answers "which scoring models apply", and for that
+ * purpose a REIT belongs with the financials — it is leveraged by design in
+ * the same way. This one answers "is a payout above 100% of profit normal",
+ * and there the answer is the opposite.
+ *
+ * Both of the obvious shortcuts are wrong:
+ *
+ *  - `sector === "financial"` is far too broad. It covers every bank and
+ *    insurer, none of which is required to distribute anything.
+ *  - `sector === "real-estate"` is both too narrow and too broad. SIC
+ *    6500-6599 is real estate *operators and lessors* — ordinary property
+ *    companies under no distribution requirement — while REITs themselves sit
+ *    at 6798, which `sectorFromSic` maps to "financial". So that test exempts
+ *    the companies that should be judged normally and judges the ones that
+ *    should be exempt.
+ *
+ * Hence the SIC code directly. 6798 is the REIT classification; a REIT must
+ * distribute at least 90% of its taxable income to keep its tax status, and
+ * reports profit after depreciating buildings that are not wearing out at
+ * anything like that rate — so its dividend routinely exceeds its net income
+ * without anything being wrong.
+ */
+export function isDistributingTrust(sic: string | number | null | undefined): boolean {
+  return Number(sic) === 6798;
+}
+
 /** Human-readable explanation shown wherever a score is suppressed. */
 export const FINANCIAL_SUPPRESSION_REASON =
   "Not meaningful for banks, insurers and other financial companies. Their balance sheets " +

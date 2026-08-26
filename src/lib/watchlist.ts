@@ -1,9 +1,20 @@
 /**
  * Watchlist and recently-viewed, stored in the browser.
  *
- * There are no accounts by design, so this lives in localStorage. That means it
- * is per-device and per-browser, which the UI says plainly rather than letting
- * someone assume it follows them.
+ * This module is now the **signed-out** path only. The saved list moved onto
+ * the account in src/lib/watchlist/actions.ts — a list that lives in one
+ * browser is not one anybody can rely on, and the app had been asking people
+ * to register while still forgetting their companies the moment they picked
+ * up a phone.
+ *
+ * What is kept here, and why:
+ *
+ *  - **The saved list, before sign-in.** Somebody should be able to start
+ *    using the app without registering first, so saving works immediately and
+ *    is merged onto the account on their first sign-in rather than discarded.
+ *  - **Recently viewed, always.** That is a convenience for this device
+ *    rather than a list anybody curated, and syncing it would mean quietly
+ *    recording browsing history against an account.
  *
  * Reads go through `useSyncExternalStore` in the components, so the value is
  * consistent between server render and hydration and updates propagate across

@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { requireSiteUrl } from "../site-url";
 
 /**
  * The Stripe client, and the settings it needs.
@@ -35,12 +36,11 @@ export function getPriceId(): string {
 /**
  * The origin Stripe should send people back to.
  *
- * Taken from configuration rather than the incoming request's Host header,
- * which an attacker controls — a forged Host would otherwise send a real
- * customer to somebody else's site carrying a real checkout session.
+ * Throws rather than guessing, which is the right direction to fail here:
+ * a checkout that returns the customer to localhost has taken their money
+ * and stranded them. See src/lib/site-url.ts for why this comes from
+ * configuration rather than the request's Host header.
  */
 export function getSiteUrl(): string {
-  const url = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
-  if (!url) throw new Error("AUTH_URL is not set, so Stripe has nowhere to return to.");
-  return url.replace(/\/$/, "");
+  return requireSiteUrl();
 }
