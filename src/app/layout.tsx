@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { SieveMark } from "@/components/waveform";
-import { NavTabs } from "@/components/nav-tabs";
+import { MobileNav, NavTabs } from "@/components/nav-tabs";
 import { SearchBox } from "@/components/search-box";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SessionProvider } from "next-auth/react";
@@ -176,7 +176,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               </span>
             </Link>
 
-            <NavTabs items={NAV} />
+            {/* min-w-0 for the same reason the header's own comment gives for
+                the columns around it: a grid item's default min-width is its
+                content, and without this the mobile panel's own layout could
+                push the track wider than the column meant to hold it. */}
+            <div className="min-w-0 justify-self-start">
+              <NavTabs items={NAV} />
+              <MobileNav items={NAV} />
+            </div>
 
             <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto_34px] items-center gap-2 lg:col-span-1">
               <SearchBox className="w-full" />
