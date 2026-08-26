@@ -16,7 +16,7 @@ import postgres from "postgres";
 /**
  * Every table the app expects to exist once all migrations have run: the five
  * original market-data tables, the accounts, billing and journal tables, and
- * the saved-companies list. Checked after the fact so a half-applied migration
+ * the saved-companies list, and the trade journal. Checked after the fact so a half-applied migration
  * is reported rather than discovered later by a page failing.
  *
  * The names are the single source of truth and the count is derived from them.
@@ -29,7 +29,7 @@ const EXPECTED_TABLES = [
   "companies", "financials", "scores", "price_cache", "ingest_runs",
   "users", "accounts", "sessions", "verification_tokens",
   "password_reset_tokens", "subscriptions", "journal_entries",
-  "watchlist_items",
+  "watchlist_items", "playbooks", "trades",
 ] as const;
 
 /** Postgres error codes we treat as "already done" rather than failures. */

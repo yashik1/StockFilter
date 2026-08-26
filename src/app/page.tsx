@@ -4,10 +4,9 @@ import { WatchlistPanel, WatchlistSync } from "@/components/watchlist";
 import { MarketOverview, MarketSetupHint } from "@/components/market-overview";
 import { getMarketSnapshot, hasMarketData } from "@/lib/market";
 import { getIndexStrip, type IndexReading } from "@/lib/indices";
-import { Badge, Card, RatingBadge } from "@/components/ui";
+import { Card, RatingBadge } from "@/components/ui";
 import { LocalTime } from "@/components/local-time";
 import { money, num, percent, signedPercent } from "@/lib/format";
-import { providerStatus } from "@/lib/providers";
 import type { Rating } from "@/lib/scoring/types";
 import { getHealthiest, getUniverseCount } from "@/lib/screener";
 import { websiteLd } from "@/lib/structured-data";
@@ -35,7 +34,6 @@ export default async function HomePage() {
     // visitor and does not need a branch here.
     listWatchlist(),
   ]);
-  const status = providerStatus();
   const signedIn = Boolean(session?.user?.id);
 
   return (
@@ -132,64 +130,6 @@ export default async function HomePage() {
             </Card>
           )}
         </section>
-
-        <section aria-labelledby="sources-heading">
-          <p className="eyebrow">Provenance</p>
-          <h2 id="sources-heading" className="font-display mt-1.5 mb-[18px] text-[1.875rem]">
-            Where the data comes from
-          </h2>
-
-          {/*
-            A table rather than three cards. These rows are the same four facts
-            about four sources, which is what a table is for — and it lets a
-            reader compare the status column straight down the page instead of
-            hunting for it inside three separate blocks.
-          */}
-          <div className="scroll-x">
-            <table className="w-full min-w-[40rem] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <Th>Source</Th>
-                  <Th>Supplies</Th>
-                  <Th>Why it</Th>
-                  <Th>Status</Th>
-                </tr>
-              </thead>
-              <tbody>
-                <SourceRow
-                  name="SEC EDGAR"
-                  supplies="Fundamentals, filings, SIC codes"
-                  why="Authoritative, no key, no daily cap"
-                  ok
-                />
-                <SourceRow
-                  name="Twelve Data"
-                  supplies="Price bars and quotes"
-                  why="Free tier serves the full intraday range"
-                  ok={status.charts}
-                />
-                <SourceRow
-                  name="Finnhub"
-                  supplies="News, logos, peers"
-                  why="Sixty quote requests a minute, free"
-                  ok={status.news}
-                />
-                <SourceRow
-                  name="Yahoo Finance"
-                  supplies="Dividends, splits, index and commodity prices"
-                  why="Needs no key, and covers what the others do not"
-                  ok
-                />
-              </tbody>
-            </table>
-          </div>
-
-          <p className="mt-3.5 max-w-2xl text-xs leading-relaxed text-faint">
-            Coverage: {status.coverage}
-            {universeCount != null && ` · ${universeCount} companies loaded`}
-            {status.missing.length > 0 && <> · Optional keys not set: {status.missing.join(", ")}</>}
-          </p>
-        </section>
       </div>
     </div>
   );
@@ -204,45 +144,6 @@ function Cell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th scope="col" className="eyebrow px-2 py-2 text-left text-[0.6875rem]">
-      {children}
-    </th>
-  );
-}
-
-function SourceRow({
-  name,
-  supplies,
-  why,
-  ok,
-}: {
-  name: string;
-  supplies: string;
-  why: string;
-  ok: boolean;
-}) {
-  return (
-    <tr className="border-b border-border last:border-0">
-      <td className="px-2 py-2.5 font-semibold">{name}</td>
-      <td className="px-2 py-2.5 text-muted">{supplies}</td>
-      <td className="px-2 py-2.5 text-muted">{why}</td>
-      <td className="px-2 py-2.5">
-        {ok ? <Badge tone="accent">Active</Badge> : <Badge>Needs key</Badge>}
-      </td>
-    </tr>
-  );
-}
-
-/**
- * The orientation strip: what kind of day is it, before anything specific.
- *
- * Cells are divided by 1px rules rather than gaps, so the row reads as one
- * ruled band across the page — the same device the header uses. A gauge that
- * could not be fetched prints a dash rather than vanishing, because a strip
- * that silently changes width is harder to trust than one that admits a gap.
- */
 function IndexStrip({
   readings,
   universeCount,

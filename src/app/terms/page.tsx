@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, SectionHeading } from "@/components/ui";
+import { providerStatus } from "@/lib/providers";
+import { getUniverseCount } from "@/lib/screener";
+import { num } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Terms of use and privacy",
@@ -15,8 +18,10 @@ export const metadata: Metadata = {
  * this is not investment advice — leads, because burying it under boilerplate
  * would defeat the point of having it.
  */
-export default function TermsPage() {
+export default async function TermsPage() {
   const updated = "August 2026";
+  const status = providerStatus();
+  const universeCount = await getUniverseCount();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -148,6 +153,25 @@ export default function TermsPage() {
             more about that here
           </Link>
           .
+        </p>
+
+        {/*
+          What this particular deployment has switched on.
+
+          This used to sit on the dashboard as a four-row status table, which
+          put an operator's configuration checklist in front of every visitor
+          on the first screen they saw. It belongs with the licence terms it
+          describes — and here it is one line rather than a table, because
+          "which providers are live" is a footnote to a reader and a headline
+          only to whoever runs the deployment.
+        */}
+        <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-faint">
+          On this deployment: {status.coverage.toLowerCase()} coverage
+          {universeCount != null && `, ${num(universeCount, 0)} companies scored`}
+          {". "}
+          Price charts are {status.charts ? "active" : "not configured"} and news is{" "}
+          {status.news ? "active" : "not configured"}
+          {status.missing.length > 0 && `, with no key set for ${status.missing.join(", ")}`}.
         </p>
       </Card>
 

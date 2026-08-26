@@ -381,6 +381,106 @@ export const journalEntries = pgTable(
   ],
 );
 
+/* ------------------------------------------------------------------ trading
+ *
+ * A trade journal, in the sense the phrase actually means: what was bought and
+ * sold, at what price, against which plan.
+ *
+ * `journal_entries` above stays exactly as it is. It records what somebody was
+ * thinking, which is the hard part to reconstruct months later and is worth
+ * keeping on its own terms — but it holds no prices, so it can never answer
+ * "am I any good at this". These two tables can.
+ *
+ * Nothing here comes from a market data provider. Every figure is a fill the
+ * reader typed in, which is why this whole feature sits clear of the licensing
+ * that constrains the rest of the app.
+ */
+
+/**
+ * A named strategy with its rules written down.
+ *
+ * The rules are the point. Attributing a trade to a strategy lets you ask
+ * whether the strategy works; recording whether you *followed* the rules lets
+ * you ask the separate question of whether you executed it — and a strategy
+ * that makes money when followed and loses money overall calls for the
+ * opposite response to one that simply does not work.
+ */
+export const playbooks = pgTable(
+  "playbooks",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** What the setup is, in the reader's own words. */
+    description: text("description").notNull().default(""),
+    /** The conditions that must hold, one per line. Free text on purpose. */
+    rules: text("rules").notNull().default(""),
+    /** Retired rather than deleted, so the trades that reference it survive. */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("playbooks_user_name_idx").on(t.userId, t.name),
+    index("playbooks_user_idx").on(t.userId),
+  ],
+);
+
+/**
+ * One position, from entry to exit.
+ *
+ * Prices are per share and stored as double precision, like every other money
+ * column here. P&L, R-multiples and every summary figure are computed from
+ * these rather than stored: a derived column would go stale the moment
+ * somebody corrected a fill, and a journal whose totals disagree with its own
+ * rows is worse than no journal.
+ *
+ * `exitPrice` and `closedAt` are null together while a position is open, and
+ * every realised figure ignores those rows rather than treating them as flat.
+ */
+export const trades = pgTable(
+  "trades",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Free text, like the journal's: a trade may be in something unscreened. */
+    symbol: text("symbol").notNull(),
+    /** long | short. Decides the sign of every result. */
+    side: text("side").notNull().default("long"),
+
+    quantity: doublePrecision("quantity").notNull(),
+    entryPrice: doublePrecision("entry_price").notNull(),
+    exitPrice: doublePrecision("exit_price"),
+    /** Where the loss was to be cut. Without it a trade has no defined risk. */
+    stopPrice: doublePrecision("stop_price"),
+    targetPrice: doublePrecision("target_price"),
+    /** Commission and the rest, for the whole round trip. */
+    fees: doublePrecision("fees").notNull().default(0),
+
+    openedAt: text("opened_at").notNull(),
+    closedAt: text("closed_at"),
+
+    /** Nulled rather than cascaded, so deleting a strategy keeps the history. */
+    playbookId: integer("playbook_id").references(() => playbooks.id, {
+      onDelete: "set null",
+    }),
+    /** Whether the reader kept to their own rules. Null when not answered. */
+    followedRules: boolean("followed_rules"),
+    notes: text("notes").notNull().default(""),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("trades_user_opened_idx").on(t.userId, t.openedAt),
+    index("trades_user_symbol_idx").on(t.userId, t.symbol),
+    index("trades_user_playbook_idx").on(t.userId, t.playbookId),
+  ],
+);
+
 /* ----------------------------------------------------------------- watchlist
  *
  * The companies a signed-in reader has saved.
@@ -428,3 +528,5 @@ export type User = typeof users.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type JournalEntry = typeof journalEntries.$inferSelect;
 export type WatchlistItem = typeof watchlistItems.$inferSelect;
+export type Playbook = typeof playbooks.$inferSelect;
+export type TradeRow = typeof trades.$inferSelect;

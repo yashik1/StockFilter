@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { OpeningRangeCard, StrategyComparison } from "./strategy-comparison";
 import type { StrategyResult } from "@/lib/backtest/strategies";
+import { statsFromPnls } from "@/lib/journal/trade-math";
 import type { OrbResult } from "@/lib/backtest/opening-range";
 
 /**
@@ -27,6 +28,8 @@ const result = (over: Partial<StrategyResult> = {}): StrategyResult => ({
   wins: 10,
   winRate: 10 / 13,
   timeInMarket: 0.08,
+  // Five round trips: two losers, three winners, one of them large.
+  pnl: statsFromPnls([600, -200, 400, -300, 1_500]),
   series: [],
   ...over,
 });

@@ -1,5 +1,5 @@
 import { Badge, Card, CardHeader, EmptyState } from "@/components/ui";
-import { money, percent, signedPercent } from "@/lib/format";
+import { money, num, percent, signedPercent } from "@/lib/format";
 import type { StrategyResult } from "@/lib/backtest/strategies";
 import { MIN_TRADES_FOR_CONFIDENCE, type OrbResult } from "@/lib/backtest/opening-range";
 
@@ -75,6 +75,10 @@ export function StrategyComparison({
               <th scope="col" className="px-3 py-2.5 text-right font-medium">Worst fall</th>
               <th scope="col" className="px-3 py-2.5 text-right font-medium">Trades</th>
               <th scope="col" className="px-3 py-2.5 text-right font-medium">Win rate</th>
+              {/* The column that stops a win rate being read as an edge: a rule
+                  can win seven times in ten and still lose money if the three
+                  losses are large. Same figure, same code, as the journal. */}
+              <th scope="col" className="px-3 py-2.5 text-right font-medium">Profit factor</th>
               <th scope="col" className="px-5 py-2.5 text-right font-medium">Invested</th>
             </tr>
           </thead>
@@ -116,6 +120,15 @@ export function StrategyComparison({
                   </td>
                   <td className="tnum px-3 py-3 text-right align-top">
                     {r.winRate == null ? "—" : percent(r.winRate, 0)}
+                  </td>
+                  <td className="tnum px-3 py-3 text-right align-top">
+                    {isBaseline || r.pnl.profitFactor == null ? (
+                      "—"
+                    ) : (
+                      <span className={r.pnl.profitFactor >= 1 ? "text-good-fg" : "text-poor-fg"}>
+                        {num(r.pnl.profitFactor, 2)}
+                      </span>
+                    )}
                   </td>
                   <td className="tnum px-5 py-3 text-right align-top text-muted">
                     {percent(r.timeInMarket, 0)}
