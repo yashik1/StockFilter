@@ -53,7 +53,7 @@ export function Dividends({
         <RatingBadge rating={report.rating} />
       </div>
 
-      <dl className="mt-4 grid gap-x-4 gap-y-3 border-t border-border bg-surface-2/40 px-5 py-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-3 border-t border-border bg-surface-2/40 px-5 py-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="Paid last year"
           value={money(report.paid, currency)}

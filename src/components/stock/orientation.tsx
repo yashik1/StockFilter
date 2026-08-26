@@ -18,7 +18,7 @@ export function WhatItDoes({ summary }: { summary: BusinessSummary }) {
         {summary.sentence}
       </p>
 
-      <dl className="mt-5 grid gap-4 border-t border-border pt-4 sm:grid-cols-3">
+      <dl className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-border pt-4 sm:grid-cols-3">
         {summary.scale.map((s) => (
           <Metric key={s.label} label={s.label} value={s.value} hint={s.hint} />
         ))}
@@ -38,7 +38,7 @@ export function StrengthsAndRisks({ highlights }: { highlights: Highlights }) {
   if (highlights.thin) return null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2">
       <Column
         tone="good"
         title="What's working"

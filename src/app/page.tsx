@@ -77,7 +77,7 @@ export default async function HomePage() {
           </div>
 
           {healthiest.status === "ok" ? (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))] gap-5">
               {healthiest.rows.map((r) => (
                 <Card key={r.symbol} as="article" className="p-4" interactive>
                   <Link href={`/stock/${encodeURIComponent(r.symbol)}`} className="block">
@@ -253,7 +253,7 @@ function IndexStrip({
   asOf: Date | string | null;
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] border-b border-border">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] border-b border-border">
       {readings.map((r) => (
         <div key={r.symbol} className="border-r border-border px-5 py-[18px] last:border-r-0">
           <p className="eyebrow">{r.label}</p>

@@ -207,7 +207,7 @@ export function WatchlistPanel({
         }
       />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))] gap-5">
         {watchlist.length > 0 && (
           <Card className="p-5">
             <div className="mb-3 flex items-center gap-2">

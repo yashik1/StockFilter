@@ -60,6 +60,7 @@ export const SORTS = {
   pe: { label: "Lowest P/E", column: scores.peRatio, dir: "asc" },
   growth: { label: "Fastest growing", column: scores.revenueGrowth, dir: "desc" },
   margin: { label: "Highest margin", column: scores.netMargin, dir: "desc" },
+  movers: { label: "Biggest movers today", column: scores.changePercent, dir: "desc" },
 } as const;
 
 export type SortKey = keyof typeof SORTS;
@@ -84,6 +85,9 @@ export interface ScreenRow {
   country: string | null;
   healthScore: number | null;
   headline: string | null;
+  /** Latest quote, refreshed by the quotes cron rather than the nightly pass. */
+  price: number | null;
+  changePercent: number | null;
   fScore: number | null;
   fScoreMax: number | null;
   zZone: string | null;
@@ -271,6 +275,8 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
         country: companies.country,
         healthScore: scores.healthScore,
         headline: scores.headline,
+        price: scores.price,
+        changePercent: scores.changePercent,
         fScore: scores.fScore,
         fScoreMax: scores.fScoreMax,
         zZone: scores.zZone,

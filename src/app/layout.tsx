@@ -121,6 +121,16 @@ const NAV = [
   { href: "/learn", label: "Learn" },
 ];
 
+/**
+ * A footer link.
+ *
+ * `block` plus vertical padding rather than a bare inline link, so the target
+ * clears the 24px minimum. As inline text at 13px these were 20px tall and
+ * 4px apart — fine with a mouse and genuinely fiddly with a thumb, which is
+ * where most of this footer gets read.
+ */
+const FOOTER_LINK = "block py-1 text-muted transition-colors hover:text-accent";
+
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Read once here rather than per page: the header needs it on every route,
   // and this is a JWT session so it costs no database round trip.
@@ -188,7 +198,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           what let them read as an afterthought before.
         */}
         <footer className="mt-10 border-t border-border bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)]">
-          <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-8 px-7 pt-[26px] pb-[34px]">
+          <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-8 px-7 pt-[26px] pb-[34px]">
             <div>
               <p className="font-display text-sm font-semibold text-foreground">
                 Educational information only — not investment advice.
@@ -204,36 +214,40 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
             <div>
               <p className="eyebrow mb-2">Product</p>
-              <p className="grid gap-1 text-[0.8125rem]">
-                <Link href="/screen" className="text-muted hover:text-accent">Screener</Link>
-                <Link href="/markets" className="text-muted hover:text-accent">Markets</Link>
-                <Link href="/backtest" className="text-muted hover:text-accent">Backtest</Link>
-                <Link href="/journal" className="text-muted hover:text-accent">Journal</Link>
-              </p>
+              <ul className="grid list-none gap-0.5 text-[0.8125rem]">
+                <li><Link href="/screen" className={FOOTER_LINK}>Screener</Link></li>
+                <li><Link href="/markets" className={FOOTER_LINK}>Markets</Link></li>
+                <li><Link href="/backtest" className={FOOTER_LINK}>Backtest</Link></li>
+                <li><Link href="/journal" className={FOOTER_LINK}>Journal</Link></li>
+              </ul>
             </div>
 
             <div>
               <p className="eyebrow mb-2">Sources</p>
-              <p className="grid gap-1 text-[0.8125rem]">
-                <a
-                  className="text-muted hover:text-accent"
-                  href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  SEC EDGAR
-                </a>
-                <Link href="/learn" className="text-muted hover:text-accent">How the scores work</Link>
-                <Link href="/terms" className="text-muted hover:text-accent">Terms &amp; privacy</Link>
-                <a
-                  className="text-muted hover:text-accent"
-                  href="https://github.com/yashik1/StockFilter"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  Source code
-                </a>
-              </p>
+              <ul className="grid list-none gap-0.5 text-[0.8125rem]">
+                <li>
+                  <a
+                    className={FOOTER_LINK}
+                    href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    SEC EDGAR
+                  </a>
+                </li>
+                <li><Link href="/learn" className={FOOTER_LINK}>How the scores work</Link></li>
+                <li><Link href="/terms" className={FOOTER_LINK}>Terms &amp; privacy</Link></li>
+                <li>
+                  <a
+                    className={FOOTER_LINK}
+                    href="https://github.com/yashik1/StockFilter"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    Source code
+                  </a>
+                </li>
+              </ul>
             </div>
           </div>
         </footer>

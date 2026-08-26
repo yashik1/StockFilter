@@ -3,7 +3,7 @@ import { getDb } from "./db";
 import { companies, financials, ingestRuns, scores } from "./db/schema";
 import { fieldValue } from "./fundamentals/normalize";
 import type { CanonicalField, NormalizedFundamentals } from "./fundamentals/types";
-import { finnhub, getProvider, secEdgar, twelveData } from "./providers";
+import { finnhub, getProvider, secEdgar } from "./providers";
 import { cikForSymbol } from "./providers/sec-edgar";
 import { sectorFromSic } from "./scoring/applicability";
 import { displaySectorFromSic } from "./scoring/sectors";
@@ -58,9 +58,20 @@ const FINANCIAL_COLUMNS: CanonicalField[] = [
 /**
  * Resolves market capitalisation.
  *
- * Prefers Finnhub's reported figure, then falls back to live price multiplied by
- * the share count from the filings. The fallback matters because market cap
- * drives the P/E, P/B and P/S ratios and the Altman leverage term.
+ * Prefers Finnhub's reported figure, then falls back to a live price
+ * multiplied by the share count from the filings. The fallback matters because
+ * market cap drives the P/E, P/B and P/S ratios and the Altman leverage term.
+ *
+ * The fallback asks `getProvider()` rather than Twelve Data directly, and that
+ * is the whole fix. Every other price read in the app goes through the
+ * failover chain, which ends at Yahoo — keyless, unmetered, and the source
+ * actually serving quotes on the live deployment. This one function reached
+ * past it to two named providers: Finnhub, whose key the deployment has
+ * rejected for weeks, and Twelve Data, whose free tier is 8 requests a minute
+ * against a universe of 542 companies. So `marketCap` came back null for
+ * essentially every company, and with it every P/E, P/B, P/S and dividend
+ * yield in the database — the screener showed a column of dashes while the
+ * dashboard, reading the same prices through the chain, worked perfectly.
  */
 async function resolveMarketCap(
   symbol: string,
@@ -71,13 +82,11 @@ async function resolveMarketCap(
     if (profile?.marketCap) return profile.marketCap;
   }
 
-  if (twelveData.isConfigured()) {
-    const quote = await twelveData.getQuote(symbol).catch(() => null);
-    const shares = fieldValue(fundamentals.annual[0], "sharesOutstanding");
-    if (quote?.price && shares) return quote.price * shares;
-  }
+  const shares = fieldValue(fundamentals.annual[0], "sharesOutstanding");
+  if (!shares) return null;
 
-  return null;
+  const quote = await getProvider().getQuote(symbol).catch(() => null);
+  return quote?.price ? quote.price * shares : null;
 }
 
 /** Fetches, scores and stores one company. */
@@ -351,6 +360,39 @@ export async function refreshQuotes(
     .from(companies);
   const idBySymbol = new Map(companyRows.map((r) => [r.symbol, r.id]));
 
+  /*
+    The latest reported figures a fresh price can be divided into.
+
+    Market cap and every ratio built on it — P/E, P/B, P/S, dividend yield —
+    move with the share price, so computing them once a night during the
+    fundamentals pass and leaving them there is wrong twice over: the numbers
+    are stale by morning, and if the price lookup failed that night they stay
+    null until the next full ingest. On the live deployment they were null for
+    all 542 companies while the dashboard displayed current prices for the same
+    symbols, which is the shape of the bug this repairs.
+
+    Read once, before the loop, rather than per symbol.
+  */
+  const latest = await db.execute<{
+    company_id: number;
+    shares_outstanding: number | null;
+    net_income: number | null;
+    equity: number | null;
+    revenue: number | null;
+    dividends_paid: number | null;
+  }>(sql`
+    SELECT DISTINCT ON (company_id)
+      company_id, shares_outstanding, net_income, equity, revenue, dividends_paid
+    FROM financials
+    ORDER BY company_id, fiscal_year DESC
+  `);
+  const fundamentalsById = new Map(
+    (latest as unknown as Record<string, number | null>[]).map((r) => [
+      r.company_id as number,
+      r,
+    ]),
+  );
+
   await mapLimit(symbols, 2, async (symbol) => {
     const upper = symbol.toUpperCase();
     const companyId = idBySymbol.get(upper);
@@ -368,6 +410,7 @@ export async function refreshQuotes(
             price: quote.price,
             changePercent: quote.changePercent,
             priceUpdatedAt: new Date(),
+            ...priceDerived(quote.price, fundamentalsById.get(companyId)),
           })
           .where(eq(scores.companyId, companyId));
         updated++;
@@ -387,3 +430,45 @@ export async function refreshQuotes(
 
   return { updated, failed: errors.length, errors };
 }
+
+/**
+ * The figures a share price implies, recomputed from the newest price.
+ *
+ * Returns an empty object when the share count is unknown, which matters: the
+ * spread is applied over the existing row, so an empty one leaves whatever was
+ * stored alone. Filling these with null instead would erase a good market cap
+ * — one Finnhub reported directly, say — the first time a filer failed to tag
+ * its share count.
+ *
+ * A dual-class filer whose consolidated share count is tagged loosely will get
+ * a rougher figure here than a data vendor would report. That was already true
+ * of the ingest's own fallback; this makes it apply more often and stay fresh,
+ * which is the better trade against a column that is null for everybody.
+ */
+function priceDerived(
+  price: number,
+  latest: Record<string, number | null> | undefined,
+): Partial<typeof scores.$inferInsert> {
+  const shares = latest?.shares_outstanding ?? null;
+  if (!shares || shares <= 0) return {};
+
+  const marketCap = price * shares;
+  const netIncome = latest?.net_income ?? null;
+  const dividendsPaid = latest?.dividends_paid ?? null;
+
+  return {
+    marketCap,
+    // A loss makes a P/E meaningless rather than negative, which is the same
+    // rule the ingest and the stock page already apply.
+    peRatio: netIncome != null && netIncome > 0 ? div(marketCap, netIncome) : null,
+    pbRatio: div(marketCap, latest?.equity ?? null),
+    psRatio: div(marketCap, latest?.revenue ?? null),
+    // Dividends are tagged as an outflow and the sign varies by filer, so the
+    // magnitude is what matters — the same reasoning as scoring/dividends.ts.
+    dividendYield:
+      dividendsPaid != null ? div(Math.abs(dividendsPaid), marketCap) : null,
+  };
+}
+
+/** Exposed for tests only. */
+export const __testing = { priceDerived };

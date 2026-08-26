@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SearchBox } from "@/components/search-box";
+import { CornerBrackets } from "@/components/ui";
 
 /**
  * The hero shows the product doing its job rather than describing it.
@@ -14,32 +15,6 @@ import { SearchBox } from "@/components/search-box";
  * The figures are Apple's real FY2025 balance sheet, and the sentence is the
  * one the live scoring engine produces — not a mockup.
  */
-
-/** The corner brackets, inline: these are figures rather than Cards. */
-function Marks() {
-  const arm = "absolute bg-border-strong";
-  const corners = [
-    { box: "-top-px -left-px", h: "top-0", v: "left-0" },
-    { box: "-top-px -right-px", h: "top-0", v: "right-0" },
-    { box: "-bottom-px -left-px", h: "bottom-0", v: "left-0" },
-    { box: "-bottom-px -right-px", h: "bottom-0", v: "right-0" },
-  ] as const;
-
-  return (
-    <>
-      {corners.map(({ box, h, v }) => (
-        <span
-          key={box}
-          aria-hidden
-          className={`pointer-events-none absolute size-3.5 ${box}`}
-        >
-          <span className={`${arm} h-px w-full ${h}`} />
-          <span className={`${arm} h-full w-px ${v}`} />
-        </span>
-      ))}
-    </>
-  );
-}
 
 export function TranslationHero() {
   return (
@@ -102,7 +77,7 @@ export function TranslationHero() {
           <p className="mt-4 text-[0.71875rem] text-faint">
             Apple&apos;s FY2025 balance sheet, exactly as tagged.
           </p>
-          <Marks />
+          <CornerBrackets />
         </figure>
 
         <div aria-hidden className="flex items-center justify-center text-accent">
@@ -130,7 +105,7 @@ export function TranslationHero() {
             See the full analysis
             <ArrowRight aria-hidden className="size-3.5" strokeWidth={1.5} />
           </Link>
-          <Marks />
+          <CornerBrackets />
         </figure>
       </div>
     </section>
