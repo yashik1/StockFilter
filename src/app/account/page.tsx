@@ -8,6 +8,9 @@ import { getEntitlement } from "@/lib/billing/entitlement";
 import { accountIsEnough } from "@/lib/billing/access-mode";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { auth } from "@/lib/auth";
+import { DigestToggle } from "@/components/digest-toggle";
+import { getDigestPreference } from "@/lib/digest/actions";
+import { listWatchlist } from "@/lib/watchlist/actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your account", robots: { index: false } };
@@ -33,7 +36,11 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   if (!session?.user) redirect("/signin?next=/account");
 
   const params = await searchParams;
-  const entitlement = await getEntitlement();
+  const [entitlement, digest, saved] = await Promise.all([
+    getEntitlement(),
+    getDigestPreference(),
+    listWatchlist(),
+  ]);
   const justPaid = params.checkout === "done";
 
   return (
@@ -105,6 +112,41 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
           ) : (
             <BillingButton endpoint="checkout" label="Subscribe" />
           )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Saved companies and email"
+          subtitle="What follows you between devices, and what lands in your inbox"
+        />
+        <div className="space-y-4 p-5">
+          <p className="text-sm leading-relaxed text-muted">
+            {saved.length === 0 ? (
+              <>
+                You have not saved any companies yet. The save button on any company page
+                keeps it on your account, so the list is there on every device you sign in
+                from.
+              </>
+            ) : (
+              <>
+                You have {saved.length === 1 ? "1 company" : `${saved.length} companies`}{" "}
+                saved to your account:{" "}
+                <span className="font-medium text-foreground">
+                  {saved.slice(0, 12).map((s) => s.symbol).join(", ")}
+                  {saved.length > 12 && ` and ${saved.length - 12} more`}
+                </span>
+                .
+              </>
+            )}
+          </p>
+
+          <div className="border-t border-border pt-4">
+            <DigestToggle
+              initialEnabled={digest.enabled}
+              emailConfigured={digest.emailConfigured}
+            />
+          </div>
         </div>
       </Card>
 

@@ -39,6 +39,38 @@ const RANGES: { label: string; days: RangeDays; timeframe: Timeframe }[] = [
 interface Series {
   symbol: string;
   bars: Bar[];
+  /**
+   * Whether this series' closes already have dividends reinvested.
+   *
+   * Null when the provider did not say. Carried per symbol rather than per
+   * chart because failover picks a provider independently for each one, which
+   * is precisely how a comparison ends up with one total-return line and one
+   * price-only line on the same axis.
+   */
+  includesDividends: boolean | null;
+}
+
+/**
+ * What basis a set of lines is drawn on, and whether they agree.
+ *
+ * The mixed case is the one that matters. Rebasing a total-return series
+ * against a price-only one and reading the gap as relative performance
+ * credits one holding with a dividend stream the other also paid but never
+ * showed — on SPY since 2020 that is roughly 27 percentage points. The
+ * backtester guards against this already; this chart could not, because the
+ * flag never left the API route.
+ */
+type Basis = "total-return" | "price-only" | "mixed" | "unknown";
+
+function basisOf(series: Series[]): Basis {
+  const known = series
+    .map((s) => s.includesDividends)
+    .filter((v): v is boolean => v !== null);
+
+  if (known.length === 0 || known.length !== series.length) return "unknown";
+  if (known.every((v) => v)) return "total-return";
+  if (known.every((v) => !v)) return "price-only";
+  return "mixed";
 }
 
 /**
@@ -147,7 +179,12 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
             // Surface any reported failure, not just a missing key — an invalid
             // key or an exhausted quota otherwise looks like "no data exists".
             if (json.error) throw new Error(json.message ?? json.error);
-            return { symbol, bars: (json.bars ?? []) as Bar[] };
+            return {
+              symbol,
+              bars: (json.bars ?? []) as Bar[],
+              includesDividends:
+                typeof json.includesDividends === "boolean" ? json.includesDividends : null,
+            };
           }),
         );
 
@@ -329,12 +366,50 @@ export function CompareChart({ symbols }: { symbols: string[] }) {
         )}
       </div>
 
-      {status === "ready" && (
-        <p className="text-xs text-muted">
-          Each line shows percentage change from the start of the window, so symbols with
-          very different share prices can be compared directly.
-        </p>
-      )}
+      {status === "ready" && <BasisNote basis={basisOf(series)} />}
     </div>
+  );
+}
+
+/**
+ * What the lines actually measure, said plainly under the chart.
+ *
+ * Not a footnote for completeness. "Did this beat the index" has a different
+ * answer depending on whether dividends are counted, and for an income stock
+ * against a broad index the difference is most of the gap — so a reader who
+ * is not told which they are looking at has been given a number they cannot
+ * interpret.
+ */
+function BasisNote({ basis }: { basis: Basis }) {
+  const shared =
+    "Each line shows percentage change from the start of the window, so symbols with " +
+    "very different share prices can be compared directly.";
+
+  if (basis === "mixed") {
+    return (
+      <div className="border border-fair px-3.5 py-2.5">
+        <p className="text-xs font-semibold">These lines are not on the same basis</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted">
+          One of these price histories already has dividends reinvested and another does
+          not, because they were answered by different data providers. The gap between
+          them therefore includes a dividend stream rather than only performance, so read
+          the comparison with that in mind. {shared}
+        </p>
+      </div>
+    );
+  }
+
+  const suffix =
+    basis === "total-return"
+      ? " Dividends are reinvested in every line, so this is total return."
+      : basis === "price-only"
+        ? " Share price only — dividends paid over the window are not counted, which understates income-paying holdings."
+        : " Whether dividends are included was not reported by the data provider.";
+
+  return (
+    <p className="text-xs leading-relaxed text-muted">
+      {shared}
+      {suffix}
+    </p>
   );
 }

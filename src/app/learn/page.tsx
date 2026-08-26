@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui";
+import { faqLd } from "@/lib/structured-data";
+import { StructuredData } from "@/components/structured-data";
 
 export const metadata: Metadata = {
   title: "Learn — what the numbers actually mean",
@@ -127,6 +129,22 @@ export default function LearnPage() {
       entire job is being read.
     */
     <div className="mx-auto w-full max-w-3xl space-y-6">
+      {/*
+        The glossary restated as questions.
+
+        Every entry below is already a term with a plain-English answer, so
+        this markup says what the page says — the line between structured
+        data and cloaking is that a crawler and a reader get the same thing.
+      */}
+      <StructuredData
+        data={faqLd(
+          [...BASICS, ...RATIOS, ...SCORES].map((e) => ({
+            question: `What is ${e.term}?`,
+            answer: `${e.short} ${e.detail}`,
+          })),
+        )}
+      />
+
       <header className="pt-1">
         <p className="eyebrow">Reference</p>
         <h1 className="font-display mt-2 text-[2.75rem] leading-none">What the numbers mean</h1>

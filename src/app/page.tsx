@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { TranslationHero } from "@/components/translation-hero";
-import { WatchlistPanel } from "@/components/watchlist";
+import { WatchlistPanel, WatchlistSync } from "@/components/watchlist";
 import { MarketOverview, MarketSetupHint } from "@/components/market-overview";
 import { getMarketSnapshot, hasMarketData } from "@/lib/market";
 import { getIndexStrip, type IndexReading } from "@/lib/indices";
@@ -10,6 +10,10 @@ import { money, num, percent, signedPercent } from "@/lib/format";
 import { providerStatus } from "@/lib/providers";
 import type { Rating } from "@/lib/scoring/types";
 import { getHealthiest, getUniverseCount } from "@/lib/screener";
+import { websiteLd } from "@/lib/structured-data";
+import { StructuredData } from "@/components/structured-data";
+import { auth } from "@/lib/auth";
+import { listWatchlist } from "@/lib/watchlist/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +25,23 @@ function healthRating(score: number | null): Rating {
 }
 
 export default async function HomePage() {
-  const [healthiest, universeCount, market, indices] = await Promise.all([
+  const [healthiest, universeCount, market, indices, session, saved] = await Promise.all([
     getHealthiest(6),
     getUniverseCount(),
     getMarketSnapshot(5),
     getIndexStrip(),
+    auth().catch(() => null),
+    // Returns an empty list when signed out, so this costs nothing for a
+    // visitor and does not need a branch here.
+    listWatchlist(),
   ]);
   const status = providerStatus();
+  const signedIn = Boolean(session?.user?.id);
 
   return (
     <div>
+      <StructuredData data={websiteLd()} />
+
       <TranslationHero />
 
       <IndexStrip readings={indices} universeCount={universeCount} asOf={market.asOf} />
@@ -42,7 +53,12 @@ export default async function HomePage() {
           universeCount != null && universeCount > 0 && <MarketSetupHint />
         )}
 
-        <WatchlistPanel />
+        {/* The merge runs once, here, because the dashboard is where somebody
+            lands after signing in — and it must happen before the panel below
+            is read, or a freshly-merged company appears only on the next
+            visit. */}
+        <WatchlistSync signedIn={signedIn} />
+        <WatchlistPanel signedIn={signedIn} saved={saved} />
 
         <section aria-labelledby="healthiest-heading">
           <div className="mb-[18px] flex items-end justify-between gap-5">

@@ -22,6 +22,15 @@ import { cikForSymbol } from "@/lib/providers/sec-edgar";
 import { ASSET_CLASS_LABEL, classify, findInstrument } from "@/lib/instruments";
 import { NotACompany } from "@/components/stock/not-a-company";
 import { EarlySignals } from "@/components/stock/early-signals";
+import { displayName } from "@/lib/company-name";
+import { breadcrumbLd, corporationLd } from "@/lib/structured-data";
+import { StructuredData } from "@/components/structured-data";
+import { buildWarnings } from "@/lib/scoring/warnings";
+import { buildDividendReport } from "@/lib/scoring/dividends";
+import { WarningSigns } from "@/components/stock/warning-signs";
+import { Dividends } from "@/components/stock/dividends";
+import { auth } from "@/lib/auth";
+import { listWatchlist } from "@/lib/watchlist/actions";
 
 export const revalidate = 900;
 
@@ -50,18 +59,41 @@ export async function generateMetadata({
   // offers. "Is gold profitable, growing, or carrying too much debt" is not a
   // question anybody asked, and it is the description search engines would show.
   const instrument = findInstrument(upper);
+
+  /*
+    The name leads, the ticker follows.
+
+    This page used to be titled "AAPL — financial health in plain English",
+    because the metadata is generated before any company data is fetched. But
+    a ticker is an identifier and a name is the subject: somebody looking for
+    this page searches "Apple", and shares a link whose preview should say
+    what it is about. displayName resolves it without a new round trip — see
+    src/lib/company-name.ts for why that constraint shapes the whole helper.
+  */
+  const name = instrument ? instrument.name : await displayName(upper);
+  const subject = name ? `${name} (${upper})` : upper;
+  const shortSubject = name ?? upper;
+
   const title = instrument
-    ? `${instrument.name} (${upper}) — price history and backtesting`
-    : `${upper} — financial health in plain English`;
+    ? `${subject} — price history and backtesting`
+    : `${subject} — financial health in plain English`;
   const description = instrument
-    ? `Live price, long-run history and backtesting for ${instrument.name}. It files no accounts, so the company health scores do not apply.`
-    : `Is ${upper} profitable, growing, or carrying too much debt? Plain-English answers from its regulatory filings.`;
+    ? `Live price, long-run history and backtesting for ${shortSubject}. It files no accounts, so the company health scores do not apply.`
+    : `Is ${shortSubject} profitable, growing, or carrying too much debt? Plain-English answers, taken straight from its regulatory filings.`;
 
   return {
     title,
     description,
-    openGraph: { title: `${title} · StockFilter`, description, type: "article" },
-    twitter: { card: "summary", title: `${title} · StockFilter`, description },
+    // Canonical, so the same company reached through a differently-cased or
+    // query-decorated URL is not read as several competing pages.
+    alternates: { canonical: `/stock/${encodeURIComponent(upper)}` },
+    openGraph: {
+      title: `${title} · StockFilter`,
+      description,
+      type: "article",
+      url: `/stock/${encodeURIComponent(upper)}`,
+    },
+    twitter: { card: "summary_large_image", title: `${title} · StockFilter`, description },
   };
 }
 
@@ -128,7 +160,13 @@ async function StockBody({
   symbol: string;
   unsupported: UnsupportedSymbol | null;
 }) {
-  const data = await getStockPageData(upper);
+  const [data, session, saved] = await Promise.all([
+    getStockPageData(upper),
+    auth().catch(() => null),
+    listWatchlist(),
+  ]);
+  const signedIn = Boolean(session?.user?.id);
+  const alreadySaved = saved.some((s) => s.symbol === upper);
 
   // The coverage explainer is a last resort, for when there is genuinely
   // nothing to show. Absence from EDGAR alone is not that: a US-listed fund is
@@ -167,6 +205,31 @@ async function StockBody({
   const highlights =
     fundamentals && report ? buildHighlights(fundamentals, report, sector, currency) : null;
 
+  /*
+    Two additions that answer questions the five did not.
+
+    Warnings compose signals already computed further down the page into one
+    block near the top, for the reader who arrived with a ticker from a video
+    and will not scroll. Dividends answer "does it pay me, and can it afford
+    to" — deliberately outside the health score, for the reason set out in
+    src/lib/scoring/dividends.ts.
+  */
+  const warnings = filesAccounts
+    ? buildWarnings({
+        report,
+        filings: data.filings,
+        insider: data.earlySignals.insider,
+        currency,
+      })
+    : [];
+
+  const dividends =
+    fundamentals && data.assetClass === "equity"
+      ? buildDividendReport(fundamentals, profile?.sicCode)
+      : null;
+  const nextDividend =
+    data.earlySignals.upcoming.find((e) => e.kind === "dividend") ?? null;
+
   const trends: TrendSeries[] = [
     { key: "revenue", label: "Revenue", data: yearlySeries(fundamentals, "revenue"), format: "money", kind: "bar" },
     { key: "netIncome", label: "Profit", data: yearlySeries(fundamentals, "netIncome"), format: "money", kind: "bar" },
@@ -176,8 +239,39 @@ async function StockBody({
     { key: "equity", label: "Shareholder equity", data: yearlySeries(fundamentals, "equity"), format: "money", kind: "line" },
   ];
 
+  const companyName =
+    profile?.name ?? unsupported?.name ?? fundamentals?.entityName ?? upper;
+
   return (
     <div className="space-y-5">
+      {/*
+        Structured data, so a search result can say this page is about a
+        corporation with a ticker rather than leaving a crawler to infer it
+        from the prose. Emitted only for things that actually are companies —
+        marking Bitcoin up as a Corporation would be a lie in a machine-readable
+        format, which is the worst place to tell one.
+      */}
+      <StructuredData
+        data={[
+          ...(filesAccounts
+            ? [
+                corporationLd({
+                  symbol: upper,
+                  name: companyName,
+                  exchange: profile?.exchange,
+                  website: profile?.website,
+                  cik: profile?.cik,
+                  industry: profile?.industry,
+                }),
+              ]
+            : []),
+          breadcrumbLd([
+            { name: "StockFilter", path: "/" },
+            { name: companyName, path: `/stock/${encodeURIComponent(upper)}` },
+          ]),
+        ]}
+      />
+
       {/*
         The head answers "what am I looking at, and what is it worth" before
         anything else on the page.
@@ -255,6 +349,8 @@ async function StockBody({
           <WatchButton
             symbol={upper}
             name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
+            signedIn={signedIn}
+            initialSaved={alreadySaved}
           />
         </div>
       </header>
@@ -265,6 +361,8 @@ async function StockBody({
       />
 
       {business && <WhatItDoes summary={business} />}
+
+      <WarningSigns warnings={warnings} />
 
       {/* ---- verdict ---- */}
       {report ? (
@@ -347,6 +445,15 @@ async function StockBody({
             </div>
           </div>
         </section>
+      )}
+
+      {/* ---- what it pays out ---- */}
+      {dividends && (
+        <Dividends
+          report={dividends}
+          currency={currency}
+          nextExpected={dividends.paysDividend ? nextDividend : null}
+        />
       )}
 
       {/* ---- balance sheet + trends ---- */}

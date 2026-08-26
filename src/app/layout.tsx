@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth";
 import { AccountMenu } from "@/components/auth/account-menu";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * Three faces, each with one job.
@@ -58,6 +59,15 @@ const DESCRIPTION =
   "Plain-English answers, sourced directly from regulatory filings.";
 
 export const metadata: Metadata = {
+  /*
+    Required for share cards to work at all.
+
+    Open Graph images must be absolute URLs; without a metadataBase Next
+    emits them relative, and every social crawler drops a relative og:image
+    silently. Taken from configuration rather than the request Host — see
+    src/lib/site-url.ts.
+  */
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "StockFilter — Company financials in plain English",
     template: "%s · StockFilter",

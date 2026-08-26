@@ -6,6 +6,7 @@ import { getDb, isDatabaseConfigured } from "../db";
 import { passwordResetTokens, users } from "../db/schema";
 import { sendEmail } from "../email";
 import { describePasswordProblem, hashPassword } from "./password";
+import { siteUrl } from "../site-url";
 
 /**
  * Sign-up and password-reset, as server actions.
@@ -118,8 +119,7 @@ export async function requestPasswordReset(
     expires: new Date(Date.now() + RESET_TTL_MS),
   });
 
-  const base = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const link = `${base.replace(/\/$/, "")}/reset-password?token=${token}`;
+  const link = `${siteUrl()}/reset-password?token=${token}`;
 
   await sendEmail({
     to: email,

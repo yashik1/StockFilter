@@ -15,11 +15,11 @@ import postgres from "postgres";
 
 /**
  * Every table the app expects to exist once all migrations have run: the five
- * original market-data tables plus the accounts, billing and journal tables.
- * Counted after the fact so a half-applied migration is reported rather than
- * discovered later by a page failing.
+ * original market-data tables, the accounts, billing and journal tables, and
+ * the saved-companies list. Counted after the fact so a half-applied migration
+ * is reported rather than discovered later by a page failing.
  */
-const EXPECTED_TABLES = 12;
+const EXPECTED_TABLES = 13;
 
 /** Postgres error codes we treat as "already done" rather than failures. */
 const ALREADY_EXISTS = new Set([

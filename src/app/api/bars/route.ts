@@ -55,9 +55,26 @@ export async function GET(request: Request) {
   const from = new Date(to.getTime() - days * 86_400_000);
 
   try {
-    const { bars, source } = await getBarsWithSource(symbol, timeframe, from, to);
+    const { bars, source, includesDividends } = await getBarsWithSource(
+      symbol,
+      timeframe,
+      from,
+      to,
+    );
+    /*
+      `includesDividends` is reported, not merely known.
+
+      Which provider answered decides whether a close is a price or a total
+      return, and failover means that is not fixed per symbol. Tiingo returns
+      adjClose — dividends reinvested — while Yahoo and Twelve Data return
+      price only. Rebasing one of each onto the same axis and calling the gap
+      "relative performance" attributes a dividend stream to skill: on SPY
+      since 2020 that is about 27 points of difference. The backtester already
+      accounts for this (see the comment in src/lib/backtest/run.ts); the
+      charts could not, because the flag stopped here.
+    */
     return NextResponse.json(
-      { bars, timeframe, symbol, source },
+      { bars, timeframe, symbol, source, includesDividends },
       {
         headers: {
           "Cache-Control": `public, s-maxage=${timeframe === "1Min" ? 60 : 300}, stale-while-revalidate=600`,
@@ -69,7 +86,7 @@ export async function GET(request: Request) {
     // Returned with HTTP 200 so the client renders the explanation instead of
     // a generic network failure. `error` marks it as unsuccessful.
     return NextResponse.json(
-      { bars: [], error: "provider-error", message, symbol, timeframe },
+      { bars: [], error: "provider-error", message, symbol, timeframe, includesDividends: null },
       { status: 200 },
     );
   }
