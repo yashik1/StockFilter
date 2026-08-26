@@ -148,7 +148,7 @@ export function SearchBox({
           aria-label="Search for a company or ticker"
           autoFocus={autoFocus}
           value={query}
-          placeholder="Search a company or ticker…"
+          placeholder={hero ? "Search a company or ticker…" : "Company or ticker"}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);

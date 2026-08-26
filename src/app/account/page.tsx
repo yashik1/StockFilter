@@ -8,6 +8,7 @@ import { getEntitlement } from "@/lib/billing/entitlement";
 import { accountIsEnough } from "@/lib/billing/access-mode";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { auth } from "@/lib/auth";
+import { SignOutButton } from "@/components/auth/account-menu";
 import { DigestToggle } from "@/components/digest-toggle";
 import { getDigestPreference } from "@/lib/digest/actions";
 import { listWatchlist } from "@/lib/watchlist/actions";
@@ -147,6 +148,27 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
               emailConfigured={digest.emailConfigured}
             />
           </div>
+        </div>
+      </Card>
+
+      {/*
+        Signing out sits here rather than in the header.
+
+        It was a permanent button in the narrowest part of the bar, spending
+        about seventy pixels on the one action nobody takes regularly — and
+        taking them from the search box beside it. This is the page somebody
+        opens to deal with their account, so it is where the way out of one
+        belongs.
+      */}
+      <Card className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Signed in</h2>
+            <p className="mt-0.5 text-xs break-words text-muted">
+              As {session.user.name?.trim() || session.user.email} on this device.
+            </p>
+          </div>
+          <SignOutButton />
         </div>
       </Card>
 
