@@ -16,20 +16,59 @@ import type { Rating } from "@/lib/scoring/types";
  * at any zoom. Quiet by default; on a card you can click, the brackets pick up
  * the accent with the border so the whole frame answers as one object.
  */
-function Corner({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
+function Corner({ pos, hover = true }: { pos: "tl" | "tr" | "bl" | "br"; hover?: boolean }) {
   const box = {
     tl: "-top-px -left-px",
     tr: "-top-px -right-px",
     bl: "-bottom-px -left-px",
     br: "-bottom-px -right-px",
   }[pos];
-  const arm = "absolute bg-border-strong transition-colors group-hover:bg-accent";
+  const arm = cn(
+    "absolute bg-border-strong",
+    hover && "transition-colors group-hover:bg-accent",
+  );
 
+  /*
+    Both arms are pinned on both axes, and the horizontal one needs `left-0`
+    as much as the vertical one needs `left-0`/`right-0`.
+
+    An absolutely positioned box given no horizontal inset falls back to its
+    static position — where it would have sat in the flow — and that depends
+    on the parent's `text-align`. Every frame in the app is a div, where the
+    default `start` puts the static position at the left edge and the arm
+    lands correctly by accident. Put the same markup inside a <button>, which
+    centres its content, and the static position moves to the middle of the
+    14px box: the arm shifts 7px right and its end pokes 8px past the frame it
+    is supposed to finish. That was visible on the hero's Analyse button as a
+    broken vertical line floating beside it.
+  */
   return (
     <span aria-hidden className={cn("pointer-events-none absolute size-3.5", box)}>
-      <span className={cn(arm, "h-px w-full", pos.startsWith("t") ? "top-0" : "bottom-0")} />
-      <span className={cn(arm, "h-full w-px", pos.endsWith("l") ? "left-0" : "right-0")} />
+      <span className={cn(arm, "left-0 h-px w-full", pos.startsWith("t") ? "top-0" : "bottom-0")} />
+      <span className={cn(arm, "top-0 h-full w-px", pos.endsWith("l") ? "left-0" : "right-0")} />
     </span>
+  );
+}
+
+/**
+ * The four brackets, for a framed object that is not a Card.
+ *
+ * Exported so the hero's figures and its submit button stop hand-rolling
+ * their own copies. Three near-identical copies of this markup is how one of
+ * them ended up with a positioning bug the other two did not have, and the
+ * whole point of the frame is that it is identical everywhere.
+ *
+ * `hover` is off by default: the accent pickup belongs to a Card you can
+ * click, and on a solid button it would fight the fill rather than answer it.
+ */
+export function CornerBrackets({ hover = false }: { hover?: boolean }) {
+  return (
+    <>
+      <Corner pos="tl" hover={hover} />
+      <Corner pos="tr" hover={hover} />
+      <Corner pos="bl" hover={hover} />
+      <Corner pos="br" hover={hover} />
+    </>
   );
 }
 

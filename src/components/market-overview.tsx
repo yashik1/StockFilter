@@ -35,7 +35,7 @@ export function MarketOverview({ snapshot }: { snapshot: MarketSnapshot }) {
         }
       />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-5">
         <MoverList
           id="market-heading"
           title="Biggest risers"

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SetupNotice } from "@/components/setup-notice";
 import { Badge, Card, EmptyState, MeterBar, NotReported, RatingBadge } from "@/components/ui";
-import { money, multiple, percent } from "@/lib/format";
+import { money, multiple, percent, price as fmtPrice, signedPercent } from "@/lib/format";
 import type { Rating } from "@/lib/scoring/types";
 import {
   PRESETS,
@@ -88,7 +88,7 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
         <h2 id="presets-heading" className="sr-only">
           Quick screens
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(Object.keys(PRESETS) as PresetKey[]).map((key) => {
             const active = filters.preset === key;
             return (
@@ -229,7 +229,21 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
               // that were never the problem.
               <EmptyState
                 title="This screen needs price data"
-                description={`"${filters.preset ? PRESETS[filters.preset].label : "This screen"}" needs ${result.missingData.needs}. No company in the database has that yet, because no price source was configured when the data was loaded. Add a free TWELVEDATA_API_KEY or FINNHUB_API_KEY, then run the ingest again — every other screen works without it.`}
+                /*
+                  Says what is missing, not why.
+
+                  This used to assert the cause — "no price source was
+                  configured when the data was loaded" — and send the reader
+                  off to add an API key. On the live deployment that diagnosis
+                  was simply wrong: price sources were configured and working,
+                  and the dashboard was showing current prices for the same
+                  companies. The column was empty because the market-cap lookup
+                  reached past the provider failover chain to two named
+                  providers, one of which had a rejected key and one of which
+                  was rate-limited. A confidently wrong explanation is worse
+                  than none, because it costs somebody an afternoon.
+                */
+                description={`"${filters.preset ? PRESETS[filters.preset].label : "This screen"}" needs ${result.missingData.needs}, and no company in the database has it yet. Prices are stored by a separate refresh from the one that reads the filings, so this screen fills in once that has run — every other screen works meanwhile.`}
                 action={
                   <Link
                     href="/screen?preset=healthy"
@@ -264,11 +278,14 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
 function ResultsTable({ rows }: { rows: ScreenRow[] }) {
   return (
     <div className="scroll-x">
-      <table className="w-full min-w-[52rem] text-sm">
+      <table className="w-full min-w-[58rem] text-sm">
         <thead>
           <tr className="border-b border-border bg-surface-2/50 text-left text-xs text-muted">
             <th scope="col" className="px-5 py-2.5 font-medium">Company</th>
             <th scope="col" className="px-3 py-2 font-medium">Health</th>
+            {/* Price sits before the figures derived from it, so a reader can
+                see what the market value and the P/E were computed against. */}
+            <th scope="col" className="px-3 py-2 text-right font-medium">Price</th>
             <th scope="col" className="px-3 py-2 text-right font-medium">Market value</th>
             <th scope="col" className="px-3 py-2 text-right font-medium">P/E</th>
             <th scope="col" className="px-3 py-2 text-right font-medium">Growth</th>
@@ -307,6 +324,24 @@ function ResultsTable({ rows }: { rows: ScreenRow[] }) {
                     label={`Health ${r.healthScore ?? "unknown"} out of 10`}
                   />
                 </div>
+              </td>
+              <td className="tnum px-3 py-3 text-right">
+                {r.price != null ? (
+                  <>
+                    <span className="block">{fmtPrice(r.price)}</span>
+                    {r.changePercent != null && (
+                      <span
+                        className={`block text-xs ${
+                          r.changePercent >= 0 ? "text-up" : "text-down"
+                        }`}
+                      >
+                        {signedPercent(r.changePercent)}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <NotReported />
+                )}
               </td>
               <td className="tnum px-3 py-3 text-right">{money(r.marketCap)}</td>
               <td className="tnum px-3 py-3 text-right">{multiple(r.peRatio)}</td>

@@ -191,7 +191,7 @@ export function QuestionCard({ question }: { question: Question }) {
         </div>
       </div>
 
-      <dl className="mt-auto grid gap-x-4 gap-y-3 border-t border-border bg-surface-2/40 px-5 py-3.5 sm:grid-cols-3">
+      <dl className="mt-auto grid grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-3 border-t border-border bg-surface-2/40 px-5 py-3.5 sm:grid-cols-3">
         {question.metrics.map((m) => (
           <Metric key={m.label} label={m.label} value={m.value} hint={m.hint} size="sm" />
         ))}

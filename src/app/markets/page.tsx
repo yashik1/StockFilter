@@ -120,7 +120,7 @@ export default async function MarketsPage() {
         <p className="eyebrow">Where things stand</p>
         <h2 className="font-display mt-1.5 mb-[18px] text-[1.875rem]">Today</h2>
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] gap-5">
           {headline.map(({ symbol, quote, closes }) => {
             const instrument = findInstrument(symbol);
             const change = quote?.changePercent ?? null;
@@ -214,7 +214,7 @@ function AssetSection({
       {groups.map((group) => (
         <Card key={group.category}>
           <CardHeader title={group.category} subtitle={`${group.items.length} listed`} />
-          <ul className="grid gap-px border-t border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-px border-t border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
             {group.items.map((item) => (
               <li key={item.symbol}>
                 <Link

@@ -434,8 +434,8 @@ async function StockBody({
             title="The five questions that matter"
             description="Each answered from the filings, with the numbers behind it."
           />
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2">
               {report.questions.map((q) => (
                 <QuestionCard key={q.key} question={q} />
               ))}
@@ -457,7 +457,7 @@ async function StockBody({
       )}
 
       {/* ---- balance sheet + trends ---- */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
         {fundamentals && (
           <BalanceSheetVisual fundamentals={fundamentals} sector={sector} currency={currency} />
         )}
@@ -497,7 +497,7 @@ async function StockBody({
             : "There are no filings to trace back to, but the market still gets written about."
         }
       />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
         {filesAccounts && <FilingsList filings={data.filings} />}
         <div className="space-y-4">
           <NewsList
