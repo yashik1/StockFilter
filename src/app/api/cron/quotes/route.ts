@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { isDatabaseConfigured } from "@/lib/db";
-import { refreshQuotes } from "@/lib/ingest";
-import { getUniverse } from "@/lib/universe";
+import { getStaleQuoteSymbols, refreshQuotes } from "@/lib/ingest";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +28,20 @@ export async function GET(request: Request) {
     Number.isFinite(requested) && requested > 0 ? Math.min(requested, 1000) : DEFAULT_BATCH;
 
   try {
-    const result = await refreshQuotes(getUniverse().slice(0, batch));
+    /*
+      The stalest quotes, not the first N of the universe.
+
+      Slicing the universe took the same 120 symbols on every call, so a
+      scheduled run refreshed those and left the rest frozen — and since the
+      movers list ranks across every company, whichever stale rows happened to
+      hold the largest old moves stayed pinned to the top of "biggest risers"
+      indefinitely.
+    */
+    const symbols = await getStaleQuoteSymbols(batch);
+    const result = await refreshQuotes(symbols);
     return NextResponse.json({
       ok: true,
+      requested: symbols.length,
       updated: result.updated,
       failed: result.failed,
       errors: result.errors.slice(0, 5),

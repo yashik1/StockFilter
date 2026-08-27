@@ -13,8 +13,31 @@ import type { MarketSnapshot, Mover, SectorPerformance } from "@/lib/market";
  * rather than live, which the timestamp states outright instead of implying
  * real time.
  */
+/**
+ * How old a quote can be before "how things moved" stops being true.
+ *
+ * Three days rather than one, so a Monday morning reading Friday's close is
+ * not flagged as broken — that is the normal state over a weekend.
+ */
+const STALE_AFTER_DAYS = 3;
+
 export function MarketOverview({ snapshot }: { snapshot: MarketSnapshot }) {
-  const { gainers, losers, sectors, asOf, covered } = snapshot;
+  const { gainers, losers, sectors, asOf, covered, ageDays } = snapshot;
+
+  /*
+    Says so when the numbers are old, rather than leaving the timestamp to
+    carry it alone.
+
+    These lists were stuck on the same five risers for eleven days because
+    nothing was scheduled to refresh the stored quotes, and the only signal
+    was a date in the sub-heading that reads as decoration. A heading that
+    says "biggest risers" is a claim about today; when it is not, the page
+    should say which day it is a claim about.
+
+    The age arrives on the snapshot rather than being read from the clock
+    here — see MarketSnapshot for why.
+  */
+  const stale = ageDays != null && ageDays > STALE_AFTER_DAYS;
 
   return (
     <section aria-labelledby="market-heading">
@@ -34,6 +57,13 @@ export function MarketOverview({ snapshot }: { snapshot: MarketSnapshot }) {
           )
         }
       />
+
+      {stale && (
+        <p className="mb-4 border border-fair px-3.5 py-2.5 text-sm leading-relaxed text-muted-strong">
+          These prices are {Math.floor(ageDays!)} days old, so this is how things moved on
+          that day rather than today. The scheduled refresh has not run since then.
+        </p>
+      )}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-5">
         <MoverList
@@ -141,7 +171,20 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
             const width = (Math.abs(s.averageChange) / widest) * 50;
 
             return (
-              <li key={s.sector} className="px-4 py-2">
+              /*
+                The whole row is the link, not just the name.
+
+                A sector row states a fact and then offered nothing to do with
+                it — the obvious next question is "which companies", and the
+                screener can already answer it now that it filters on the same
+                familiar sector names this heatmap groups by.
+              */
+              <li key={s.sector}>
+                <Link
+                  href={`/screen?sector=${encodeURIComponent(s.sector)}&sort=market-cap`}
+                  className="block px-4 py-2 transition-colors hover:bg-surface-2"
+                  aria-label={`See the ${s.companyCount} companies in ${s.sector}`}
+                >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-[0.78125rem]">{s.sector}</span>
                   <span
@@ -157,8 +200,7 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
                     readable without relying on colour. */}
                 <div
                   className="relative mt-1.5 h-1.5 w-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)]"
-                  role="img"
-                  aria-label={`${s.sector}: ${signedPercent(s.averageChange)} across ${s.companyCount} companies`}
+                  aria-hidden
                 >
                   <span
                     aria-hidden
@@ -179,6 +221,7 @@ function SectorHeatmap({ sectors }: { sectors: SectorPerformance[] }) {
                   {s.companyCount} companies
                   {s.leader && ` · largest ${s.leader}`}
                 </p>
+                </Link>
               </li>
             );
           })}
