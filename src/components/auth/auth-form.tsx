@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/lib/auth/actions";
 
@@ -92,10 +92,16 @@ export function SubmitButton({ label, pending }: { label: string; pending: boole
 /**
  * A form driven by one of the auth server actions.
  *
- * The result message is rendered exactly as the action returned it, with no
- * branch that adds detail — those messages are deliberately vague about
- * whether an account exists, and a helpful-looking addition here would undo
- * that.
+ * The message is rendered exactly as the action returned it, with no branch
+ * here that adds detail. Some of those messages are deliberately identical
+ * for outcomes a visitor should not be able to tell apart — the reset form
+ * answers the same way for a known and an unknown address — and a
+ * helpful-looking addition at this layer would undo that in every form at
+ * once.
+ *
+ * Suggested usernames are the one exception, and they are passed through
+ * rather than composed: the action decides whether there are any, and this
+ * only decides how a list of them looks.
  */
 export function ActionForm({
   action,
@@ -106,15 +112,81 @@ export function ActionForm({
   submitLabel: string;
   children: React.ReactNode;
 }) {
-  const [state, formAction, pending] = useActionState(action, null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const submitted = useRef<Record<string, string>>({});
+
+  /**
+   * Remembers what was typed, so a rejection does not also erase it.
+   *
+   * React resets a form automatically once its action resolves. That is the
+   * right default for a form that succeeded and the wrong one for a form that
+   * did not: being told a username is taken is only useful if the email and
+   * everything else are still there to submit again, and clicking a suggested
+   * username is no help at all if it lands in an otherwise empty form.
+   */
+  async function run(prev: ActionResult | null, formData: FormData) {
+    const snapshot: Record<string, string> = {};
+    for (const [key, value] of formData.entries()) {
+      // Passwords are deliberately not kept. Retyping one is a small cost;
+      // holding it in memory to re-inject into the DOM is not worth paying.
+      if (typeof value === "string" && key !== "password") snapshot[key] = value;
+    }
+    submitted.current = snapshot;
+    return action(prev, formData);
+  }
+
+  const [state, formAction, pending] = useActionState(run, null);
+
+  useEffect(() => {
+    // Only after a refusal — a successful sign-up should leave a clean form.
+    if (!state || state.ok) return;
+    const form = formRef.current;
+    if (!form) return;
+
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )?.set;
+
+    for (const [key, value] of Object.entries(submitted.current)) {
+      const field = form.elements.namedItem(key);
+      // Never clobber something typed since: only fields the reset emptied.
+      if (field instanceof HTMLInputElement && field.type !== "password" && !field.value) {
+        setter?.call(field, value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+  }, [state]);
+
+  /**
+   * Puts a suggestion into the username field.
+   *
+   * Written to the input rather than held in React state, because these forms
+   * are uncontrolled — every other field keeps its value in the DOM, and
+   * introducing state for this one alone would mean the two disagree after a
+   * failed submit. The native setter is used so React notices the change on a
+   * field it is not tracking.
+   */
+  function applySuggestion(value: string) {
+    const field = formRef.current?.elements.namedItem("name");
+    if (!(field instanceof HTMLInputElement)) return;
+
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(field, value);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+  }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} ref={formRef}>
       {children}
       <SubmitButton label={submitLabel} pending={pending} />
 
       {state && (
-        <p
+        <div
           role="status"
           className={cn(
             "mt-3 rounded-lg border px-3 py-2 text-xs leading-relaxed",
@@ -123,8 +195,24 @@ export function ActionForm({
               : "border-poor/30 bg-poor-soft text-poor-fg",
           )}
         >
-          {state.message}
-        </p>
+          <p>{state.message}</p>
+
+          {state.suggestions && state.suggestions.length > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {state.suggestions.map((suggestion) => (
+                <li key={suggestion}>
+                  <button
+                    type="button"
+                    onClick={() => applySuggestion(suggestion)}
+                    className="rounded border border-current/30 px-2 py-1 font-medium transition-colors hover:bg-current/10"
+                  >
+                    {suggestion}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </form>
   );

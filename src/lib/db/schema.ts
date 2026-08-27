@@ -11,6 +11,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Company universe. Populated by the ingest job from the seed list plus SEC
@@ -223,6 +224,15 @@ export const users = pgTable("users", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
+  /**
+   * The username, and the name shown in the header and on the account page.
+   *
+   * Optional, because it always was and nobody should lose access to an
+   * account for want of one — and because an OAuth provider may not supply
+   * it. Unique when present, compared without regard to case: see the index
+   * declared at the foot of this table, and src/lib/auth/username.ts for the
+   * same rule expressed in TypeScript.
+   */
   name: text("name"),
   email: text("email").notNull().unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
@@ -248,7 +258,24 @@ export const users = pgTable("users", {
    */
   digestLastSentAt: timestamp("digest_last_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  /*
+    One account per username, compared case-insensitively.
+
+    Partial and functional, which is why it is written as raw SQL rather than
+    a plain uniqueIndex on the column: `lower(name)` so "Yashik07" cannot sit
+    beside "yashik07", and `WHERE name IS NOT NULL` so the many accounts with
+    no username at all do not all collide with each other on NULL.
+
+    This index is the actual guarantee. The signup action checks first so it
+    can say something useful, but two people can submit the same username in
+    the same instant and both pass that check — only the database can settle
+    it, and the action is written to catch the violation it raises.
+  */
+  uniqueIndex("users_name_lower_idx")
+    .on(sql`lower(${t.name})`)
+    .where(sql`${t.name} IS NOT NULL`),
+]);
 
 export const accounts = pgTable(
   "accounts",

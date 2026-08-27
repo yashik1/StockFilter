@@ -6,7 +6,15 @@ import { getDb, isDatabaseConfigured } from "../db";
 import { passwordResetTokens, users } from "../db/schema";
 import { sendEmail } from "../email";
 import { describePasswordProblem, hashPassword } from "./password";
+import {
+  describeUsernameProblem,
+  isUsernameTaken,
+  normalizeUsername,
+  suggestUsernames,
+} from "./username";
 import { siteUrl } from "../site-url";
+import { revalidatePath } from "next/cache";
+import { auth } from "./index";
 
 /**
  * Sign-up and password-reset, as server actions.
@@ -21,8 +29,40 @@ import { siteUrl } from "../site-url";
 
 export interface ActionResult {
   ok: boolean;
-  /** Safe to show a visitor. Never says whether an address is registered. */
+  /** Safe to show a visitor. */
   message: string;
+  /**
+   * Free usernames close to the one that was refused.
+   *
+   * Only ever set when a username was taken — the form renders them as
+   * one-click choices, so an error that would otherwise be a dead end
+   * finishes the job instead.
+   */
+  suggestions?: string[];
+}
+
+/**
+ * The Postgres unique-violation constraint behind an error, if that is what
+ * it was.
+ *
+ * Drizzle wraps driver errors, so the code lives on `.cause` rather than on
+ * the error handed to the caller — the same chain-walking the screener does
+ * for its own error classification. Needed because the checks in `signUp`
+ * cannot be atomic with the insert: two people can submit the same username
+ * in the same instant, both pass the check, and only the database can settle
+ * which one gets it.
+ */
+function uniqueViolation(err: unknown): string | null {
+  let current: unknown = err;
+  const seen = new Set<unknown>();
+
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const e = current as { code?: string; constraint_name?: string; constraint?: string };
+    if (e.code === "23505") return e.constraint_name ?? e.constraint ?? "";
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
 }
 
 /** How long a reset link stays valid. Long enough to find the email, short enough to matter. */
@@ -42,10 +82,18 @@ function hashToken(token: string): string {
 export async function signUp(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   const email = normalizeEmail(form.get("email"));
   const password = typeof form.get("password") === "string" ? (form.get("password") as string) : "";
-  const name = typeof form.get("name") === "string" ? (form.get("name") as string).trim() : "";
+  const username = typeof form.get("name") === "string" ? (form.get("name") as string).trim() : "";
 
   if (!EMAIL_SHAPE.test(email)) {
     return { ok: false, message: "That does not look like an email address." };
+  }
+
+  // Shape before availability: telling somebody a username is taken when it
+  // was never allowed in the first place sends them looking for a different
+  // name instead of a shorter one.
+  if (username) {
+    const problem = describeUsernameProblem(username);
+    if (problem) return { ok: false, message: problem };
   }
 
   const problem = describePasswordProblem(password);
@@ -56,21 +104,35 @@ export async function signUp(_prev: ActionResult | null, form: FormData): Promis
   }
 
   const db = getDb();
-  const [existing] = await db
+
+  /*
+    The address is checked, and the answer is given plainly.
+
+    This reverses an earlier decision in this file, so it is worth writing
+    down. The original returned the success message for a taken address and
+    emailed the owner instead, so that the form could not be used to test
+    whether an address is registered here.
+
+    The cost was paid by the wrong person. Somebody who had simply forgotten
+    they had an account was told to check their email to finish setting one
+    up; no verification email exists to arrive, and the password they had
+    just chosen did not work — a dead end with no way to reason about it. The
+    address is also confirmable through this form either way, because a
+    duplicate signup cannot be allowed to succeed.
+
+    So the email to the owner stays, because it is genuinely useful to them,
+    and the person at the form is now told what happened. Note that
+    `requestPasswordReset` below is deliberately unchanged and still answers
+    identically for every address — that path has no such excuse, since it
+    can and does succeed silently for an unknown address.
+  */
+  const [existingEmail] = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
-  if (existing) {
-    /*
-      Deliberately the same message as a successful sign-up.
-
-      Saying "that email is taken" would turn this form into a way to find out
-      who has an account here. Instead the person who owns the address gets an
-      email telling them someone tried, which is useful to them and useless to
-      anyone fishing.
-    */
+  if (existingEmail) {
     await sendEmail({
       to: email,
       subject: "Someone tried to sign up with your email",
@@ -80,13 +142,70 @@ export async function signUp(_prev: ActionResult | null, form: FormData): Promis
         "If that was you, sign in instead — or use the forgot-password link if " +
         "you cannot remember it. If it was not you, you can safely ignore this.",
     });
-    return { ok: true, message: "Check your email to finish setting up your account." };
+    return {
+      ok: false,
+      message:
+        "That email already has an account. Sign in instead, or use the " +
+        "forgot-password link if you cannot remember the password.",
+    };
+  }
+
+  if (username && (await isUsernameTaken(username))) {
+    // Offered rather than merely refused: the reader wanted a username, and a
+    // rejection with nothing to act on just makes them guess again.
+    const suggestions = await suggestUsernames(username);
+    return {
+      ok: false,
+      message: suggestions.length
+        ? `"${username}" is taken. These are free:`
+        : `"${username}" is taken. Please choose another.`,
+      suggestions,
+    };
   }
 
   const passwordHash = await hashPassword(password);
-  await db.insert(users).values({ email, name: name || null, passwordHash });
 
-  return { ok: true, message: "Check your email to finish setting up your account." };
+  try {
+    await db.insert(users).values({ email, name: username || null, passwordHash });
+  } catch (err) {
+    /*
+      The gap between checking and inserting.
+
+      Both checks above can pass for two people at once, and the database
+      settles it by raising a unique violation on whichever lands second.
+      Reported as the same friendly refusal rather than as a crash, and told
+      apart by which index complained.
+    */
+    const constraint = uniqueViolation(err);
+    if (constraint === null) throw err;
+
+    if (constraint.includes("name")) {
+      const suggestions = await suggestUsernames(username).catch(() => []);
+      return {
+        ok: false,
+        message: suggestions.length
+          ? `"${username}" was taken a moment ago. These are free:`
+          : `"${username}" was just taken. Please choose another.`,
+        suggestions,
+      };
+    }
+    return {
+      ok: false,
+      message:
+        "That email already has an account. Sign in instead, or use the " +
+        "forgot-password link if you cannot remember the password.",
+    };
+  }
+
+  /*
+    Says the account exists, because it does.
+
+    This used to read "Check your email to finish setting up your account",
+    which described a verification step this app has never had — nothing is
+    sent on a successful sign-up, so the one instruction the message gave
+    could not be followed.
+  */
+  return { ok: true, message: "Account created. You can sign in now." };
 }
 
 export async function requestPasswordReset(
@@ -175,4 +294,87 @@ export async function resetPassword(
     .where(eq(passwordResetTokens.id, row.id));
 
   return { ok: true, message: "Your password has been changed. You can sign in now." };
+}
+
+/**
+ * Changing the username on an existing account.
+ *
+ * The counterpart to the check at sign-up, and not optional now that
+ * usernames are unique: the migration that introduced the constraint had to
+ * rename anybody who had been allowed to duplicate one, and leaving those
+ * people stuck with a generated suffix would be a change that fixed the
+ * database at the reader's expense.
+ *
+ * Same rules, same suggestions, same race handling — deliberately the same
+ * functions rather than a second implementation, so the two paths cannot
+ * come to different conclusions about what a username is.
+ */
+export async function changeUsername(
+  _prev: ActionResult | null,
+  form: FormData,
+): Promise<ActionResult> {
+  if (!isDatabaseConfigured()) {
+    return { ok: false, message: "Accounts are unavailable on this deployment." };
+  }
+
+  const session = await auth().catch(() => null);
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, message: "Sign in to change your username." };
+
+  const raw = typeof form.get("name") === "string" ? (form.get("name") as string).trim() : "";
+  const db = getDb();
+
+  // Clearing it is allowed: it was optional at sign-up and stays optional, and
+  // the header falls back to the address.
+  if (!raw) {
+    await db.update(users).set({ name: null }).where(eq(users.id, userId));
+    revalidatePath("/account");
+    return { ok: true, message: "Username removed." };
+  }
+
+  const problem = describeUsernameProblem(raw);
+  if (problem) return { ok: false, message: problem };
+
+  const [current] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  // Re-submitting the name you already have is not a clash with yourself.
+  if (current?.name && normalizeUsername(current.name) === normalizeUsername(raw)) {
+    if (current.name === raw) return { ok: true, message: "That is already your username." };
+  } else if (await isUsernameTaken(raw)) {
+    const suggestions = await suggestUsernames(raw);
+    return {
+      ok: false,
+      message: suggestions.length
+        ? `"${raw}" is taken. These are free:`
+        : `"${raw}" is taken. Please choose another.`,
+      suggestions,
+    };
+  }
+
+  try {
+    await db.update(users).set({ name: raw }).where(eq(users.id, userId));
+  } catch (err) {
+    if (uniqueViolation(err) === null) throw err;
+    const suggestions = await suggestUsernames(raw).catch(() => []);
+    return {
+      ok: false,
+      message: suggestions.length
+        ? `"${raw}" was taken a moment ago. These are free:`
+        : `"${raw}" was just taken. Please choose another.`,
+      suggestions,
+    };
+  }
+
+  revalidatePath("/account");
+  return {
+    ok: true,
+    // The header reads from the session token, which is minted at sign-in and
+    // does not know about this yet — better to say so than to leave somebody
+    // wondering why the change did not appear.
+    message: `Username changed to ${raw}. The header updates next time you sign in.`,
+  };
 }
