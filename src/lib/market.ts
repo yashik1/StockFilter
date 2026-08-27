@@ -38,6 +38,23 @@ export interface MarketSnapshot {
   asOf: Date | null;
   /** How many companies have a usable quote. */
   covered: number;
+  /**
+   * How many days old the stored quotes are, or null when unknown.
+   *
+   * Computed here rather than in the component. Freshness is a property of
+   * the data that was fetched, not of the moment it happens to be rendered —
+   * and reading the clock during render is both impure and, on a cached page,
+   * frozen at whenever that page was built.
+   */
+  ageDays: number | null;
+}
+
+/** Days between a stored timestamp and now, or null when it is unusable. */
+function ageInDays(asOf: Date | null): number | null {
+  if (!asOf) return null;
+  const ms = asOf.getTime();
+  if (!Number.isFinite(ms)) return null;
+  return (Date.now() - ms) / 86_400_000;
 }
 
 const EMPTY: MarketSnapshot = {
@@ -46,6 +63,7 @@ const EMPTY: MarketSnapshot = {
   sectors: [],
   asOf: null,
   covered: 0,
+  ageDays: null,
 };
 
 /**
@@ -120,6 +138,8 @@ export async function getMarketSnapshot(limit = 5): Promise<MarketSnapshot> {
         .from(scores),
     ]);
 
+    const asOf = meta[0]?.asOf ? new Date(meta[0].asOf) : null;
+
     return {
       gainers,
       // A "loser" that actually rose means everything moved up today; the UI
@@ -128,8 +148,9 @@ export async function getMarketSnapshot(limit = 5): Promise<MarketSnapshot> {
       sectors: sectorRows
         .map((s) => ({ ...s, averageChange: Number(s.averageChange) }))
         .sort((a, b) => b.averageChange - a.averageChange),
-      asOf: meta[0]?.asOf ? new Date(meta[0].asOf) : null,
+      asOf,
       covered: meta[0]?.covered ?? 0,
+      ageDays: ageInDays(asOf),
     };
   } catch {
     // Missing tables or an unreachable database: the dashboard hides these

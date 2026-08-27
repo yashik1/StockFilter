@@ -43,6 +43,9 @@ const snapshot = (over: Partial<MarketSnapshot> = {}): MarketSnapshot => ({
   sectors: [sector(), sector({ sector: "Energy", averageChange: -0.008, leader: "XOM" })],
   asOf: new Date("2026-08-13T20:00:00Z"),
   covered: 542,
+  // Fresh unless a case says otherwise, so the staleness notice does not
+  // appear in the cases that are about something else.
+  ageDays: 0,
   ...over,
 });
 
@@ -110,5 +113,69 @@ describe("market overview with data present", () => {
     expect(() =>
       render(snapshot({ gainers: [mover({ changePercent: 42 })], sectors: [sector({ averageChange: 42 })] })),
     ).not.toThrow();
+  });
+});
+
+describe("the sector heatmap links", () => {
+  /*
+    Each row stated a fact and offered nothing to do with it. The obvious next
+    question is "which companies", and that is a page this app already has —
+    it just could not answer it, because the screener filtered on the
+    four-bucket scoring sector rather than the familiar names shown here.
+  */
+  it("links each sector to the companies in it", () => {
+    const html = render(snapshot());
+
+    expect(html).toContain("/screen?sector=Technology");
+    expect(html).toContain("/screen?sector=Energy");
+  });
+
+  it("escapes a sector name containing a space", () => {
+    const html = render(
+      snapshot({ sectors: [sector({ sector: "Communication Services" })] }),
+    );
+
+    expect(html).toContain("/screen?sector=Communication%20Services");
+    expect(html).not.toContain("/screen?sector=Communication Services");
+  });
+
+  it("says how many companies the link leads to", () => {
+    expect(render(snapshot())).toContain("64 companies in Technology");
+  });
+});
+
+describe("staleness", () => {
+  /*
+    The bug that started this. Nothing was scheduled to refresh stored quotes
+    at all — only the fundamentals pass had a scheduler — so "biggest risers"
+    showed the same five names for eleven days, with a date in the sub-heading
+    as the only signal.
+  */
+  it("says plainly when the prices are days old", () => {
+    const html = render(snapshot({ asOf: new Date(Date.now() - 11 * 86_400_000), ageDays: 11 }));
+
+    expect(html).toContain("11 days old");
+    expect(html).toContain("rather than today");
+  });
+
+  it("stays quiet across a weekend, where a two-day-old close is normal", () => {
+    const html = render(snapshot({ asOf: new Date(Date.now() - 2 * 86_400_000), ageDays: 2 }));
+    expect(html).not.toContain("days old");
+  });
+
+  it("stays quiet when the data is fresh", () => {
+    expect(render(snapshot({ asOf: new Date(), ageDays: 0 }))).not.toContain("days old");
+  });
+
+  it("claims nothing when there is no timestamp to judge", () => {
+    const html = render(snapshot({ asOf: null, ageDays: null }));
+    expect(html).not.toContain("days old");
+    expect(html).not.toContain("NaN");
+  });
+
+  it("claims nothing when the timestamp is unparseable", () => {
+    const html = render(snapshot({ asOf: "not a date" as never, ageDays: null }));
+    expect(html).not.toContain("days old");
+    expect(html).not.toContain("NaN");
   });
 });

@@ -12,6 +12,7 @@ import {
   type ScreenRow,
   type SortKey,
 } from "@/lib/screener";
+import { DISPLAY_SECTORS } from "@/lib/scoring/sectors";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,17 @@ export const metadata: Metadata = {
     "Filter hundreds of US and Canadian companies by financial health, valuation, growth and debt.",
 };
 
+/*
+  The sectors a reader recognises, not the four scoring buckets.
+
+  This dropdown used to offer manufacturing / financial / real-estate / other,
+  which is `sectorKind` — an internal gate on which valuation models apply,
+  and not a list anybody thinks in. It also meant the dashboard's sector
+  heatmap, which groups by the familiar names, had nowhere to link to.
+*/
 const SECTORS = [
   { value: "", label: "All sectors" },
-  { value: "manufacturing", label: "Manufacturing" },
-  { value: "financial", label: "Financial" },
-  { value: "real-estate", label: "Real estate" },
-  { value: "other", label: "Services & other" },
+  ...DISPLAY_SECTORS.map((s) => ({ value: s, label: s })),
 ];
 
 const COUNTRIES = [

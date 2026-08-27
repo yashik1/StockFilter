@@ -1,0 +1,65 @@
+name: Refresh quotes
+
+# Prices and filings move at completely different speeds, and until this
+# existed only the filings had a scheduler.
+#
+# `ingest.yml` runs the fundamentals pass nightly, and that pass does not touch
+# `price`, `changePercent` or `priceUpdatedAt` — only `refreshQuotes` writes
+# those, and nothing ran it on a schedule. So the dashboard's movers and sector
+# heatmap were frozen at whenever somebody last ran `npm run quotes` by hand,
+# which is why the same five risers sat there for eleven days.
+#
+# Runs outside Railway's private network, so DATABASE_URL must be the public
+# connection string — the internal .railway.internal host does not resolve here.
+
+on:
+  schedule:
+    # Weekdays at 21:30 UTC — after the US close (16:00 ET / 20:00 UTC) plus
+    # enough slack for end-of-day prices to settle. There is no point running
+    # at the weekend: the numbers would be Friday's either way.
+    - cron: "30 21 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "How many symbols to refresh. Blank = whole universe."
+        required: false
+        default: ""
+
+# A run started while the previous one is still going would have both passes
+# writing the same rows, and the free price tiers are rate limited enough that
+# two at once mostly produces failures.
+concurrency:
+  group: refresh-quotes
+  cancel-in-progress: false
+
+jobs:
+  quotes:
+    runs-on: ubuntu-latest
+    # The whole universe against a free price plan takes roughly ten minutes;
+    # this leaves room for a slow provider without hanging for an hour.
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Refresh stored quotes
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          ENABLE_YAHOO_FALLBACK: ${{ secrets.ENABLE_YAHOO_FALLBACK }}
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            npm run quotes -- --limit ${{ github.event.inputs.limit }}
+          else
+            npm run quotes
+          fi

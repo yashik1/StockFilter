@@ -67,6 +67,16 @@ export type SortKey = keyof typeof SORTS;
 
 export interface ScreenFilters {
   preset?: PresetKey;
+  /**
+   * A familiar market sector — Technology, Energy, Health Care.
+   *
+   * Matches `displaySector`, not `sectorKind`. The latter is a four-bucket
+   * scoring concept (financial / real-estate / manufacturing / other) that
+   * exists to gate the Altman and Beneish models, and it was what the
+   * screener's visible "Sector" dropdown filtered on — which meant the sector
+   * a reader picked on the dashboard heatmap had nothing on this page to
+   * match it against.
+   */
   sector?: string;
   country?: string;
   minHealth?: number;
@@ -81,6 +91,7 @@ export interface ScreenRow {
   symbol: string;
   name: string;
   sectorKind: string;
+  displaySector: string;
   industry: string | null;
   country: string | null;
   healthScore: number | null;
@@ -248,7 +259,7 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
   const conditions: SQL[] = [eq(companies.isActive, true)];
 
   if (filters.preset) conditions.push(...presetConditions(filters.preset));
-  if (filters.sector) conditions.push(eq(companies.sectorKind, filters.sector));
+  if (filters.sector) conditions.push(eq(companies.displaySector, filters.sector));
   if (filters.country) conditions.push(eq(companies.country, filters.country));
   if (filters.minHealth != null) conditions.push(gte(scores.healthScore, filters.minHealth));
   if (filters.maxPe != null) {
@@ -271,6 +282,7 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
         symbol: companies.symbol,
         name: companies.name,
         sectorKind: companies.sectorKind,
+        displaySector: companies.displaySector,
         industry: companies.industry,
         country: companies.country,
         healthScore: scores.healthScore,

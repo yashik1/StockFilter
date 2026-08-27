@@ -320,6 +320,35 @@ export async function ingestSymbols(
  * single request cannot run for an unbounded time. `npm run ingest` refreshes
  * everything in one pass.
  */
+/**
+ * The symbols whose stored quote is oldest.
+ *
+ * The quote cron used to take `getUniverse().slice(0, batch)`, which is the
+ * same first 120 symbols on every single call. Scheduled hourly, that would
+ * refresh those 120 forever and leave the other 400-odd frozen at whenever
+ * somebody last ran the script by hand — and because the movers list ranks
+ * across the whole universe, the stalest rows would sit at the top of
+ * "biggest risers" permanently. A list that never changes is exactly what
+ * that looks like from outside.
+ *
+ * Ordering by `priceUpdatedAt` instead means consecutive calls walk the whole
+ * universe and then come back around.
+ */
+export async function getStaleQuoteSymbols(limit: number): Promise<string[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ symbol: companies.symbol })
+    .from(companies)
+    .leftJoin(scores, eq(scores.companyId, companies.id))
+    .where(eq(companies.isActive, true))
+    // NULLS FIRST so a company that has never had a quote is fetched before
+    // one that merely has an old a one.
+    .orderBy(sql`${scores.priceUpdatedAt} ASC NULLS FIRST`)
+    .limit(limit);
+
+  return rows.map((r) => r.symbol);
+}
+
 export async function getStaleSymbols(limit: number): Promise<string[]> {
   const db = getDb();
   const rows = await db
