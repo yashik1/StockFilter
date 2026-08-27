@@ -9,6 +9,7 @@ import { accountIsEnough } from "@/lib/billing/access-mode";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { auth } from "@/lib/auth";
 import { SignOutButton } from "@/components/auth/account-menu";
+import { UsernameForm } from "@/components/auth/username-form";
 import { DigestToggle } from "@/components/digest-toggle";
 import { getDigestPreference } from "@/lib/digest/actions";
 import { listWatchlist } from "@/lib/watchlist/actions";
@@ -160,6 +161,14 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
         opens to deal with their account, so it is where the way out of one
         belongs.
       */}
+      <Card>
+        <CardHeader
+          title="Username"
+          subtitle="What the header shows, and how you are identified. Yours alone."
+        />
+        <UsernameForm current={session.user.name ?? ""} />
+      </Card>
+
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">

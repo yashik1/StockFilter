@@ -13,7 +13,16 @@ export default function SignUpPage() {
       footer={<AuthFooterLink href="/signin">Already have an account? Sign in</AuthFooterLink>}
     >
       <ActionForm action={signUp} submitLabel="Create account">
-        <Field label="Name (optional)" name="name" autoComplete="name" />
+        {/* Still optional, and still the `name` field — but presented as a
+            username, because that is what a uniqueness rule makes it. Two
+            people called John Smith both have a claim on that display name;
+            neither has a claim on the same identifier. */}
+        <Field
+          label="Username (optional)"
+          name="name"
+          autoComplete="username"
+          hint="Shown in the header and on your account. Letters, numbers, dots, dashes and underscores — no spaces."
+        />
         <Field label="Email" name="email" type="email" autoComplete="email" required />
         <Field
           label="Password"
