@@ -31,6 +31,8 @@ import { WarningSigns } from "@/components/stock/warning-signs";
 import { Dividends } from "@/components/stock/dividends";
 import { auth } from "@/lib/auth";
 import { listWatchlist } from "@/lib/watchlist/actions";
+import { KeyFiguresPanel } from "@/components/stock/key-figures";
+import { buildKeyFigures } from "@/lib/scoring/key-figures";
 
 export const revalidate = 900;
 
@@ -227,6 +229,17 @@ async function StockBody({
     fundamentals && data.assetClass === "equity"
       ? buildDividendReport(fundamentals, profile?.sicCode)
       : null;
+
+  /*
+    The standard figures a reader arriving from any other stock site expects.
+
+    Several were already being ingested and stored and then never read —
+    `capex` most starkly, which meant free cash flow did not exist anywhere
+    in this app despite both of its inputs sitting in the database.
+  */
+  const keyFigures = fundamentals && filesAccounts
+    ? buildKeyFigures(fundamentals, marketCap)
+    : null;
   const nextDividend =
     data.earlySignals.upcoming.find((e) => e.kind === "dividend") ?? null;
 
@@ -446,6 +459,8 @@ async function StockBody({
           </div>
         </section>
       )}
+
+      {keyFigures && <KeyFiguresPanel figures={keyFigures} currency={currency} />}
 
       {/* ---- what it pays out ---- */}
       {dividends && (

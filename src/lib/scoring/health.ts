@@ -117,6 +117,11 @@ function profitabilityQuestion(f: Getter, amount: Amount): Question {
   const margin = div(netIncome, revenue);
   const roa = div(netIncome, f("assets"));
   const ocf = f("operatingCashFlow");
+  // Capex is an outflow, but a minority of filers tag it negative — taken as
+  // written, those companies would appear to generate cash by spending it.
+  const capexRaw = f("capex");
+  const capex = capexRaw == null ? null : Math.abs(capexRaw);
+  const freeCashFlow = ocf == null || capex == null ? null : ocf - capex;
 
   let rating: Rating = "unknown";
   let answer = "This company has not reported enough detail to tell.";
@@ -137,6 +142,20 @@ function profitabilityQuestion(f: Getter, amount: Amount): Question {
     if (ocf != null && ocf < 0 && netIncome > 0) {
       answer += " Note that operations still consumed cash despite the reported profit.";
       rating = "fair";
+    } else if (freeCashFlow != null && freeCashFlow < 0 && netIncome > 0) {
+      /*
+        Profitable on paper, and still consuming cash once the plant it runs
+        on is paid for.
+
+        This is a genuinely different situation from a loss and from negative
+        operating cash flow, and the page could not describe it at all before
+        — capex was ingested and never read, so the gap between what
+        operations produced and what the business actually kept was invisible.
+      */
+      answer +=
+        ` Note that after ${amount(capex!)} of spending on property and equipment, ` +
+        `it consumed ${amount(Math.abs(freeCashFlow))} more cash than it generated.`;
+      rating = "fair";
     }
   } else if (netIncome != null) {
     rating = netIncome > 0 ? "good" : "poor";
@@ -154,6 +173,11 @@ function profitabilityQuestion(f: Getter, amount: Amount): Question {
       { label: "Net profit margin", value: percent(margin), hint: "Out of every $100 of sales, this much is left over as profit." },
       { label: "Return on assets", value: percent(roa), hint: "How hard everything the company owns is working — profit earned per $100 of assets." },
       { label: "Operating cash flow", value: amount(ocf), hint: "Real money that landed in the bank, after paying bills and wages. Harder to massage than profit." },
+      {
+        label: "Free cash flow",
+        value: amount(freeCashFlow),
+        hint: "What is left after also paying for the buildings and equipment the business needs. The cash genuinely available for dividends, buybacks or paying down debt.",
+      },
     ],
   };
 }
@@ -245,6 +269,20 @@ function debtQuestion(
   const netDebt = totalDebt == null ? null : totalDebt - (cash ?? 0);
   const yearsToRepay = netDebt != null && netDebt > 0 ? div(netDebt, ocf) : null;
 
+  /*
+    Whether the interest is affordable at all, which is a more immediate
+    question than how long the principal would take to clear — a company can
+    carry debt for decades quite happily, and cannot survive a year of not
+    covering the interest on it.
+
+    `interestExpense` was already being ingested for the Altman calculation
+    and never surfaced anywhere a reader could see it.
+  */
+  const interest = f("interestExpense");
+  const operatingIncome = f("operatingIncome");
+  const interestCover =
+    interest != null && interest > 0 ? div(operatingIncome, interest) : null;
+
   let rating: Rating = "unknown";
   let answer = "This company has not reported enough detail to tell.";
   const owns = coverage != null ? coverage.toFixed(2) : null;
@@ -295,6 +333,22 @@ function debtQuestion(
     }
   }
 
+  /*
+    A thin interest cover overrides a comfortable-looking repayment figure.
+    Both can be true at once: a company whose borrowings are small against
+    its cash flow can still be paying more in interest than it earns, and
+    that is the more urgent of the two facts.
+  */
+  if (interestCover != null && interestCover < 1 && rating !== "unknown") {
+    rating = "poor";
+    answer +=
+      ` Its operating profit does not cover its interest bill — ${multiple(interestCover)} ` +
+      `against the interest it owes.`;
+  } else if (interestCover != null && interestCover < 2.5 && rating === "good") {
+    rating = "fair";
+    answer += ` Its operating profit covers the interest ${multiple(interestCover)} over, which is not much room.`;
+  }
+
   if (altman.value?.zone === "distress" && rating !== "unknown") {
     rating = "poor";
     answer += " A bankruptcy-risk model also places it in its distress range.";
@@ -328,6 +382,11 @@ function debtQuestion(
       { label: "Assets per $1 of liabilities", value: multiple(coverage), hint: "For every $1 of bills and debts, how many dollars of things it owns." },
       { label: "Debt to equity", value: multiple(debtToEquity), hint: "How much is funded by borrowing versus by the owners themselves." },
       { label: "Current ratio", value: multiple(currentRatio), hint: "Whether it can cover the bills due this year with what it can turn into cash this year." },
+      {
+        label: "Interest cover",
+        value: interestCover == null ? "no debt costs" : `${multiple(interestCover)}`,
+        hint: "How many times over its operating profit covers its interest bill. Below 1 means it is not earning enough to pay the interest.",
+      },
     ],
   };
 }
