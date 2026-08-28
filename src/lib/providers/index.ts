@@ -26,6 +26,7 @@ import type {
 } from "./types";
 import { ProviderNotConfiguredError } from "./types";
 import { classify } from "../instruments";
+import type { AnalystView } from "../signals/analysts";
 
 /**
  * Composes the free US/Canada stack into a single provider.
@@ -179,6 +180,11 @@ class FreeStackProvider implements MarketDataProvider {
   async getPeers(symbol: string): Promise<string[]> {
     if (!finnhub.isConfigured()) return [];
     return finnhub.getPeers(symbol).catch(() => []);
+  }
+
+  async getAnalystView(symbol: string): Promise<AnalystView | null> {
+    if (!finnhub.isConfigured()) return null;
+    return finnhub.getAnalystView(symbol).catch(() => null);
   }
 }
 
@@ -426,6 +432,20 @@ export async function getInstrumentType(symbol: string): Promise<InstrumentType>
 export async function getPeers(symbol: string): Promise<string[]> {
   if (eodhd.isConfigured()) return [];
   return freeStack.getPeers(symbol);
+}
+
+/**
+ * Published analyst ratings, from whichever provider can answer.
+ *
+ * Its own accessor for the same reason as getPeers: only some providers serve
+ * it, and it is optional everywhere. Null is the ordinary answer on a
+ * deployment with no Finnhub key — which includes any deployment that has not
+ * accepted a personal-use licence, and that constraint is the point rather
+ * than an oversight. See src/lib/signals/analysts.ts.
+ */
+export async function getAnalystView(symbol: string): Promise<AnalystView | null> {
+  if (eodhd.isConfigured()) return eodhd.getAnalystView(symbol).catch(() => null);
+  return freeStack.getAnalystView(symbol);
 }
 
 /** Reports which capabilities are available, for setup messaging in the UI. */

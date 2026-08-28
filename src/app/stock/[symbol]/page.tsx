@@ -33,6 +33,7 @@ import { auth } from "@/lib/auth";
 import { listWatchlist } from "@/lib/watchlist/actions";
 import { KeyFiguresPanel } from "@/components/stock/key-figures";
 import { buildKeyFigures } from "@/lib/scoring/key-figures";
+import { MarketExpects } from "@/components/stock/market-expects";
 
 export const revalidate = 900;
 
@@ -438,6 +439,18 @@ async function StockBody({
           <PricePanel symbol={upper} peers={data.peers} />
         </div>
       </Card>
+
+      {/* ---- what the market expects ---- */}
+      {/* Sits with the price because it is about the price, and above the five
+          questions so the run of filing-derived answers stays unbroken. */}
+      <MarketExpects
+        expectations={data.expectations}
+        analysts={data.analysts}
+        shortInterest={data.shortInterest}
+        ownership={data.ownership}
+        currentPrice={data.quote?.price ?? null}
+        currency={currency}
+      />
 
       {/* ---- the five questions ---- */}
       {report && (
