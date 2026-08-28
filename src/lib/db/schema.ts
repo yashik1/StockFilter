@@ -548,6 +548,81 @@ export const watchlistItems = pgTable(
   ],
 );
 
+/**
+ * Who owned this company, from the quarterly Form 13F filings.
+ *
+ * Every institutional manager holding over $100M in US equities has to file
+ * one, listing every position. It is public domain, and it is the only thing
+ * in this app that says what large investors were actually doing rather than
+ * what a company said about itself.
+ *
+ * Only the largest holders are stored. A big company has eight or nine
+ * thousand 13F filers on its register — Apple had 8,538 for Q1 2026 — and
+ * keeping every one of them for every company would be several million rows to
+ * render a list of ten. The ingest ranks them and keeps the top handful.
+ *
+ * `holderCount` and `totalShares` are therefore summary figures that cannot be
+ * recovered from the rows kept, and they are repeated identically across each
+ * of a company's rows for a quarter. That redundancy is deliberate: the
+ * summary and the top holders are written together by one pass and read
+ * together by one query, so a separate table would be joined to these rows in
+ * lockstep forever to fetch two numbers.
+ *
+ * Rows are per quarter and never updated, so the read path can compare the two
+ * most recent quarters to say whether a holder added or trimmed.
+ */
+export const institutionalHoldings = pgTable(
+  "institutional_holdings",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    /** The quarter the position was held on, e.g. 2026-03-31. */
+    quarter: text("quarter").notNull(),
+    /** CIK of the filing manager, which is the stable identity across renames. */
+    managerCik: text("manager_cik").notNull(),
+    managerName: text("manager_name").notNull(),
+    shares: doublePrecision("shares"),
+    /** Position value in dollars, as filed. */
+    value: doublePrecision("value"),
+    /** How many managers reported the company that quarter, across all sizes. */
+    holderCount: integer("holder_count"),
+    /** Shares held by all of them, not only the ones kept below. */
+    totalShares: doublePrecision("total_shares"),
+  },
+  (t) => [
+    // One row per manager per company per quarter. A manager that amends its
+    // filing must update the row rather than add a second one, which is what
+    // otherwise double-counts Vanguard on every large company.
+    uniqueIndex("institutional_company_quarter_manager_idx").on(
+      t.companyId,
+      t.quarter,
+      t.managerCik,
+    ),
+    index("institutional_company_quarter_idx").on(t.companyId, t.quarter),
+  ],
+);
+
+/**
+ * CUSIP to ticker, so 13F holdings can be found by symbol.
+ *
+ * 13F identifies securities by CUSIP and this app identifies them by ticker
+ * and CIK, and the SEC publishes no direct crosswalk between the two. It does
+ * publish the Fails-to-Deliver files, which carry CUSIP, symbol and issuer
+ * name together and are public domain — any actively traded security appears
+ * in one within a month. That is where these rows come from.
+ */
+export const cusipSymbols = pgTable(
+  "cusip_symbols",
+  {
+    cusip: text("cusip").primaryKey(),
+    symbol: text("symbol").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("cusip_symbol_idx").on(t.symbol)],
+);
+
 export type Company = typeof companies.$inferSelect;
 export type Score = typeof scores.$inferSelect;
 export type Financial = typeof financials.$inferSelect;
@@ -557,3 +632,5 @@ export type JournalEntry = typeof journalEntries.$inferSelect;
 export type WatchlistItem = typeof watchlistItems.$inferSelect;
 export type Playbook = typeof playbooks.$inferSelect;
 export type TradeRow = typeof trades.$inferSelect;
+export type InstitutionalHolding = typeof institutionalHoldings.$inferSelect;
+export type CusipSymbol = typeof cusipSymbols.$inferSelect;

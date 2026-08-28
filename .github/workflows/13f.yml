@@ -1,0 +1,69 @@
+name: Ingest 13F holdings
+
+# Who owned each company, from the SEC's quarterly Form 13F bundle.
+#
+# Runs monthly rather than quarterly, deliberately. Managers file up to 45 days
+# after a quarter ends and many use every day of it, so a single run timed to
+# the deadline would capture whoever had filed by then and permanently miss the
+# rest. Re-running upserts on (company, quarter, manager), so a later pass
+# fills in the stragglers instead of duplicating what is already stored.
+#
+# Runs outside Railway's private network, so DATABASE_URL must be the public
+# connection string — the internal .railway.internal host does not resolve here.
+
+on:
+  schedule:
+    # The 8th of each month, after the 45-day deadline for the previous quarter
+    # has passed (15 Feb, 15 May, 15 Aug, 15 Nov) and late filings have settled.
+    - cron: "0 6 8 * *"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "A specific dataset ZIP to ingest. Blank = the newest published."
+        required: false
+        default: ""
+      dry_run:
+        description: "Parse and report without writing anything."
+        type: boolean
+        required: false
+        default: false
+
+# The job downloads ~100MB and writes several thousand rows; two at once would
+# race on the same (company, quarter, manager) keys for no benefit.
+concurrency:
+  group: ingest-13f
+  cancel-in-progress: false
+
+jobs:
+  holdings:
+    runs-on: ubuntu-latest
+    # INFOTABLE.tsv is roughly 380MB unzipped and 3.8M rows. The download and
+    # the three streaming passes take about ten minutes together; this leaves
+    # room for a slow transfer without hanging for an hour.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Ingest institutional holdings
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # The SEC blocks requests that do not identify the caller. Without
+          # this the download fails rather than degrading.
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            ARGS="$ARGS --url ${{ github.event.inputs.url }}"
+          fi
+          npm run 13f -- $ARGS

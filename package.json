@@ -19,7 +19,8 @@
     "db:check": "tsx scripts/check-db.ts",
     "universe:audit": "tsx scripts/audit-universe.ts",
     "quotes": "tsx scripts/refresh-quotes.ts",
-    "instruments:verify": "tsx scripts/verify-instruments.ts"
+    "instruments:verify": "tsx scripts/verify-instruments.ts",
+    "13f": "tsx scripts/ingest-13f.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
@@ -45,11 +46,13 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/yauzl-promise": "^4.0.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "yauzl-promise": "^4.0.0"
   }
 }

@@ -15,6 +15,7 @@ import type {
   Timeframe,
 } from "./types";
 import { ProviderNotConfiguredError } from "./types";
+import { parseEodhdAnalystRatings, type AnalystView } from "../signals/analysts";
 
 const BASE = "https://eodhd.com/api";
 
@@ -168,6 +169,22 @@ export class EodhdProvider implements MarketDataProvider {
     return (await res.json()) as EodhdFundamentals;
   }
 
+  /**
+   * Published analyst ratings, out of the fundamentals payload.
+   *
+   * No new request: `/fundamentals` was already being fetched for the
+   * statements, and this block was sitting in the same response untyped. Unlike
+   * Finnhub's free tier this one carries a consensus target price.
+   *
+   * See src/lib/signals/analysts.ts for the licensing position — EODHD's
+   * standard plans are personal-use only, so displaying this in a product that
+   * charges needs their commercial licence first.
+   */
+  async getAnalystView(symbol: string): Promise<AnalystView | null> {
+    const data = await this.fetchFundamentals(symbol);
+    return parseEodhdAnalystRatings(data?.AnalystRatings, data?.General?.UpdatedAt ?? null);
+  }
+
   async getNews(symbol: string, limit = 20): Promise<NewsItem[]> {
     const res = await fetch(
       this.url("/news", { s: this.qualify(symbol), limit: String(limit) }),
@@ -224,6 +241,20 @@ export interface EodhdFundamentals {
   General?: Record<string, string | null> & { CIK?: string; CountryISO?: string };
   Highlights?: { MarketCapitalization?: number };
   SharesStats?: { SharesOutstanding?: number };
+  /*
+    Analyst opinion, which arrives in the same payload as the statements above
+    and went unmapped until now. Declaring it costs no extra request — the
+    fetch was already happening for the financials.
+  */
+  AnalystRatings?: {
+    Rating?: number | string;
+    TargetPrice?: number | string;
+    StrongBuy?: number | string;
+    Buy?: number | string;
+    Hold?: number | string;
+    Sell?: number | string;
+    StrongSell?: number | string;
+  };
   Financials?: {
     Balance_Sheet?: EodhdStatements;
     Income_Statement?: EodhdStatements;

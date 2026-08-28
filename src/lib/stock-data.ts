@@ -2,6 +2,7 @@ import { fieldValue } from "./fundamentals/normalize";
 import type { NormalizedFundamentals } from "./fundamentals/types";
 import {
   getFundamentalsWithSource,
+  getAnalystView,
   getInstrumentType,
   getNewsWithSource,
   getPeers,
@@ -14,12 +15,19 @@ import { currencyForExchange } from "./exchange-currency";
 import { getRate } from "./fx";
 import { sectorFromSic, type SectorKind } from "./scoring/applicability";
 import { buildHealthReport, type HealthReport } from "./scoring/health";
+import { buildImpliedExpectations, type ImpliedExpectations } from "./scoring/expectations";
 import { resolveType } from "./compare";
 import { classify, findInstrument, type AssetClass, type Instrument } from "./instruments";
 import { getCorporateEvents } from "./events";
 import { projectNextEvents, type ProjectedEvent } from "./chart-markers";
 import { getInsiderActivity, type InsiderActivity } from "./signals/insider";
 import { getStakeFilings, type StakeFiling } from "./signals/stakes";
+import { getShortInterest, withOwnership, type ShortInterest } from "./signals/short-interest";
+import {
+  getInstitutionalOwnership,
+  type InstitutionalOwnership,
+} from "./signals/institutional";
+import type { AnalystView } from "./signals/analysts";
 
 export interface StockPageData {
   symbol: string;
@@ -48,6 +56,31 @@ export interface StockPageData {
   sector: SectorKind;
   marketCap: number | null;
   report: HealthReport | null;
+  /**
+   * The growth rate today's price is paying for, or null when it cannot
+   * honestly be solved — a cash-burning company, a bank, or too short a
+   * record. Unlike everything else on this object it is derived from the
+   * price rather than from a filing, which is why the page keeps it in its
+   * own labelled section.
+   */
+  expectations: ImpliedExpectations | null;
+  /**
+   * How much of the company is sold short, from FINRA's fortnightly report.
+   * Null for anything it does not cover, which includes every non-US listing
+   * and is the ordinary answer rather than a failure.
+   */
+  shortInterest: ShortInterest | null;
+  /**
+   * Published analyst ratings. Null without a provider key that serves them —
+   * which is the ordinary state, and a licensing constraint rather than an
+   * oversight. See src/lib/signals/analysts.ts.
+   */
+  analysts: AnalystView | null;
+  /**
+   * Who held the company at the last quarterly Form 13F count. Null until the
+   * 13F ingest has run, and for anything outside the screening universe.
+   */
+  ownership: InstitutionalOwnership | null;
   /** Funds file no statements, so scoring is suppressed rather than computed. */
   instrumentType: InstrumentType;
   /**
@@ -112,8 +145,20 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
   const assetClass = classify(upper);
   if (assetClass) return getInstrumentPageData(upper, assetClass);
 
-  const [profile, fundamentals, quote, news, filings, peers, providerType, insider, stakes, upcoming] =
-    await Promise.all([
+  const [
+    profile,
+    fundamentals,
+    quote,
+    news,
+    filings,
+    peers,
+    providerType,
+    insider,
+    stakes,
+    upcoming,
+    rawShortInterest,
+    analysts,
+  ] = await Promise.all([
       provider.getProfile(upper).catch(() => null),
       getFundamentalsWithSource(upper).catch(() => ({
         fundamentals: null,
@@ -147,6 +192,12 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
       getCorporateEvents(upper, new Date(Date.now() - 3 * 365 * 86_400_000), new Date())
         .then((events) => projectNextEvents(events))
         .catch((): ProjectedEvent[] => []),
+      // Fetched without the share count, which is not known until the
+      // fundamentals above resolve. Turning that into a percentage is one
+      // division, and making this request wait for it would add a round trip
+      // to every page load — so withOwnership finishes the job below.
+      getShortInterest(upper).catch((): ShortInterest | null => null),
+      getAnalystView(upper).catch((): AnalystView | null => null),
     ]);
 
   /*
@@ -198,6 +249,29 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     ? buildHealthReport(resolvedFundamentals, sector, marketCap)
     : null;
 
+  // Solved from the price, so it needs the market cap resolved above rather
+  // than the filings alone. Returns null far more often than not, which is the
+  // intended behaviour rather than a gap to fill in.
+  const expectations = resolvedFundamentals
+    ? buildImpliedExpectations(resolvedFundamentals, sector, marketCap)
+    : null;
+
+  // The share count both ownership figures are measured against. Prefers the
+  // filings over the provider's figure for the same reason every other number
+  // on this page does: it is the one a reader can go and check.
+  const shares =
+    fieldValue(resolvedFundamentals?.annual[0], "sharesOutstanding") ??
+    profile?.sharesOutstanding ??
+    null;
+
+  const shortInterest = withOwnership(rawShortInterest, shares);
+
+  // Read from the database rather than fetched, so it needs the share count
+  // that only exists once the filings above have resolved. One indexed query
+  // against a handful of rows, and null whenever the quarterly ingest has not
+  // run — which is the ordinary state on a fresh deployment.
+  const ownership = await getInstitutionalOwnership(upper, shares).catch(() => null);
+
   const instrumentType = resolveType(
     providerType,
     Boolean(resolvedFundamentals?.annual.length),
@@ -218,6 +292,10 @@ export async function getStockPageData(symbol: string): Promise<StockPageData> {
     sector,
     marketCap,
     report,
+    expectations,
+    shortInterest,
+    analysts,
+    ownership,
     instrumentType,
     assetClass: instrumentType === "etf" ? "etf" : "equity",
     instrument: null,
@@ -311,6 +389,12 @@ async function getInstrumentPageData(
     // from a contract price and an invented share count would be meaningless.
     marketCap: null,
     report: null,
+    // Gold has a price but no free cash flow, so there is no growth rate for
+    // that price to be assuming, and no shares for anyone to have borrowed.
+    expectations: null,
+    shortInterest: null,
+    analysts: null,
+    ownership: null,
     instrumentType: "unknown",
     assetClass,
     instrument,

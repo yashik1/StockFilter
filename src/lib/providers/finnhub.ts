@@ -10,6 +10,7 @@ import type {
   Timeframe,
 } from "./types";
 import { ProviderNotConfiguredError } from "./types";
+import { parseFinnhubRecommendations, type AnalystView } from "../signals/analysts";
 
 const BASE = "https://finnhub.io/api/v1";
 
@@ -141,6 +142,29 @@ export class FinnhubProvider implements MarketDataProvider {
     return Array.isArray(peers)
       ? peers.filter((p) => p && p !== symbol.toUpperCase()).slice(0, 8)
       : [];
+  }
+
+  /**
+   * Published analyst ratings, as a distribution.
+   *
+   * On the interface as an extra method rather than on MarketDataProvider,
+   * following getPeers above: only this provider answers it, and widening the
+   * shared interface would mean a null stub in five other files to express
+   * that.
+   *
+   * Note the free tier serves recommendation trends but not price targets,
+   * which moved to the paid plans — so the panel this feeds shows who said
+   * what without a target to compare against. See src/lib/signals/analysts.ts
+   * for the licensing position, which matters more than the missing field.
+   */
+  async getAnalystView(symbol: string): Promise<AnalystView | null> {
+    const res = await fetch(this.url("/stock/recommendation", { symbol }), {
+      // Republished monthly, so a day is already far fresher than the data.
+      next: { revalidate: 60 * 60 * 12 },
+    });
+    if (!res.ok) return null;
+
+    return parseFinnhubRecommendations(await res.json());
   }
 
   async searchSymbols(query: string, limit = 10): Promise<SymbolSearchResult[]> {
