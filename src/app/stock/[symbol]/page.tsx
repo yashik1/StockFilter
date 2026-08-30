@@ -33,7 +33,8 @@ import { auth } from "@/lib/auth";
 import { listWatchlist } from "@/lib/watchlist/actions";
 import { KeyFiguresPanel } from "@/components/stock/key-figures";
 import { buildKeyFigures } from "@/lib/scoring/key-figures";
-import { MarketExpects } from "@/components/stock/market-expects";
+import { MarketExpects, hasMarketExpectations } from "@/components/stock/market-expects";
+import { Section, SectionNav, type StockSection } from "@/components/stock/section-nav";
 
 export const revalidate = 900;
 
@@ -256,6 +257,30 @@ async function StockBody({
   const companyName =
     profile?.name ?? unsupported?.name ?? fundamentals?.entityName ?? upper;
 
+  /*
+    Jump links, in the order the sections appear.
+
+    Built from the same conditions that decide whether each panel renders, so
+    the strip never offers a link to something that is not on the page. Two of
+    them — the warning signs and the expectations section — hide themselves on
+    conditions this scope cannot see, which is why SectionNav also drops any
+    target it cannot find once mounted. "What it does" and the strengths panel
+    are deliberately absent: both sit at the very top, where a jump link saves
+    a reader nothing.
+  */
+  const sections: StockSection[] = [
+    warnings.length > 0 && { id: "warning-signs", label: "Warnings" },
+    { id: "health", label: "Health" },
+    { id: "price", label: "Price" },
+    hasMarketExpectations(data) && { id: "expectations", label: "Market expects" },
+    report && { id: "questions", label: "Five questions" },
+    keyFigures && { id: "key-figures", label: "Key figures" },
+    dividends && { id: "dividend", label: "Dividend" },
+    filesAccounts && { id: "financials", label: "Financials" },
+    data.assetClass === "equity" && { id: "early-signals", label: "Early signals" },
+    { id: "sources", label: "Sources" },
+  ].filter((s): s is StockSection => Boolean(s));
+
   return (
     <div className="space-y-5">
       {/*
@@ -369,16 +394,21 @@ async function StockBody({
         </div>
       </header>
 
+      <SectionNav sections={sections} />
+
       <RecordVisit
         symbol={upper}
         name={profile?.name ?? unsupported?.name ?? fundamentals?.entityName}
       />
 
-      {business && <WhatItDoes summary={business} />}
+      <Section id="what-it-does">{business && <WhatItDoes summary={business} />}</Section>
 
-      <WarningSigns warnings={warnings} />
+      <Section id="warning-signs">
+        <WarningSigns warnings={warnings} />
+      </Section>
 
       {/* ---- verdict ---- */}
+      <Section id="health">
       {report ? (
         <VerdictCard
           report={report}
@@ -423,9 +453,14 @@ async function StockBody({
         </Card>
       )}
 
-      {highlights && <StrengthsAndRisks highlights={highlights} />}
+      </Section>
+
+      <Section id="strengths">
+        {highlights && <StrengthsAndRisks highlights={highlights} />}
+      </Section>
 
       {/* ---- price chart ---- */}
+      <Section id="price">
       <Card>
         <CardHeader
           title="Price history"
@@ -439,10 +474,12 @@ async function StockBody({
           <PricePanel symbol={upper} peers={data.peers} />
         </div>
       </Card>
+      </Section>
 
       {/* ---- what the market expects ---- */}
       {/* Sits with the price because it is about the price, and above the five
           questions so the run of filing-derived answers stays unbroken. */}
+      <Section id="expectations">
       <MarketExpects
         expectations={data.expectations}
         analysts={data.analysts}
@@ -451,10 +488,11 @@ async function StockBody({
         currentPrice={data.quote?.price ?? null}
         currency={currency}
       />
+      </Section>
 
       {/* ---- the five questions ---- */}
       {report && (
-        <section aria-labelledby="questions-heading">
+        <section id="questions" className="scroll-mt-28" aria-labelledby="questions-heading">
           <SectionHeading
             eyebrow="The essentials"
             title="The five questions that matter"
@@ -473,9 +511,12 @@ async function StockBody({
         </section>
       )}
 
-      {keyFigures && <KeyFiguresPanel figures={keyFigures} currency={currency} />}
+      <Section id="key-figures">
+        {keyFigures && <KeyFiguresPanel figures={keyFigures} currency={currency} />}
+      </Section>
 
       {/* ---- what it pays out ---- */}
+      <Section id="dividend">
       {dividends && (
         <Dividends
           report={dividends}
@@ -483,9 +524,13 @@ async function StockBody({
           nextExpected={dividends.paysDividend ? nextDividend : null}
         />
       )}
+      </Section>
 
       {/* ---- balance sheet + trends ---- */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
+      <div
+        id="financials"
+        className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-4 empty:hidden lg:grid-cols-2"
+      >
         {fundamentals && (
           <BalanceSheetVisual fundamentals={fundamentals} sector={sector} currency={currency} />
         )}
@@ -506,6 +551,7 @@ async function StockBody({
         officers of its own on file, but their trading activity is not the
         thing a reader of a fund page is here to learn about.
       */}
+      <Section id="early-signals">
       {data.assetClass === "equity" && (
         <EarlySignals
           symbol={upper}
@@ -514,8 +560,10 @@ async function StockBody({
           upcoming={data.earlySignals.upcoming}
         />
       )}
+      </Section>
 
       {/* ---- sources ---- */}
+      <Section id="sources" className="space-y-5">
       <SectionHeading
         eyebrow="Go deeper"
         title={filesAccounts ? "Sources and further reading" : "News and further reading"}
@@ -544,6 +592,7 @@ async function StockBody({
           )}
         </div>
       </div>
+      </Section>
 
       {/* ---- provenance ---- */}
       {latest && (

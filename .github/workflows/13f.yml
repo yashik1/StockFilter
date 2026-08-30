@@ -47,7 +47,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          # Must match the Node that generates package-lock.json locally.
+          # npm 11 (Node 24) records esbuild's per-platform binaries in a form
+          # npm 10 (Node 22) rejects outright — "Missing: @esbuild/linux-x64
+          # from lock file" — which failed `npm ci` on every scheduled run
+          # from the day these workflows were added until this was changed.
+          node-version: "24"
           cache: npm
 
       - run: npm ci
