@@ -32,6 +32,28 @@ import type { AnalystView } from "@/lib/signals/analysts";
  * Renders nothing at all when none of its children has anything to say, which
  * for a small or recently listed company is the ordinary case.
  */
+/**
+ * Whether the section will render anything at all.
+ *
+ * Exported because the page needs the same answer before the component runs —
+ * to decide whether to offer a jump link to a section that may not exist. The
+ * alternative is the page restating this condition, which is how two copies of
+ * one rule drift apart.
+ */
+export function hasMarketExpectations(input: {
+  expectations: ImpliedExpectations | null;
+  analysts: AnalystView | null;
+  shortInterest: ShortInterest | null;
+  ownership: InstitutionalOwnership | null;
+}): boolean {
+  return Boolean(
+    input.expectations ||
+      input.analysts ||
+      input.shortInterest ||
+      (input.ownership && input.ownership.holders.length > 0),
+  );
+}
+
 export function MarketExpects({
   expectations,
   analysts,

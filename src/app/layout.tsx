@@ -139,7 +139,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased`}
+      // Smooth scrolling so a jump link on the stock page reads as movement
+      // through one document rather than a cut to somewhere unrelated. Guarded
+      // by motion-safe, because for a reader who gets motion sick a long
+      // animated scroll is exactly the thing they turned that setting off for.
+      className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased motion-safe:scroll-smooth`}
       suppressHydrationWarning
     >
       <head>
