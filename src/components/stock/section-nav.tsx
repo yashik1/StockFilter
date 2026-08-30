@@ -27,23 +27,42 @@ export interface StockSection {
 }
 
 /**
- * Height of the sticky chrome above a section: the site header plus this bar.
+ * Breathing room a jumped-to section leaves above itself, so a heading reached
+ * by a jump lands clear of the site header and this bar.
  *
- * Anchor targets carry a matching `scroll-mt` so a jumped-to heading lands
- * below the bars rather than underneath them. Kept here as a named constant
- * because the two numbers have to agree and nothing else would say why.
+ * Deliberately NOT exported for the page to share. This module is "use client",
+ * and a plain constant exported from one is a client reference on the server,
+ * not a string — interpolating it into a className produced a class attribute
+ * containing "Attempted to call SECTION_SCROLL_MARGIN() from the server".
+ * The two sections the page anchors itself repeat the literal instead, and say
+ * why.
  */
-const SCROLL_MARGIN = "scroll-mt-28";
+const SECTION_SCROLL_MARGIN = "scroll-mt-28";
 
 /**
- * Height of the site header plus this bar, in pixels.
+ * What `SECTION_SCROLL_MARGIN` is worth in pixels — where a jumped-to section
+ * comes to rest below the top of the window.
  *
- * The line a section's heading has to cross before it counts as the one being
- * read. Measured rather than guessed would be better, but the two bars are
- * fixed-height by design and a stale constant here only shifts the highlight
- * by a few pixels of scroll — it cannot put the wrong section in the bar.
+ * The two have to agree, and nothing in the type system will say so if they
+ * stop agreeing, which is why they sit next to each other.
  */
-const CHROME_HEIGHT = 96;
+const SCROLL_MARGIN_PX = 112;
+
+/**
+ * The line a section's top must cross to count as the one being read.
+ *
+ * Set from where a jump parks a section, not from the bottom of the sticky
+ * bars, and that difference is a bug this constant exists to prevent rather
+ * than a preference. The bars end at 93px and the first version drew the line
+ * there — but `scroll-mt-28` parks a heading at 112px, so a section the reader
+ * had just clicked straight to sat below the line, failed to qualify, and the
+ * bar went on highlighting the section above it. Clicking "Key figures" lit
+ * "Five questions".
+ *
+ * The few pixels of slack past the parking spot absorb subpixel rounding, so a
+ * heading that lands on 112.5 still counts.
+ */
+const ACTIVATION_LINE = SCROLL_MARGIN_PX + 4;
 
 /**
  * Which section a reader is currently looking at.
@@ -75,7 +94,7 @@ export function currentSection(
 
   let current = tops[0].id;
   for (const { id, top } of tops) {
-    if (top <= CHROME_HEIGHT) current = id;
+    if (top <= ACTIVATION_LINE) current = id;
   }
   return current;
 }
@@ -258,7 +277,7 @@ export function Section({
     entirely, so the spacing closes up as if it were never there.
   */
   return (
-    <div id={id} className={cn(SCROLL_MARGIN, "empty:hidden", className)}>
+    <div id={id} className={cn(SECTION_SCROLL_MARGIN, "empty:hidden", className)}>
       {children}
     </div>
   );

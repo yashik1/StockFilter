@@ -21,12 +21,33 @@ const tops = (...pairs: [string, number][]) => pairs.map(([id, top]) => ({ id, t
 
 describe("which section is being read", () => {
   /*
-    96px of sticky chrome sits above the content, so a heading is "reached"
-    once it passes under that, not when it reaches the top of the window.
+    Sticky bars sit above the content, so a heading is "reached" once it passes
+    under them, not when it reaches the top of the window.
   */
   it("picks the last section that has passed under the sticky bars", () => {
     const measured = tops(["health", -400], ["price", -120], ["dividend", 300]);
     expect(currentSection(measured)).toBe("price");
+  });
+
+  /*
+    The bug this rule was shipped with, and the reason the line is set from
+    where a jump parks a section rather than from the bottom of the bars.
+
+    `scroll-mt-28` leaves a jumped-to heading sitting 112px down. With the line
+    drawn at the bars' 93px, that heading was below it, failed to qualify, and
+    the bar went on highlighting the section above — clicking "Key figures" lit
+    "Five questions".
+  */
+  it("marks the section a reader has just jumped to", () => {
+    const JUMPED_TO = 112;
+    const measured = tops(["questions", -800], ["key-figures", JUMPED_TO], ["dividend", 900]);
+
+    expect(currentSection(measured)).toBe("key-figures");
+  });
+
+  it("tolerates a jump landing on a subpixel boundary", () => {
+    const measured = tops(["questions", -800], ["key-figures", 112.5]);
+    expect(currentSection(measured)).toBe("key-figures");
   });
 
   it("keeps a section current for as long as you are inside it", () => {
@@ -38,11 +59,21 @@ describe("which section is being read", () => {
     expect(currentSection(tops(["health", 400], ["price", 1200]))).toBe("health");
   });
 
-  // The line is the bottom of the sticky chrome: a heading one pixel below it
-  // has not been reached, and one pixel above it has.
+  // A heading one pixel below the line has not been reached; one pixel above
+  // it has. The line sits just past where a jump parks a section, so it is
+  // always comfortably clear of the bars themselves.
   it("moves on the moment a heading crosses the line", () => {
-    expect(currentSection(tops(["health", -10], ["price", 97]))).toBe("health");
-    expect(currentSection(tops(["health", -10], ["price", 96]))).toBe("price");
+    expect(currentSection(tops(["health", -10], ["price", 117]))).toBe("health");
+    expect(currentSection(tops(["health", -10], ["price", 116]))).toBe("price");
+  });
+
+  /*
+    The line must never sit so low that a section is marked current while it
+    is still hidden behind the bars, which end at 93px.
+  */
+  it("never marks a section that is still behind the sticky bars", () => {
+    expect(currentSection(tops(["health", -10], ["price", 93]))).toBe("price");
+    expect(currentSection(tops(["health", -10], ["price", 200]))).toBe("health");
   });
 
   /*
