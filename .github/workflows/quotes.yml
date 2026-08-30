@@ -14,10 +14,22 @@ name: Refresh quotes
 
 on:
   schedule:
-    # Weekdays at 21:30 UTC — after the US close (16:00 ET / 20:00 UTC) plus
-    # enough slack for end-of-day prices to settle. There is no point running
-    # at the weekend: the numbers would be Friday's either way.
-    - cron: "30 21 * * 1-5"
+    # Every day at 21:30 UTC — after the US close (16:00 ET / 20:00 UTC) plus
+    # enough slack for end-of-day prices to settle.
+    #
+    # This ran weekdays only to begin with, on the reasoning that a weekend run
+    # would just re-fetch Friday's closing prices. True of the prices and
+    # wrong about everything else: the dashboard shows when the figures were
+    # last refreshed, and the staleness notice judges the data by that
+    # timestamp rather than by whether the numbers changed. Skipping the
+    # weekend left Monday morning reading three days behind, which is
+    # indistinguishable from a scheduler that has quietly stopped — the exact
+    # thing that notice exists to catch.
+    #
+    # A weekend pass costs one run against a free price tier to write back
+    # figures that mostly match what is already stored. That is a small price
+    # for a timestamp nobody has to explain away.
+    - cron: "30 21 * * *"
   workflow_dispatch:
     inputs:
       limit:
