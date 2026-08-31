@@ -22,58 +22,29 @@ const tops = (...pairs: [string, number][]) => pairs.map(([id, top]) => ({ id, t
 describe("which section is being read", () => {
   /*
     Sticky bars sit above the content, so a heading is "reached" once it passes
-    under them, not when it reaches the top of the window.
+    under them, not when it reaches the top of the window. `line` is where the
+    caller says that boundary currently is — this function has no opinion of
+    its own about it, on purpose. See the next block for why.
   */
   it("picks the last section that has passed under the sticky bars", () => {
     const measured = tops(["health", -400], ["price", -120], ["dividend", 300]);
-    expect(currentSection(measured)).toBe("price");
-  });
-
-  /*
-    The bug this rule was shipped with, and the reason the line is set from
-    where a jump parks a section rather than from the bottom of the bars.
-
-    `scroll-mt-28` leaves a jumped-to heading sitting 112px down. With the line
-    drawn at the bars' 93px, that heading was below it, failed to qualify, and
-    the bar went on highlighting the section above — clicking "Key figures" lit
-    "Five questions".
-  */
-  it("marks the section a reader has just jumped to", () => {
-    const JUMPED_TO = 112;
-    const measured = tops(["questions", -800], ["key-figures", JUMPED_TO], ["dividend", 900]);
-
-    expect(currentSection(measured)).toBe("key-figures");
-  });
-
-  it("tolerates a jump landing on a subpixel boundary", () => {
-    const measured = tops(["questions", -800], ["key-figures", 112.5]);
-    expect(currentSection(measured)).toBe("key-figures");
+    expect(currentSection(measured, 116)).toBe("price");
   });
 
   it("keeps a section current for as long as you are inside it", () => {
     // A tall section whose top is far above: still the one being read.
-    expect(currentSection(tops(["health", -2000], ["price", 900]))).toBe("health");
+    expect(currentSection(tops(["health", -2000], ["price", 900]), 116)).toBe("health");
   });
 
   it("holds the first section while the page is still at the top", () => {
-    expect(currentSection(tops(["health", 400], ["price", 1200]))).toBe("health");
+    expect(currentSection(tops(["health", 400], ["price", 1200]), 116)).toBe("health");
   });
 
   // A heading one pixel below the line has not been reached; one pixel above
-  // it has. The line sits just past where a jump parks a section, so it is
-  // always comfortably clear of the bars themselves.
+  // it has.
   it("moves on the moment a heading crosses the line", () => {
-    expect(currentSection(tops(["health", -10], ["price", 117]))).toBe("health");
-    expect(currentSection(tops(["health", -10], ["price", 116]))).toBe("price");
-  });
-
-  /*
-    The line must never sit so low that a section is marked current while it
-    is still hidden behind the bars, which end at 93px.
-  */
-  it("never marks a section that is still behind the sticky bars", () => {
-    expect(currentSection(tops(["health", -10], ["price", 93]))).toBe("price");
-    expect(currentSection(tops(["health", -10], ["price", 200]))).toBe("health");
+    expect(currentSection(tops(["health", -10], ["price", 117]), 116)).toBe("health");
+    expect(currentSection(tops(["health", -10], ["price", 116]), 116)).toBe("price");
   });
 
   /*
@@ -85,13 +56,40 @@ describe("which section is being read", () => {
   it("marks the last section once the page bottoms out", () => {
     const measured = tops(["health", -3000], ["price", -900], ["sources", 700]);
 
-    expect(currentSection(measured, false)).toBe("price");
-    expect(currentSection(measured, true)).toBe("sources");
+    expect(currentSection(measured, 116, false)).toBe("price");
+    expect(currentSection(measured, 116, true)).toBe("sources");
   });
 
   it("has no answer when there are no sections to measure", () => {
-    expect(currentSection([])).toBeNull();
-    expect(currentSection([], true)).toBeNull();
+    expect(currentSection([], 116)).toBeNull();
+    expect(currentSection([], 116, true)).toBeNull();
+  });
+
+  /*
+    Why the line is a parameter and not a constant baked into this function.
+
+    A version of this file once hardcoded the line, sized for the site
+    header's ordinary single-row height. On a phone that header wraps its
+    third column onto a second row and ends up noticeably taller — so a
+    section that has genuinely cleared the real, on-screen chrome could still
+    sit above a line that was set too low, and the bar would go on marking the
+    section before it instead. That is a lag, not a crash: nothing throws,
+    the highlight is just late, for exactly as long as the gap between the
+    guessed line and the real one.
+
+    Below, the same measured position answers two different ways depending on
+    where the caller says the chrome ends — which is the whole fix. The
+    component itself now measures the real header on every render rather than
+    assuming a height for it; this is what makes that measurement matter.
+  */
+  it("lags behind when the caller under-reports where the chrome ends", () => {
+    const measured = tops(["health", -400], ["price", 100]);
+
+    // Too small — sized for a header shorter than the real one. The section
+    // has genuinely cleared the screen but the bar has not caught up yet.
+    expect(currentSection(measured, 96)).toBe("health");
+    // The real, measured line, on a phone with the taller header: caught up.
+    expect(currentSection(measured, 120)).toBe("price");
   });
 });
 
@@ -128,6 +126,16 @@ describe("the bar itself", () => {
     expect(render(sections)).toContain('aria-label="Sections of this page"');
   });
 
+  /*
+    The pre-measurement fallback. Before the header-measuring effect has run
+    at all — the very first frame, and the only state a reader with
+    JavaScript disabled ever sees — the bar has to sit somewhere sane rather
+    than at the top of the window.
+  */
+  it("carries a sane sticky offset before anything has been measured", () => {
+    expect(render(sections)).toMatch(/class="[^"]*\btop-14\b[^"]*"/);
+  });
+
   // One link is not a navigation aid, it is a stray button.
   it("renders nothing when there is nowhere to go", () => {
     expect(render([])).toBe("");
@@ -136,7 +144,7 @@ describe("the bar itself", () => {
 });
 
 describe("anchoring a panel", () => {
-  it("carries the id and clears the sticky bars when jumped to", () => {
+  it("carries the id", () => {
     const html = renderToStaticMarkup(
       <Section id="dividend">
         <p>content</p>
@@ -144,7 +152,6 @@ describe("anchoring a panel", () => {
     );
 
     expect(html).toContain('id="dividend"');
-    expect(html).toContain("scroll-mt-28");
   });
 
   /*
@@ -159,5 +166,22 @@ describe("anchoring a panel", () => {
     expect(html).toContain("empty:hidden");
     // Genuinely empty, with no stray markers — otherwise :empty never matches.
     expect(html).toMatch(/<div id="dividend" class="[^"]*"><\/div>/);
+  });
+
+  /*
+    No `scroll-mt` class on the wrapper. Space for the sticky bars above a
+    jumped-to heading is reserved once, globally, by `scroll-padding-top` —
+    kept in sync with the site's actual chrome height by SectionNav's own
+    effect — rather than repeated per section. A per-section copy of that
+    number is what drifted out of sync with the rest of the page once already.
+  */
+  it("does not repeat the scroll offset on every section", () => {
+    const html = renderToStaticMarkup(
+      <Section id="dividend">
+        <p>content</p>
+      </Section>,
+    );
+
+    expect(html).not.toContain("scroll-mt");
   });
 });

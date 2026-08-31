@@ -27,42 +27,33 @@ export interface StockSection {
 }
 
 /**
- * Breathing room a jumped-to section leaves above itself, so a heading reached
- * by a jump lands clear of the site header and this bar.
- *
- * Deliberately NOT exported for the page to share. This module is "use client",
- * and a plain constant exported from one is a client reference on the server,
- * not a string — interpolating it into a className produced a class attribute
- * containing "Attempted to call SECTION_SCROLL_MARGIN() from the server".
- * The two sections the page anchors itself repeat the literal instead, and say
- * why.
+ * Fallback offset for a browser that has not yet measured the header — the
+ * very first frame, and the only value used when JavaScript never runs. Sized
+ * for the header's ordinary single-row height. See `globals.css`, which
+ * declares the same number as the page-wide `scroll-padding-top` default.
  */
-const SECTION_SCROLL_MARGIN = "scroll-mt-28";
+const FALLBACK_OFFSET = 112;
 
 /**
- * What `SECTION_SCROLL_MARGIN` is worth in pixels — where a jumped-to section
- * comes to rest below the top of the window.
+ * Slack added past the sticky bars' real bottom edge, shared by the landing
+ * spot and the activation line so they cannot disagree the way they did the
+ * first time this file measured that edge instead of guessing it.
  *
- * The two have to agree, and nothing in the type system will say so if they
- * stop agreeing, which is why they sit next to each other.
+ * Landing needs it so a jumped-to heading sits comfortably clear of the bars
+ * rather than flush against them, and so a sub-pixel measurement — the header
+ * height above came back `100.8px` on the phone this was tested against — can
+ * never place a heading a fraction of a pixel above where it needs to be.
+ *
+ * The activation line needs the SAME slack, not its own: a section is meant
+ * to light up the moment a reader lands on it, and `scroll-padding-top`
+ * parks a landed section exactly this far past the bars' edge. Reading the
+ * bars' bare edge for the line and their edge-plus-slack for the landing spot
+ * put those two numbers 4px apart, so a section a reader had just clicked
+ * straight to sat 4px on the wrong side of its own activation line — the
+ * previous chip stayed lit. One constant, spent in both places, is what
+ * keeps that from happening again.
  */
-const SCROLL_MARGIN_PX = 112;
-
-/**
- * The line a section's top must cross to count as the one being read.
- *
- * Set from where a jump parks a section, not from the bottom of the sticky
- * bars, and that difference is a bug this constant exists to prevent rather
- * than a preference. The bars end at 93px and the first version drew the line
- * there — but `scroll-mt-28` parks a heading at 112px, so a section the reader
- * had just clicked straight to sat below the line, failed to qualify, and the
- * bar went on highlighting the section above it. Clicking "Key figures" lit
- * "Five questions".
- *
- * The few pixels of slack past the parking spot absorb subpixel rounding, so a
- * heading that lands on 112.5 still counts.
- */
-const ACTIVATION_LINE = SCROLL_MARGIN_PX + 4;
+const CHROME_SLACK = 4;
 
 /**
  * Which section a reader is currently looking at.
@@ -72,13 +63,23 @@ const ACTIVATION_LINE = SCROLL_MARGIN_PX + 4;
  * nor run an IntersectionObserver — so the rule was untestable while it lived
  * inside an effect. As a function it can be checked directly.
  *
- * The rule itself is the one every table of contents uses: the current section
- * is the last one whose top has passed under the sticky bars. That keeps a
- * section marked for as long as you are inside it, rather than only while its
- * heading happens to be on screen.
+ * `line` is the caller's current answer to "where does the sticky chrome
+ * end", measured live rather than assumed. A fixed pixel constant sat here
+ * once, sized for the site header's ordinary single-row height — and was
+ * wrong on a phone, where the header's third column force-wraps onto a second
+ * row and the header ends up noticeably taller. That mismatch is what let the
+ * section strip lock itself partly behind the header instead of below it,
+ * which looked like the whole bar shrinking away as you scrolled: this file's
+ * fix is to stop assuming the chrome's height and start measuring it.
+ *
+ * The rule itself is the one every table of contents uses: the current
+ * section is the last one whose top has passed under the sticky bars. That
+ * keeps a section marked for as long as you are inside it, rather than only
+ * while its heading happens to be on screen.
  */
 export function currentSection(
   tops: { id: string; top: number }[],
+  line: number,
   atBottom = false,
 ): string | null {
   if (tops.length === 0) return null;
@@ -94,7 +95,7 @@ export function currentSection(
 
   let current = tops[0].id;
   for (const { id, top } of tops) {
-    if (top <= ACTIVATION_LINE) current = id;
+    if (top <= line) current = id;
   }
   return current;
 }
@@ -112,6 +113,61 @@ export function SectionNav({ sections }: { sections: StockSection[] }) {
   const [present, setPresent] = useState<StockSection[]>(sections);
   const [active, setActive] = useState<string | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  /*
+    Sits directly below the real site header, whatever height that turns out
+    to be, rather than under a guess of one.
+
+    The header is not a fixed height: its right-hand column force-wraps onto a
+    second row once the viewport is too narrow to hold it beside the nav
+    links, which is exactly the range this strip has to work on a phone. A
+    Tailwind class picks one number at build time; measuring the header
+    element itself is correct at every width, and stays correct if the header
+    changes in ways this file never has to know about.
+
+    A ResizeObserver rather than a `resize` listener, because the header's
+    height can change for reasons that never fire `resize` at all — a web font
+    swapping in, a breakpoint crossed by content reflow rather than by the
+    window changing size.
+  */
+  useEffect(() => {
+    const header = document.getElementById("site-header");
+    const nav = navRef.current;
+    if (!header || !nav) return;
+
+    const apply = () => {
+      const headerHeight = header.getBoundingClientRect().height;
+      nav.style.top = `${headerHeight}px`;
+
+      /*
+        Same measurement, spent on the other half of this problem: how far a
+        fragment jump should land below the top of the window. One property
+        on the document, rather than a class repeated on every anchor target —
+        the previous version needed three copies of that class to agree with
+        each other and with this component's own numbers, and had already
+        drifted out of sync once. There is nothing left here that can drift.
+      */
+      const navHeight = nav.getBoundingClientRect().height;
+      document.documentElement.style.scrollPaddingTop = `${headerHeight + navHeight + CHROME_SLACK}px`;
+    };
+
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(header);
+    observer.observe(nav);
+
+    return () => {
+      observer.disconnect();
+      // However this strip goes away — the panel it belongs to emptying out,
+      // or navigating to a page that never mounts one — the next page must
+      // not inherit a scroll offset sized for this one's two sticky bars.
+      document.documentElement.style.scrollPaddingTop = "";
+    };
+    // Re-runs whenever the rendered set of sections changes, which is exactly
+    // when `<nav>` itself might have mounted or unmounted — `present` shrinking
+    // below two hides it entirely, and this has to notice.
+  }, [present]);
 
   useEffect(() => {
     /*
@@ -164,9 +220,23 @@ export function SectionNav({ sections }: { sections: StockSection[] }) {
       const atBottom =
         window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
 
+      /*
+        The line is wherever this bar's own bottom edge actually is right now,
+        not a number decided in advance. That is what makes this correct on a
+        header of any height without this file needing to know what that
+        height is — the earlier version guessed 112px, and a guess is exactly
+        what put a phone's taller header in the way in the first place.
+
+        Plus CHROME_SLACK, matching where a jump actually lands a section —
+        see that constant for why the two have to use the same number.
+      */
+      const line =
+        (navRef.current?.getBoundingClientRect().bottom ?? FALLBACK_OFFSET) + CHROME_SLACK;
+
       setActive(
         currentSection(
           targets.map((el) => ({ id: el.id, top: el.getBoundingClientRect().top })),
+          line,
           atBottom,
         ),
       );
@@ -218,7 +288,16 @@ export function SectionNav({ sections }: { sections: StockSection[] }) {
 
   return (
     <nav
+      ref={navRef}
       aria-label="Sections of this page"
+      // top-14 is the pre-measurement fallback for the first frame and for a
+      // browser with JavaScript off — a guess at the header's ordinary
+      // single-row height. The effect above overwrites it by inline style the
+      // instant it can measure the header for real, which on a phone is a
+      // taller number: that header wraps onto two rows there, and this bar
+      // has to sit below both of them, not below where a one-row header would
+      // have ended.
+      //
       // Below the site header's z-30 so it tucks under rather than over it.
       className="sticky top-14 z-20 -mx-7 border-b border-border bg-[color-mix(in_srgb,var(--background)_92%,transparent)] backdrop-blur-[8px]"
     >
@@ -258,6 +337,13 @@ export function SectionNav({ sections }: { sections: StockSection[] }) {
  *
  * `className` is for the few sections holding more than one panel: those lose
  * the page's own vertical rhythm by being wrapped, and have to restate it.
+ *
+ * No `scroll-mt` here. Where space above a jumped-to heading has to be
+ * reserved for the sticky bars, `scroll-padding-top` on the document does that
+ * once, globally — see the rule in `globals.css` and the effect above that
+ * keeps it matched to the header's real, measured height. A per-section class
+ * doing the same job would be a second number that has to agree with the
+ * first.
  */
 export function Section({
   id,
@@ -277,7 +363,7 @@ export function Section({
     entirely, so the spacing closes up as if it were never there.
   */
   return (
-    <div id={id} className={cn(SECTION_SCROLL_MARGIN, "empty:hidden", className)}>
+    <div id={id} className={cn("empty:hidden", className)}>
       {children}
     </div>
   );
