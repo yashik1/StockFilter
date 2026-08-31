@@ -492,7 +492,7 @@ async function StockBody({
 
       {/* ---- the five questions ---- */}
       {report && (
-        <section id="questions" className="scroll-mt-28" aria-labelledby="questions-heading">
+        <section id="questions" aria-labelledby="questions-heading">
           <SectionHeading
             eyebrow="The essentials"
             title="The five questions that matter"
@@ -529,7 +529,7 @@ async function StockBody({
       {/* ---- balance sheet + trends ---- */}
       <div
         id="financials"
-        className="grid scroll-mt-28 grid-cols-[minmax(0,1fr)] gap-4 empty:hidden lg:grid-cols-2"
+        className="grid grid-cols-[minmax(0,1fr)] gap-4 empty:hidden lg:grid-cols-2"
       >
         {fundamentals && (
           <BalanceSheetVisual fundamentals={fundamentals} sector={sector} currency={currency} />

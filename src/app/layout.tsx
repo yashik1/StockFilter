@@ -164,7 +164,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           height, so search, account and theme read as one ruled row rather
           than three objects of different sizes that happen to be adjacent.
         */}
-        <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_92%,transparent)] backdrop-blur-[8px]">
+        {/*
+          The id is load-bearing, not decorative: the stock page's section
+          strip measures this element's real rendered height at runtime so it
+          can sit directly below it. That height is not a constant — the third
+          column force-wraps onto its own row below `lg`, so this header is
+          taller on a phone than on a desktop, and a hardcoded offset for the
+          strip was wrong on exactly the breakpoint where it wraps.
+        */}
+        <header
+          id="site-header"
+          className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_92%,transparent)] backdrop-blur-[8px]"
+        >
           <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-3 px-7 py-2.5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(180px,320px)] xl:grid-cols-[auto_minmax(0,1fr)_minmax(180px,400px)]">
             <Link
               href="/"

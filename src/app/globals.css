@@ -364,6 +364,25 @@ body {
   letter-spacing: 0;
 }
 
+/*
+  Reserves space above a fragment jump's landing spot on every page, once, so
+  it never lands under the sticky site header.
+
+  This is the SSR and no-JS default, sized for the header's ordinary
+  single-row height. The stock page's section strip adds a second sticky bar
+  and a second row to the header on a narrow screen, so it corrects this value
+  at runtime once it can measure both — see section-nav.tsx. A page with only
+  the plain header is close enough at this default that no correction is
+  needed there at all.
+
+  A single global property here does the job that used to be three separate
+  `scroll-mt-*` classes on three sections in two files, all needing to agree
+  with a JS constant nothing enforced. They drifted out of sync twice.
+*/
+html {
+  scroll-padding-top: 7rem;
+}
+
 /* Wide content scrolls inside its own container so the page body never scrolls
    horizontally on a phone. */
 .scroll-x {
