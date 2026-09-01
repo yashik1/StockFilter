@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { __testing } from "./screener";
+import {
+  ADVANCED_FILTER_KEYS,
+  __testing,
+  usesAdvancedFilters,
+  withoutAdvancedFilters,
+} from "./screener";
 
 const { classifyDbError } = __testing;
 
@@ -82,5 +87,55 @@ describe("database error classification", () => {
   it("truncates very long messages", () => {
     const result = classifyDbError(new Error("x".repeat(1000)));
     expect(result.detail.length).toBeLessThanOrEqual(301);
+  });
+});
+
+describe("which filters are part of Pro", () => {
+  /*
+    The free and paid dimensions are named in one list, which the form, the
+    URL parser and the server-side gate all read. Two lists would eventually
+    disagree, and the direction that disagreement fails matters: a filter the
+    gate forgot about is a paid feature given away, and one the form forgot is
+    a paying customer told they cannot use what they bought.
+  */
+  it("counts a screen using only free dimensions as free", () => {
+    expect(usesAdvancedFilters({})).toBe(false);
+    expect(usesAdvancedFilters({ minHealth: 7, maxPe: 20, sector: "Technology" })).toBe(false);
+    expect(usesAdvancedFilters({ preset: "healthy", sort: "health" })).toBe(false);
+  });
+
+  it("spots every advanced dimension", () => {
+    for (const key of ADVANCED_FILTER_KEYS) {
+      const value = key === "safeZoneOnly" || key === "excludeAccountingFlags" ? true : 1;
+      expect(usesAdvancedFilters({ [key]: value })).toBe(true);
+    }
+  });
+
+  /*
+    A false toggle is not a filter. Treating it as one would tell a free
+    reader they had used a paid feature by unticking a box.
+  */
+  it("does not count an unticked toggle as using one", () => {
+    expect(usesAdvancedFilters({ safeZoneOnly: false })).toBe(false);
+    expect(usesAdvancedFilters({ excludeAccountingFlags: false })).toBe(false);
+  });
+
+  it("strips the paid dimensions and keeps the free ones", () => {
+    const trimmed = withoutAdvancedFilters({
+      minHealth: 7,
+      sector: "Technology",
+      sort: "health",
+      maxPb: 3,
+      minRoa: 0.1,
+      safeZoneOnly: true,
+    });
+
+    expect(trimmed).toEqual({ minHealth: 7, sector: "Technology", sort: "health" });
+    expect(usesAdvancedFilters(trimmed)).toBe(false);
+  });
+
+  it("leaves a free-only screen untouched", () => {
+    const free = { minHealth: 7, maxPe: 20 };
+    expect(withoutAdvancedFilters(free)).toEqual(free);
   });
 });

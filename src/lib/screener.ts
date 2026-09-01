@@ -85,6 +85,62 @@ export interface ScreenFilters {
   minMarketCap?: number;
   minGrowth?: number;
   sort?: SortKey;
+
+  /* ------------------------------------------------------------ advanced
+   *
+   * The Pro filters. Every one of them reads a column already computed by the
+   * nightly pass from SEC filings, which is the whole reason this set can be
+   * sold at all — nothing here touches a price feed licensed for personal use.
+   * They cost no extra query either: this is the same single scan with more
+   * predicates on it.
+   *
+   * Named for the direction a reader thinks in — "at most this expensive",
+   * "at least this profitable" — rather than for the column, so the form and
+   * the URL read the same way round as the question.
+   */
+  maxPb?: number;
+  maxPs?: number;
+  minDividendYield?: number;
+  minNetMargin?: number;
+  minRoa?: number;
+  maxDebtToEquity?: number;
+  minCurrentRatio?: number;
+  /** Only companies Altman puts in the safe zone, where the model applies. */
+  safeZoneOnly?: boolean;
+  /** Drop anything Beneish flags, where the model applies. */
+  excludeAccountingFlags?: boolean;
+}
+
+/** Which filters are Pro-only, so one list governs the form, the URL and the gate. */
+export const ADVANCED_FILTER_KEYS = [
+  "maxPb",
+  "maxPs",
+  "minDividendYield",
+  "minNetMargin",
+  "minRoa",
+  "maxDebtToEquity",
+  "minCurrentRatio",
+  "safeZoneOnly",
+  "excludeAccountingFlags",
+] as const satisfies readonly (keyof ScreenFilters)[];
+
+/** True when a filter set uses anything beyond the free dimensions. */
+export function usesAdvancedFilters(filters: ScreenFilters): boolean {
+  return ADVANCED_FILTER_KEYS.some((key) => filters[key] != null && filters[key] !== false);
+}
+
+/**
+ * The filter set with every Pro-only dimension removed.
+ *
+ * Applied server-side to anyone without the entitlement, so a hand-edited URL
+ * returns the free screen rather than the paid one. The alternative — refusing
+ * the request — punishes somebody for a link they were sent, and this is a
+ * page whose whole job is to be shareable.
+ */
+export function withoutAdvancedFilters(filters: ScreenFilters): ScreenFilters {
+  const trimmed = { ...filters };
+  for (const key of ADVANCED_FILTER_KEYS) delete trimmed[key];
+  return trimmed;
 }
 
 export interface ScreenRow {
@@ -108,6 +164,20 @@ export interface ScreenRow {
   revenueGrowth: number | null;
   netMargin: number | null;
   debtToEquity: number | null;
+
+  /* The columns the advanced filters work on. Selected so an export can show
+     what a screen was actually filtered by — a CSV that hides the column
+     somebody screened on is a strange thing to hand them. Same query, more
+     projection; no extra cost. */
+  zScore: number | null;
+  zApplicable: boolean;
+  mScore: number | null;
+  mApplicable: boolean;
+  pbRatio: number | null;
+  psRatio: number | null;
+  dividendYield: number | null;
+  returnOnAssets: number | null;
+  currentRatio: number | null;
 }
 
 /**
@@ -269,6 +339,52 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
   if (filters.minMarketCap != null) conditions.push(gte(scores.marketCap, filters.minMarketCap));
   if (filters.minGrowth != null) conditions.push(gte(scores.revenueGrowth, filters.minGrowth));
 
+  /*
+    The advanced set. Each ratio filter also requires the column to be
+    non-null, for the reason the P/E filter above already does: in SQL a null
+    fails a comparison rather than passing it, so "P/B under 3" would silently
+    drop every company that never reported a book value — which reads to a
+    user as those companies not existing rather than as data being absent.
+    Requiring non-null makes that explicit rather than accidental.
+  */
+  if (filters.maxPb != null) {
+    conditions.push(isNotNull(scores.pbRatio), gte(scores.pbRatio, 0), lte(scores.pbRatio, filters.maxPb));
+  }
+  if (filters.maxPs != null) {
+    conditions.push(isNotNull(scores.psRatio), gte(scores.psRatio, 0), lte(scores.psRatio, filters.maxPs));
+  }
+  if (filters.minDividendYield != null) {
+    conditions.push(gte(scores.dividendYield, filters.minDividendYield));
+  }
+  if (filters.minNetMargin != null) conditions.push(gte(scores.netMargin, filters.minNetMargin));
+  if (filters.minRoa != null) conditions.push(gte(scores.returnOnAssets, filters.minRoa));
+  if (filters.maxDebtToEquity != null) {
+    conditions.push(
+      isNotNull(scores.debtToEquity),
+      gte(scores.debtToEquity, 0),
+      lte(scores.debtToEquity, filters.maxDebtToEquity),
+    );
+  }
+  if (filters.minCurrentRatio != null) {
+    conditions.push(gte(scores.currentRatio, filters.minCurrentRatio));
+  }
+
+  /*
+    The two model filters both require the model to apply before reading its
+    verdict. Altman's Z is not meaningful for a bank and Beneish's M is not
+    meaningful for a financial either, which is why those rows carry an
+    `applicable` flag at all — and a filter that ignored it would quietly
+    treat "the model does not apply here" as "the model says this is fine".
+  */
+  if (filters.safeZoneOnly) {
+    conditions.push(eq(scores.zApplicable, true), eq(scores.zZone, "safe"));
+  }
+  if (filters.excludeAccountingFlags) {
+    conditions.push(
+      or(eq(scores.mApplicable, false), eq(scores.mFlagged, false)) as SQL,
+    );
+  }
+
   const sort = SORTS[filters.sort ?? "health"];
   // NULLS LAST everywhere: a company with no data should never top a ranking.
   const orderBy =
@@ -298,6 +414,15 @@ export async function runScreen(filters: ScreenFilters, limit = 100): Promise<Sc
         revenueGrowth: scores.revenueGrowth,
         netMargin: scores.netMargin,
         debtToEquity: scores.debtToEquity,
+        zScore: scores.zScore,
+        zApplicable: scores.zApplicable,
+        mScore: scores.mScore,
+        mApplicable: scores.mApplicable,
+        pbRatio: scores.pbRatio,
+        psRatio: scores.psRatio,
+        dividendYield: scores.dividendYield,
+        returnOnAssets: scores.returnOnAssets,
+        currentRatio: scores.currentRatio,
       })
       .from(companies)
       .innerJoin(scores, eq(scores.companyId, companies.id))
