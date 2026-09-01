@@ -362,6 +362,18 @@ export const subscriptions = pgTable(
     stripeCustomerId: text("stripe_customer_id").notNull(),
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripePriceId: text("stripe_price_id"),
+    /**
+     * Which plan this is: free, pro or pro-plus.
+     *
+     * Stored rather than derived from `stripePriceId` at read time. The price
+     * ids live in environment variables, and deriving would mean that
+     * rotating one — a currency change, a new price for new customers —
+     * silently demoted every existing subscriber who was still on the old id.
+     * The webhook resolves this once, when the plan is bought or changed, and
+     * a paying customer's tier then survives any later reshuffling of the
+     * catalogue.
+     */
+    tier: text("tier").notNull().default("pro"),
     /** Stripe's own vocabulary: active, trialing, past_due, canceled, unpaid… */
     status: text("status").notNull().default("incomplete"),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),

@@ -4,6 +4,7 @@ import { BillingButton } from "./subscribe-button";
 import { isStripeConfigured } from "@/lib/billing/stripe";
 import { accountIsEnough } from "@/lib/billing/access-mode";
 import type { Entitlement } from "@/lib/billing/entitlement";
+import { FEATURES, type Feature } from "@/lib/billing/tiers";
 
 /**
  * What a reader sees in place of a gated feature.
@@ -17,25 +18,56 @@ import type { Entitlement } from "@/lib/billing/entitlement";
  * The tone is deliberately not a hard sell. Everything else on the site is
  * free and stays free, and this says which parts are which rather than
  * implying the reader is missing out on the whole product.
+ *
+ * `featureKey` and `preview` are the tiered additions. Naming the feature lets
+ * this card answer the question a locked panel actually raises — why this one
+ * and not that one — from the entitlement table rather than from prose that
+ * has to be kept in step with it. For anything built on the licensed price
+ * feeds that answer is "it is not for sale at any price", and the card says so
+ * plainly instead of offering to sell it, which would be both a false offer
+ * and a licence breach if anyone accepted.
+ *
+ * `preview` is the other half. A card that says only "Subscribe" asks somebody
+ * to buy something they have not seen; a real, inert glimpse of the thing lets
+ * them decide whether they want it.
  */
 export function Paywall({
   entitlement,
   feature,
   description,
   returnTo,
+  featureKey,
+  preview,
 }: {
   entitlement: Entitlement;
   feature: string;
   description: string;
   returnTo: string;
+  /** Which entitlement this stands in for, when it maps to one. */
+  featureKey?: Feature;
+  /** A real but inert glimpse of what is behind the gate. */
+  preview?: React.ReactNode;
 }) {
   const stripeReady = isStripeConfigured();
+  const policy = featureKey ? FEATURES[featureKey] : null;
+  const neverForSale = policy?.kind === "personal-use-data";
 
   return (
     <Card className="p-6">
-      <p className="eyebrow">{accountIsEnough ? "Free with an account" : "Subscriber feature"}</p>
+      <p className="eyebrow">
+        {accountIsEnough || neverForSale
+          ? "Free with an account"
+          : policy?.requires === "pro-plus"
+            ? "Included with Pro+"
+            : "Subscriber feature"}
+      </p>
       <h2 className="font-display mt-2 text-2xl">{feature}</h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{description}</p>
+
+      {/* The argument for the feature. Everything above it is caption. */}
+      {preview && (
+        <div className="mt-4 rounded-lg border border-border bg-surface-2/40 p-4">{preview}</div>
+      )}
 
       <div className="mt-5">
         {!entitlement.signedIn ? (
@@ -53,6 +85,17 @@ export function Paywall({
               or create an account
             </Link>
           </div>
+        ) : neverForSale ? (
+          /*
+            Built on data licensed for personal, non-commercial use, so there
+            is nothing to sell and no upgrade to offer. Saying why is the
+            useful thing here — a reader who has just been stopped deserves to
+            know it is a licence rather than a price, and that no amount of
+            paying would change it.
+          */
+          <p className="rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-xs leading-relaxed text-muted-strong">
+            {policy.why}
+          </p>
         ) : accountIsEnough ? (
           /*
             Signed in, and an account is all that is needed — so this is not a

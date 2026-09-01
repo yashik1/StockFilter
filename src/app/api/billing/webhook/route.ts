@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
-import { getStripe } from "@/lib/billing/stripe";
+import { getStripe, tierForPriceId } from "@/lib/billing/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -107,9 +107,23 @@ async function applyEvent(event: Stripe.Event): Promise<void> {
     restored from before the checkout.
   */
   const periodEnd = firstPeriodEnd(subscription);
+  const priceId = subscription.items.data[0]?.price?.id ?? null;
+
+  /*
+    An unrecognised price leaves the stored tier untouched rather than
+    resetting it. A price id this deployment cannot name is far more likely to
+    be one that was rotated in Stripe than a customer who bought nothing, and
+    silently demoting a paying subscriber over a changed environment variable
+    is the worse of the two failures — they would simply find their plan gone.
+    An upgrade or downgrade always arrives with a price we do know, so the
+    case this skips is the one where there is nothing reliable to say.
+  */
+  const tier = tierForPriceId(priceId);
+
   const values = {
     stripeSubscriptionId: subscription.id,
-    stripePriceId: subscription.items.data[0]?.price?.id ?? null,
+    stripePriceId: priceId,
+    ...(tier ? { tier } : {}),
     status: subscription.status,
     currentPeriodEnd: periodEnd,
     cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
@@ -134,7 +148,9 @@ async function applyEvent(event: Stripe.Event): Promise<void> {
 
   await db
     .insert(subscriptions)
-    .values({ userId, stripeCustomerId: customerId, ...values })
+    // A new row has no existing tier to leave alone, so an unrecognised price
+    // falls back to the base paid tier rather than to nothing.
+    .values({ userId, stripeCustomerId: customerId, tier: tier ?? "pro", ...values })
     .onConflictDoUpdate({ target: subscriptions.userId, set: values });
 }
 
