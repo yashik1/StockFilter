@@ -3,7 +3,14 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
-import { getPriceId, getSiteUrl, getStripe, isStripeConfigured } from "@/lib/billing/stripe";
+import {
+  availablePlans,
+  getSiteUrl,
+  getStripe,
+  isStripeConfigured,
+  priceIdForPlan,
+  type Plan,
+} from "@/lib/billing/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +21,14 @@ export const dynamic = "force-dynamic";
  * should not be triggerable by a link, a prefetch or an image tag pointing at
  * this URL.
  *
- * The price is read from configuration, never from the request. Taking an
- * amount or a price id from the client would let anyone subscribe for
- * whatever they felt like paying.
+ * The price is read from configuration, never from the request. The body may
+ * name WHICH plan it wants, but the price id for that plan comes from this
+ * server's own environment — taking an amount or a price id from the client
+ * would let anyone subscribe for whatever they felt like paying, and taking
+ * an unvalidated plan name would let them buy a plan this deployment does not
+ * sell.
  */
-export async function POST() {
+export async function POST(request: Request) {
   const session = await auth();
   const userId = session?.user?.id;
   const email = session?.user?.email;
@@ -29,6 +39,26 @@ export async function POST() {
   if (!isStripeConfigured() || !isDatabaseConfigured()) {
     return NextResponse.json(
       { error: "Payments are not configured on this deployment." },
+      { status: 503 },
+    );
+  }
+
+  /*
+    The plan is the only thing the client gets a say in, and it is checked
+    against what this deployment actually sells rather than trusted. An absent
+    or unrecognised body falls back to Pro monthly, which is what the single
+    price this app used to sell has become — so an older client that posts
+    nothing at all still buys the thing it always bought.
+  */
+  const body = (await request.json().catch(() => null)) as { plan?: string } | null;
+  const offered = availablePlans();
+  const plan: Plan =
+    body?.plan && offered.includes(body.plan as Plan) ? (body.plan as Plan) : "pro-monthly";
+
+  const priceId = priceIdForPlan(plan);
+  if (!priceId) {
+    return NextResponse.json(
+      { error: "That plan is not available on this deployment." },
       { status: 503 },
     );
   }
@@ -67,7 +97,7 @@ export async function POST() {
     const checkout = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: getPriceId(), quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${getSiteUrl()}/account?checkout=done`,
       cancel_url: `${getSiteUrl()}/account?checkout=cancelled`,
       // Repeated on the subscription so the webhook can map it back to an

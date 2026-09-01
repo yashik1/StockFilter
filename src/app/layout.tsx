@@ -119,6 +119,7 @@ const NAV = [
   { href: "/backtest", label: "Backtest" },
   { href: "/journal", label: "Journal" },
   { href: "/learn", label: "Learn" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 /**

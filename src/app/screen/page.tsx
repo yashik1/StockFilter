@@ -8,11 +8,15 @@ import {
   PRESETS,
   runScreen,
   SORTS,
+  usesAdvancedFilters,
+  withoutAdvancedFilters,
   type PresetKey,
+  type ScreenFilters,
   type ScreenRow,
   type SortKey,
 } from "@/lib/screener";
 import { DISPLAY_SECTORS } from "@/lib/scoring/sectors";
+import { canAccess, getEntitlement } from "@/lib/billing/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +67,12 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
   const preset = get("preset") as PresetKey | undefined;
   const sort = (get("sort") as SortKey | undefined) ?? "health";
 
-  const filters = {
+  const flag = (key: string): true | undefined => {
+    const v = get(key);
+    return v === "1" || v === "true" ? true : undefined;
+  };
+
+  const requested: ScreenFilters = {
     preset: preset && preset in PRESETS ? preset : undefined,
     sector: get("sector") || undefined,
     country: get("country") || undefined,
@@ -73,7 +82,34 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
     minMarketCap: numeric("minMarketCap"),
     minGrowth: numeric("minGrowth"),
     sort: sort in SORTS ? sort : ("health" as SortKey),
+
+    // The Pro dimensions. Read unconditionally and stripped below rather than
+    // read conditionally, so there is one place that decides who gets them.
+    maxPb: numeric("maxPb"),
+    maxPs: numeric("maxPs"),
+    minDividendYield: numeric("minDividendYield"),
+    minNetMargin: numeric("minNetMargin"),
+    minRoa: numeric("minRoa"),
+    maxDebtToEquity: numeric("maxDebtToEquity"),
+    minCurrentRatio: numeric("minCurrentRatio"),
+    safeZoneOnly: flag("safeZoneOnly"),
+    excludeAccountingFlags: flag("excludeAccountingFlags"),
   };
+
+  /*
+    The gate, applied to the query rather than to the page.
+
+    A reader without the entitlement who arrives on a URL carrying advanced
+    filters — a shared link, a hand-edited query string — gets the free screen
+    those filters reduce to, plus a note saying so. Refusing the request
+    outright would punish somebody for a link they were sent, on a page whose
+    whole purpose is to be shareable; and honouring the filters would hand the
+    paid feature to anyone who could read a URL.
+  */
+  const entitlement = await getEntitlement();
+  const mayUseAdvanced = canAccess(entitlement, "ADVANCED_SCREENER");
+  const advancedRequested = usesAdvancedFilters(requested);
+  const filters = mayUseAdvanced ? requested : withoutAdvancedFilters(requested);
 
   const result = await runScreen(filters);
 
@@ -213,15 +249,53 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
 
         <div className="min-w-0 space-y-5">
           {/* Results */}
-          {result.status !== "ok" ? (
+          {/*
+          Said only when it actually happened. A reader who never used an
+          advanced filter should not be told about one they did not ask for,
+          which is how a paywall notice turns into an advertisement.
+        */}
+        {advancedRequested && !mayUseAdvanced && (
+          <Card className="p-4">
+            <p className="text-sm leading-relaxed text-muted-strong">
+              This link uses filters that are part of Pro — book value, margins, returns, debt
+              cover and the accounting screens. They have been left out, so these are the
+              results for the rest of it.{" "}
+              <Link href="/pricing" className="text-accent underline underline-offset-2">
+                See what Pro adds
+              </Link>
+              .
+            </p>
+          </Card>
+        )}
+
+        {result.status !== "ok" ? (
           <SetupNotice status={result.status} detail={result.detail} />
         ) : (
           <Card>
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
               <p className="text-sm text-muted">
                 {result.total} {result.total === 1 ? "company" : "companies"}
                 {filters.preset && ` · ${PRESETS[filters.preset].label}`}
               </p>
+
+              {/*
+                A plain link rather than a button: it is a GET that returns a
+                file, so it should be openable in a new tab and copyable like
+                any other URL. The route checks the entitlement again on its
+                own — this only decides whether to offer it.
+              */}
+              {mayUseAdvanced ? (
+                <a
+                  href={`/api/screen/export${exportQuery(filters)}`}
+                  className="text-xs text-accent underline underline-offset-2"
+                >
+                  Export CSV
+                </a>
+              ) : (
+                <Link href="/pricing" className="text-xs text-muted underline underline-offset-2">
+                  Export with Pro
+                </Link>
+              )}
             </div>
             <ResultsTable rows={result.rows} />
           </Card>
@@ -441,4 +515,22 @@ function NumberField({
       />
     </div>
   );
+}
+
+/**
+ * The current screen as a query string for the export route.
+ *
+ * Rebuilt from the resolved filters rather than forwarded from the incoming
+ * URL, so the file matches what is actually on screen — including the case
+ * where an advanced filter was stripped, where forwarding the original query
+ * would export a different screen from the one the reader is looking at.
+ */
+function exportQuery(filters: ScreenFilters): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value == null || value === false || value === "") continue;
+    params.set(key, String(value));
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }

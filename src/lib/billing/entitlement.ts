@@ -3,8 +3,10 @@ import { getDb, isDatabaseConfigured } from "../db";
 import { subscriptions } from "../db/schema";
 import { auth } from "../auth";
 import { ACCESS_MODE, accountIsEnough, hasAccess } from "./access-mode";
+import { canAccess as canAccessFeature, type Feature, type Tier } from "./tiers";
 
 export { ACCESS_MODE, accountIsEnough, hasAccess };
+export type { Feature, Tier };
 
 /**
  * Who is allowed to use the paid features.
@@ -41,6 +43,13 @@ const GRACE_PERIOD_MS = 3 * 24 * 60 * 60 * 1000;
 export interface Entitlement {
   signedIn: boolean;
   subscribed: boolean;
+  /**
+   * Which plan they are on. "free" for everyone not currently paying —
+   * including a lapsed subscriber, whose row still names the plan they used
+   * to have. `subscribed` is the flag that decides whether this tier grants
+   * anything; this field only says which one it would grant.
+   */
+  tier: Tier;
   userId: string | null;
   /** Stripe's own status, for showing the reader something specific. */
   status: string | null;
@@ -51,6 +60,7 @@ export interface Entitlement {
 const NOT_SIGNED_IN: Entitlement = {
   signedIn: false,
   subscribed: false,
+  tier: "free",
   userId: null,
   status: null,
   currentPeriodEnd: null,
@@ -112,9 +122,27 @@ export async function getEntitlement(): Promise<Entitlement> {
   return {
     signedIn: true,
     subscribed: statusEntitles && withinPeriod,
+    // Narrowed here rather than trusted: the column is free text as far as
+    // Postgres is concerned, and a value this build does not recognise should
+    // read as the base paid plan rather than crash a page or silently grant
+    // the highest one.
+    tier: row.tier === "pro-plus" ? "pro-plus" : "pro",
     userId,
     status: row.status,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
   };
+}
+
+/**
+ * Whether this visitor may use a particular feature.
+ *
+ * The server-side counterpart to the table in `tiers.ts`, with the
+ * deployment's access mode already applied — every page, route and action
+ * should ask this rather than comparing tiers itself. `hasAccess` remains for
+ * the original binary gates and now means "at least a Pro-level feature",
+ * which is what those gates already guarded.
+ */
+export function canAccess(entitlement: Entitlement, feature: Feature): boolean {
+  return canAccessFeature(entitlement, feature, accountIsEnough);
 }

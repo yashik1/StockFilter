@@ -362,6 +362,18 @@ export const subscriptions = pgTable(
     stripeCustomerId: text("stripe_customer_id").notNull(),
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripePriceId: text("stripe_price_id"),
+    /**
+     * Which plan this is: free, pro or pro-plus.
+     *
+     * Stored rather than derived from `stripePriceId` at read time. The price
+     * ids live in environment variables, and deriving would mean that
+     * rotating one — a currency change, a new price for new customers —
+     * silently demoted every existing subscriber who was still on the old id.
+     * The webhook resolves this once, when the plan is bought or changed, and
+     * a paying customer's tier then survives any later reshuffling of the
+     * catalogue.
+     */
+    tier: text("tier").notNull().default("pro"),
     /** Stripe's own vocabulary: active, trialing, past_due, canceled, unpaid… */
     status: text("status").notNull().default("incomplete"),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
@@ -623,6 +635,40 @@ export const cusipSymbols = pgTable(
   (t) => [index("cusip_symbol_idx").on(t.symbol)],
 );
 
+/**
+ * A screen somebody built and wants back.
+ *
+ * The filters are stored as JSON rather than as a column per dimension. The
+ * screener's filter set is expected to grow — that is what makes it worth
+ * paying for — and a column per filter would mean a migration every time one
+ * is added, plus a table full of nulls. The cost of that choice is that this
+ * column is not queryable, which is fine: nothing queries across saved
+ * screens, they are only ever read back whole for the person who saved them.
+ *
+ * Validated on the way out rather than trusted, since JSON in Postgres is
+ * whatever was put there — including whatever an older version of the app
+ * wrote before a filter was renamed.
+ */
+export const savedScreeners = pgTable(
+  "saved_screeners",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    filters: jsonb("filters").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Saving over a name replaces that screen rather than making a second one
+    // with the same label, which is what a reader means by saving twice.
+    uniqueIndex("saved_screeners_user_name_idx").on(t.userId, t.name),
+    index("saved_screeners_user_idx").on(t.userId, t.updatedAt),
+  ],
+);
+
 export type Company = typeof companies.$inferSelect;
 export type Score = typeof scores.$inferSelect;
 export type Financial = typeof financials.$inferSelect;
@@ -634,3 +680,4 @@ export type Playbook = typeof playbooks.$inferSelect;
 export type TradeRow = typeof trades.$inferSelect;
 export type InstitutionalHolding = typeof institutionalHoldings.$inferSelect;
 export type CusipSymbol = typeof cusipSymbols.$inferSelect;
+export type SavedScreener = typeof savedScreeners.$inferSelect;
