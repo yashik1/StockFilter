@@ -18,9 +18,16 @@ import { CornerBrackets } from "@/components/ui";
 
 export function TranslationHero() {
   return (
-    <section
-      className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-12 border-b border-border pt-[52px] pb-11"
-    >
+    <section className="relative overflow-hidden border-b border-border pt-[52px] pb-11">
+      {/* A soft wash of the two brand hues behind the fold — the one place
+          in the app that reaches for a gradient, so it stays a signature
+          rather than becoming wallpaper. Purely decorative. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-40 -left-24 size-[420px] rounded-full bg-accent/20 blur-[110px]" />
+        <div className="absolute -top-24 right-0 size-[360px] rounded-full bg-accent-2/15 blur-[110px]" />
+      </div>
+
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] items-start gap-12">
       <div>
         <p className="eyebrow">Company filings, in plain English</p>
 
@@ -29,7 +36,7 @@ export function TranslationHero() {
         </h1>
 
         <p className="mt-4 max-w-[44ch] text-[1.03125rem] leading-relaxed text-muted">
-          StockFilter reads them for you and answers the five questions that
+          MarketMiner reads them for you and answers the five questions that
           actually matter — in sentences, with a link to every source.
         </p>
 
@@ -107,6 +114,7 @@ export function TranslationHero() {
           </Link>
           <CornerBrackets />
         </figure>
+      </div>
       </div>
     </section>
   );

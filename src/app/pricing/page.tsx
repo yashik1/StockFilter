@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { Card, SectionHeading } from "@/components/ui";
 import { BillingButton } from "@/components/billing/subscribe-button";
 import { getEntitlement } from "@/lib/billing/entitlement";
@@ -258,9 +259,7 @@ function PlanCard({
       <ul className="mt-4 space-y-2 text-sm">
         {lines.map((line) => (
           <li key={line.text} className="flex gap-2 leading-relaxed text-muted-strong">
-            <span aria-hidden className="mt-[0.15rem] shrink-0 text-accent">
-              ✓
-            </span>
+            <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" strokeWidth={2.5} />
             <span>{line.text}</span>
           </li>
         ))}

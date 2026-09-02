@@ -48,7 +48,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-      className="inline-flex h-[34px] w-[34px] items-center justify-center border border-border bg-transparent text-muted-strong transition-colors hover:border-accent hover:text-accent"
+      className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-border bg-transparent text-muted-strong transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
     >
       {/* Render nothing until mounted so the icon cannot contradict the theme. */}
       {theme === "dark" ? (

@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  ShieldCheck,
+  PiggyBank,
+  TrendingUp,
+  HandCoins,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { SetupNotice } from "@/components/setup-notice";
 import { Badge, Card, EmptyState, MeterBar, NotReported, RatingBadge } from "@/components/ui";
 import { money, multiple, percent, price as fmtPrice, signedPercent } from "@/lib/format";
@@ -24,6 +32,16 @@ export const metadata: Metadata = {
   title: "Screener — filter companies by financial health",
   description:
     "Filter hundreds of US and Canadian companies by financial health, valuation, growth and debt.",
+};
+
+/** One icon per preset. "red-flags" is a warning, not an invitation, so it is
+ * styled separately below rather than sharing the other four's accent tile. */
+const PRESET_ICONS: Record<PresetKey, LucideIcon> = {
+  healthy: ShieldCheck,
+  "cheap-profitable": PiggyBank,
+  growing: TrendingUp,
+  dividend: HandCoins,
+  "red-flags": TriangleAlert,
 };
 
 /*
@@ -133,17 +151,39 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(Object.keys(PRESETS) as PresetKey[]).map((key) => {
             const active = filters.preset === key;
+            const Icon = PRESET_ICONS[key];
+            const warning = key === "red-flags";
             return (
               <Link
                 key={key}
                 href={active ? "/screen" : `/screen?preset=${key}`}
-                className={`border p-4 transition-colors ${
+                className={`rounded-xl border p-4 shadow-sm transition-[box-shadow,border-color,background-color] hover:shadow-md ${
                   active
-                    ? "border-accent bg-accent-soft"
+                    ? warning
+                      ? "border-poor bg-poor-soft"
+                      : "border-accent bg-accent-soft"
                     : "border-border hover:border-accent"
                 }`}
               >
-                <p className={`text-sm font-semibold ${active ? "text-accent" : ""}`}>
+                <span
+                  aria-hidden
+                  className={`mb-2.5 inline-flex size-8 items-center justify-center rounded-lg ${
+                    active
+                      ? warning
+                        ? "bg-poor text-poor-fg"
+                        : "bg-accent text-accent-fg"
+                      : warning
+                        ? "bg-poor-soft text-poor"
+                        : "bg-accent-soft text-accent"
+                  }`}
+                >
+                  <Icon className="size-4" strokeWidth={2} />
+                </span>
+                <p
+                  className={`text-sm font-semibold ${
+                    active ? (warning ? "text-poor" : "text-accent") : ""
+                  }`}
+                >
                   {PRESETS[key].label}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">

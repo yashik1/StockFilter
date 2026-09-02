@@ -75,43 +75,40 @@ export function CornerBrackets({ hover = false }: { hover?: boolean }) {
 /**
  * Every framed object in the interface.
  *
- * A line drawing rather than a raised surface: square, transparent, one
- * hairline rule, and a bracket laid over each corner. The brackets live here
- * rather than at each call site so no page can forget them and none can add a
- * fifth — the frame is the system's single most repeated shape, and it has to
- * be identical everywhere or the whole language stops reading as drawn.
+ * A lifted surface rather than a line drawing: rounded, filled, and shadowed
+ * off the canvas beneath it. `marks` is kept as a prop for source
+ * compatibility with every existing call site, but corner brackets read as
+ * floating clutter against a rounded corner, so a Card no longer draws them —
+ * the elevation itself is what says "this is a frame" now. The brackets stay
+ * available via `<CornerBrackets />` for the handful of square, technical
+ * exhibits (the hero's filing readout) that deliberately sit outside this
+ * rounded language.
  */
 export function Card({
   children,
   className,
   as: Tag = "div",
   interactive,
-  marks = true,
+  marks: _marks = true,
 }: {
   children: ReactNode;
   className?: string;
   as?: "div" | "section" | "article";
   interactive?: boolean;
-  /** Off only where a frame is nested inside another frame's brackets. */
+  /** @deprecated no longer changes rendering; kept so old call sites still compile. */
   marks?: boolean;
 }) {
+  void _marks;
   return (
     <Tag
       className={cn(
-        "relative border border-border bg-transparent",
-        interactive && "group transition-colors hover:border-accent",
+        "relative rounded-xl border border-border bg-surface shadow-sm transition-[box-shadow,border-color,transform] duration-200",
+        interactive &&
+          "group cursor-pointer hover:-translate-y-px hover:border-accent/40 hover:shadow-md",
         className,
       )}
     >
       {children}
-      {marks && (
-        <>
-          <Corner pos="tl" />
-          <Corner pos="tr" />
-          <Corner pos="bl" />
-          <Corner pos="br" />
-        </>
-      )}
     </Tag>
   );
 }
@@ -194,7 +191,7 @@ export function RatingBadge({
   return (
     <span
       className={cn(
-        "tnum inline-flex shrink-0 items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+        "tnum inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
         RATING_STYLES[rating],
         className,
       )}
@@ -225,7 +222,7 @@ export function Badge({
     <span
       title={title}
       className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
         tones[tone],
       )}
     >

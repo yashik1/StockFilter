@@ -108,8 +108,8 @@ export default async function Image({ params }: { params: Promise<{ symbol: stri
         >
           <Eyebrow>
             {instrument
-              ? `StockFilter · ${ASSET_CLASS_LABEL[instrument.assetClass]}`
-              : "StockFilter · From the filings"}
+              ? `MarketMiner · ${ASSET_CLASS_LABEL[instrument.assetClass]}`
+              : "MarketMiner · From the filings"}
           </Eyebrow>
 
           <div style={{ display: "flex", alignItems: "center", width: "100%" }}>

@@ -69,21 +69,21 @@ export const metadata: Metadata = {
   */
   metadataBase: new URL(siteUrl()),
   title: {
-    default: "StockFilter — Company financials in plain English",
-    template: "%s · StockFilter",
+    default: "MarketMiner — Company financials in plain English",
+    template: "%s · MarketMiner",
   },
   description: DESCRIPTION,
-  applicationName: "StockFilter",
+  applicationName: "MarketMiner",
   // Shared links previously previewed as a bare URL with no title or summary.
   openGraph: {
     type: "website",
-    siteName: "StockFilter",
-    title: "StockFilter — Company financials in plain English",
+    siteName: "MarketMiner",
+    title: "MarketMiner — Company financials in plain English",
     description: DESCRIPTION,
   },
   twitter: {
     card: "summary",
-    title: "StockFilter — Company financials in plain English",
+    title: "MarketMiner — Company financials in plain English",
     description: DESCRIPTION,
   },
   robots: { index: true, follow: true },
@@ -95,8 +95,8 @@ export const viewport: Viewport = {
   // Matches the canvas token in each theme, so the mobile browser chrome does
   // not sit on a colour the page never uses.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f3" },
-    { media: "(prefers-color-scheme: dark)", color: "#14191e" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f6fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#090a10" },
   ],
 };
 
@@ -175,20 +175,21 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         */}
         <header
           id="site-header"
-          className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_92%,transparent)] backdrop-blur-[8px]"
+          className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_88%,transparent)] shadow-sm backdrop-blur-[10px]"
         >
           <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-3 px-7 py-2.5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(180px,320px)] xl:grid-cols-[auto_minmax(0,1fr)_minmax(180px,400px)]">
             <Link
               href="/"
               className="flex shrink-0 items-center gap-2.5 text-foreground"
             >
-              {/* The mark sits in its own hairline tile — the smallest framed
-                  object in the system, and the same shape as every card. */}
-              <span className="flex size-7 shrink-0 items-center justify-center border border-border text-accent">
-                <SieveMark />
+              {/* The mark sits in a filled, rounded tile carrying the gold
+                  spot colour — the one place in the chrome that isn't the
+                  primary indigo, so the mark still reads as a mark. */}
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-bright text-accent-fg shadow-sm">
+                <SieveMark className="size-[18px] text-accent-2-bright" />
               </span>
               <span className="font-display text-[1.1875rem] leading-none font-semibold tracking-[-0.01em]">
-                StockFilter
+                Market<span className="text-accent">Miner</span>
               </span>
             </Link>
 
@@ -227,7 +228,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 Educational information only — not investment advice.
               </p>
               <p className="mt-1.5 max-w-[62ch] text-[0.78125rem] leading-relaxed text-muted">
-                StockFilter summarises public regulatory filings and computes well-known
+                MarketMiner summarises public regulatory filings and computes well-known
                 academic financial scores. It does not know your circumstances, does not
                 recommend buying or selling anything, and may contain errors or stale data.
                 Always check the linked source filings and speak to a licensed adviser

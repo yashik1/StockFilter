@@ -74,7 +74,7 @@ function page(title: string, body: string, status: number): NextResponse {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${escapeHtml(title)} · StockFilter</title>
+<title>${escapeHtml(title)} · MarketMiner</title>
 <style>
   :root { color-scheme: light dark; --bg:#f2f2f3; --fg:#1d1f20; --muted:#5d5d60; --border:#c8c9ca; --accent:#416180; }
   @media (prefers-color-scheme: dark) {
@@ -93,7 +93,7 @@ function page(title: string, body: string, status: number): NextResponse {
 <main>
   <h1>${escapeHtml(title)}</h1>
   <p>${escapeHtml(body)}</p>
-  <p><a href="/">Back to StockFilter</a></p>
+  <p><a href="/">Back to MarketMiner</a></p>
 </main>
 </body>
 </html>`;

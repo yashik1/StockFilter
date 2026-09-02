@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <!--
-    The sieve on a solid accent tile: four rules narrowing to one, with a drop
-    falling through. Square, no gradient, no radius — the mark has to hold at
-    16px in a tab strip, which is where a gradient turns to mud.
+    The sieve on a rounded indigo tile, gold stroke: four rules narrowing to
+    one, with a drop falling through. No gradient here — the mark has to hold
+    at 16px in a tab strip, where a gradient turns to mud.
     Strokes are scaled from the 24px master (1.5 -> 2) so the weight reads the
     same at tile size.
   -->
-  <rect width="32" height="32" fill="#5980a6"/>
-  <g fill="none" stroke="#f2f2f3" stroke-width="2" stroke-linecap="round">
+  <rect width="32" height="32" rx="8" fill="#3c4bd6"/>
+  <g fill="none" stroke="#f2b90f" stroke-width="2" stroke-linecap="round">
     <path d="M7 10h18M11 16h10M14.5 22h3M16 22v4"/>
   </g>
 </svg>

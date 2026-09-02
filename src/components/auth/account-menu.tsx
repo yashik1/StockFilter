@@ -29,7 +29,7 @@ export function AccountMenu({ email, name }: { email: string | null; name?: stri
     return (
       <Link
         href="/signin"
-        className="flex h-[34px] shrink-0 items-center border border-border px-3 text-xs font-medium text-muted-strong transition-colors hover:border-accent hover:text-accent"
+        className="flex h-[34px] shrink-0 items-center rounded-lg border border-border px-3 text-xs font-medium text-muted-strong transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
       >
         Sign in
       </Link>
@@ -51,7 +51,7 @@ export function AccountMenu({ email, name }: { email: string | null; name?: stri
       href="/account"
       title={display === email ? email : `${display} (${email})`}
       aria-label={`Account — signed in as ${display}`}
-      className="flex h-[34px] max-w-[6rem] shrink-0 items-center border border-border px-2.5 text-xs font-medium text-muted-strong transition-colors hover:border-accent hover:text-accent xl:max-w-[11rem]"
+      className="flex h-[34px] max-w-[6rem] shrink-0 items-center rounded-lg border border-border px-2.5 text-xs font-medium text-muted-strong transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent xl:max-w-[11rem]"
     >
       <span className="truncate">{display}</span>
     </Link>
@@ -69,7 +69,7 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={() => signOut({ callbackUrl: "/" })}
-      className="border border-border px-4 py-2 text-sm font-medium text-muted-strong transition-colors hover:border-accent hover:text-accent"
+      className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-strong transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
     >
       Sign out
     </button>

@@ -98,5 +98,5 @@ export function screenRowsToCsv(rows: readonly ScreenRow[]): string {
 
 /** A filename that says what the export is and when it was taken. */
 export function csvFilename(now = new Date()): string {
-  return `stockfilter-screen-${now.toISOString().slice(0, 10)}.csv`;
+  return `marketminer-screen-${now.toISOString().slice(0, 10)}.csv`;
 }

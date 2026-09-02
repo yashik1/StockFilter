@@ -3,7 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import {
+  Menu,
+  X,
+  LayoutDashboard,
+  SlidersHorizontal,
+  GitCompare,
+  CandlestickChart,
+  History,
+  NotebookPen,
+  GraduationCap,
+  Tag,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = { href: string; label: string };
@@ -12,6 +24,23 @@ type NavItem = { href: string; label: string };
 function isActive(href: string, pathname: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
+
+/*
+  Keyed by href rather than threaded through NavItem: the NAV array lives in
+  the server-rendered layout.tsx, and a React component reference cannot
+  cross the server/client boundary as a prop the way a plain string can. Both
+  renderings below live in this one client file, so one map covers both.
+*/
+const NAV_ICONS: Record<string, LucideIcon> = {
+  "/": LayoutDashboard,
+  "/screen": SlidersHorizontal,
+  "/compare": GitCompare,
+  "/markets": CandlestickChart,
+  "/backtest": History,
+  "/journal": NotebookPen,
+  "/learn": GraduationCap,
+  "/pricing": Tag,
+};
 
 /**
  * The header's primary navigation.
@@ -39,6 +68,7 @@ export function NavTabs({ items }: { items: NavItem[] }) {
     <nav className="hidden min-w-0 flex-wrap items-center gap-x-[18px] gap-y-2 lg:flex">
       {items.map((item) => {
         const active = isActive(item.href, pathname);
+        const Icon = NAV_ICONS[item.href];
 
         return (
           <Link
@@ -46,12 +76,13 @@ export function NavTabs({ items }: { items: NavItem[] }) {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "font-display border-b-2 px-0.5 py-2 text-[0.90625rem] leading-none font-semibold transition-colors",
+              "font-display flex items-center gap-1.5 border-b-2 px-0.5 py-2 text-[0.90625rem] leading-none font-semibold transition-colors",
               active
                 ? "border-accent text-foreground"
                 : "border-transparent text-muted hover:text-foreground",
             )}
           >
+            {Icon && <Icon aria-hidden className="size-4" strokeWidth={2} />}
             {item.label}
           </Link>
         );
@@ -128,7 +159,7 @@ export function MobileNav({ items }: { items: NavItem[] }) {
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         aria-label={open ? "Close menu" : "Open menu"}
-        className="inline-flex h-[34px] w-[34px] items-center justify-center border border-border bg-transparent text-muted-strong transition-colors hover:border-accent hover:text-accent"
+        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-border bg-transparent text-muted-strong transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent"
       >
         {open ? <X aria-hidden className="size-4" /> : <Menu aria-hidden className="size-4" />}
       </button>
@@ -136,10 +167,11 @@ export function MobileNav({ items }: { items: NavItem[] }) {
       {open && (
         <ul
           id="mobile-nav-panel"
-          className="absolute inset-x-7 top-full z-50 border-x border-b border-border bg-surface py-1 shadow-[var(--shadow-lg)]"
+          className="absolute inset-x-7 top-full z-50 mt-2 rounded-xl border border-border bg-surface py-1 shadow-[var(--shadow-lg)]"
         >
           {items.map((item) => {
             const active = isActive(item.href, pathname);
+            const Icon = NAV_ICONS[item.href];
 
             return (
               <li key={item.href}>
@@ -155,12 +187,13 @@ export function MobileNav({ items }: { items: NavItem[] }) {
                   // it was just used to confirm.
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "font-display flex items-center border-l-2 px-4 py-3.5 text-[0.90625rem] font-semibold transition-colors",
+                    "font-display flex items-center gap-2.5 border-l-2 px-4 py-3.5 text-[0.90625rem] font-semibold transition-colors",
                     active
                       ? "border-accent bg-surface-2 text-foreground"
                       : "border-transparent text-muted hover:bg-surface-2 hover:text-foreground",
                   )}
                 >
+                  {Icon && <Icon aria-hidden className="size-4" strokeWidth={2} />}
                   {item.label}
                 </Link>
               </li>
