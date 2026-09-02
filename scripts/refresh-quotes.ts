@@ -16,8 +16,24 @@ import { refreshQuotes } from "../src/lib/ingest";
 import { getUniverse } from "../src/lib/universe";
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
+  const dbUrl = process.env.DATABASE_URL;
+
+  if (!dbUrl) {
     console.error("DATABASE_URL is not set — there is nowhere to store quotes.");
+    process.exit(1);
+  }
+
+  // An internal hostname only resolves inside Railway's own network — this
+  // workflow runs on a GitHub-hosted runner, outside it. Without this check the
+  // connection just fails deep inside the postgres driver with a raw network
+  // error; this turns that into an immediate, actionable explanation. Mirrors
+  // the same guard in scripts/ingest.ts.
+  if (/\.railway\.internal/.test(dbUrl) && !process.env.RAILWAY_ENVIRONMENT) {
+    console.error(
+      "DATABASE_URL points at railway.internal, which only resolves inside Railway.\n" +
+        "Use the Postgres service's PUBLIC connection string instead (Railway ->\n" +
+        "Postgres service -> Connect -> Public Network).\n",
+    );
     process.exit(1);
   }
 
