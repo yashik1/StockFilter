@@ -24,7 +24,7 @@ export function Waveform({ className }: { className?: string }) {
       <defs>
         <linearGradient id="voltage-trace-gradient" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="var(--accent)" />
-          <stop offset="100%" stopColor="var(--arc)" />
+          <stop offset="100%" stopColor="var(--accent-2)" />
         </linearGradient>
       </defs>
 

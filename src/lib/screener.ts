@@ -26,7 +26,7 @@ export const PRESETS = {
     description: "Returns cash to shareholders and stays financially sound.",
   },
   "red-flags": {
-    label: "⚠ Red flags",
+    label: "Red flags",
     description:
       "Companies showing financial distress or unusual accounting. Shown so you can avoid surprises, not as targets.",
   },

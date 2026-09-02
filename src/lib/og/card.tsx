@@ -18,17 +18,17 @@ import type { ReactElement } from "react";
 
 /** The dark theme's tokens, resolved. Satori cannot evaluate color-mix(). */
 export const OG = {
-  background: "#14191e",
-  surface: "#1b2228",
-  foreground: "#e7eaec",
-  muted: "#a4acb2",
-  faint: "#8d949a",
-  accent: "#8db0d1",
-  good: "#5fae92",
-  fair: "#8d949a",
-  poor: "#d97b8a",
-  /** --border at 20% of the foreground, flattened against the canvas. */
-  border: "#3c4348",
+  background: "#090a10",
+  surface: "#12141c",
+  foreground: "#eef0f8",
+  muted: "#999eb3",
+  faint: "#7d8296",
+  accent: "#8490fa",
+  good: "#3fc389",
+  fair: "#999eb3",
+  poor: "#f56b81",
+  /** --border at 14% of the foreground, flattened against the canvas. */
+  border: "#2a2d3a",
 } as const;
 
 export const OG_SIZE = { width: 1200, height: 630 };

@@ -1,198 +1,199 @@
 @import "tailwindcss";
 
 /*
- * INDUSTRY — a technical wireframe for a reading tool.
+ * SEAM — a modern reading tool with real depth.
  *
- * Steel blue on cool grey, drawn rather than decorated: square corners,
- * hairline rules, and registration marks at the corner of every framed object.
- * The product reads a filing and shows its working, so the interface is a
- * drawing of that working rather than a surface with things sitting on it.
+ * Where the previous system drew everything as a flat, square wireframe, this
+ * one lifts: white (or near-black) cards on a visibly different canvas, soft
+ * elevation instead of hairline-only edges, and a genuine accent — a
+ * saturated indigo — carrying real contrast instead of a desaturated steel
+ * that measured just 3.7:1. A warm gold, --accent-2, appears sparingly: the
+ * mark, the odd highlight — a nod to what "mining" the filings turns up,
+ * never load-bearing for text.
  *
  * Light lives on bare :root so it applies with no theme stamp present. Dark is
  * declared twice: under prefers-color-scheme for viewers on "system", and under
  * [data-theme="dark"] so the manual toggle wins in both directions.
  *
- * Token *names* are unchanged from the theme this replaces. Only the values
- * moved, so every component and page keeps working without a find-and-replace
- * — which is also why --font-serif now carries a condensed sans rather than a
- * serif: the name marks the role (headlines), not the classification.
- *
- * Every text colour here was measured against the ground it sits on rather
- * than picked by eye. The handoff's base steel (#5980a6) is 3.7:1 on the light
- * canvas — its own note says so — which is under AA for body text and for a
- * 14px button label, so --accent carries accent-700 and the brighter steel
- * lives in --accent-bright for chart series, the logo tile and other places
- * nothing is read off it.
+ * Token *names* are unchanged from the theme this replaces, so every
+ * component keeps working without a find-and-replace.
  */
 
 :root {
-  --background: #f2f2f3;
-  --surface: #e9e9ea;
-  --surface-2: #e7e7ea;
-  --surface-3: #d4d4d7;
-  --border: color-mix(in srgb, #1d1f20 16%, transparent);
-  --border-strong: color-mix(in srgb, #1d1f20 34%, transparent);
+  --background: #f5f6fb;
+  --surface: #ffffff;
+  --surface-2: #eef0f8;
+  --surface-3: #e1e4f0;
+  --border: color-mix(in srgb, #12131f 12%, transparent);
+  --border-strong: color-mix(in srgb, #12131f 28%, transparent);
   /* Chart ink. Literal rgba because a canvas strokeStyle is parsed by the
      canvas, not the cascade — a color-mix() reaching it is a coin toss.
      Weights follow the drawing convention: the series is the only confident
      line, the comparison is drawn back, the grid is barely there. */
-  --chart-grid: rgba(29, 31, 32, 0.1);
-  --chart-axis: rgba(29, 31, 32, 0.34);
-  --chart-compare: rgba(29, 31, 32, 0.4);
+  --chart-grid: rgba(18, 19, 31, 0.07);
+  --chart-axis: rgba(18, 19, 31, 0.3);
+  --chart-compare: rgba(18, 19, 31, 0.38);
 
-  --foreground: #1d1f20;
-  /* Three text tiers at roughly 9.0, 5.9 and 4.7 to one — each clears AA on
-     the canvas, and they stay far enough apart to read as a hierarchy. */
-  --muted-strong: #424244;
-  --muted: #5d5d60;
-  --faint: #656568;
+  --foreground: #10111a;
+  /* Three text tiers at roughly 15, 8 and 5.6 to one — each clears AA on the
+     canvas, and they stay far enough apart to read as a hierarchy. */
+  --muted-strong: #3d3f4d;
+  --muted: #5c5f70;
+  --faint: #7b7e8f;
 
-  --accent: #416180;
-  --accent-hover: #2c455d;
-  --accent-fg: #f2f2f3;
-  --accent-soft: #d6ebff;
-  /* Chrome only — never text. See the note above. */
-  --accent-bright: #5980a6;
+  --accent: #3c4bd6;
+  --accent-hover: #2c39ad;
+  --accent-fg: #ffffff;
+  --accent-soft: #e7e9fc;
+  /* Chrome only — never body text. See the note above. */
+  --accent-bright: #5a68ea;
+  /* The gold: the mark, a spot highlight, the hero. Never text on its own. */
+  --accent-2: #c8850f;
+  --accent-2-bright: #e6a417;
 
   /* Status stays off the accent hue entirely: a rising price and a brand
      colour must never be the same signal. Every rating carries its word as
      well as its colour, so none of this is load-bearing on its own. */
-  --good: #2b7259;
-  --good-soft: #dbe9e3;
-  --good-fg: #245e4a;
-  --fair: #5d5d60;
-  --fair-soft: #e7e7ea;
-  --fair-fg: #424244;
-  --poor: #a83a4c;
-  --poor-soft: #f3dfe2;
-  --poor-fg: #8d3040;
-  --unknown: #7a7a7d;
-  --unknown-soft: #e7e7ea;
-  --unknown-fg: #5d5d60;
+  --good: #1c8657;
+  --good-soft: #dcf3e7;
+  --good-fg: #146341;
+  --fair: #5c5f70;
+  --fair-soft: #eef0f8;
+  --fair-fg: #3d3f4d;
+  --poor: #d33a52;
+  --poor-soft: #fbe1e6;
+  --poor-fg: #a3223a;
+  --unknown: #7b7e8f;
+  --unknown-soft: #eef0f8;
+  --unknown-fg: #5c5f70;
 
-  --up: #2b7259;
-  --down: #a83a4c;
+  --up: #1c8657;
+  --down: #d33a52;
 
-  /* One hue, stepped. The old set was categorical across four hues; this
-     system is mono, so series read as a ramp and the last step drops to
-     neutral rather than introducing a colour. */
-  --series-1: #416180;
-  --series-2: #749dc4;
-  --series-3: #94bce3;
-  --series-4: #7a7a7d;
+  /* One hue, stepped. Series read as a ramp; the last step drops to neutral
+     rather than introducing a colour. */
+  --series-1: #3c4bd6;
+  --series-2: #7480e6;
+  --series-3: #a6afef;
+  --series-4: #7b7e8f;
 
-  /* Square. The wireframe language has no rounded corners; these stay as
-     tokens so anything that wants a radius has to ask for one explicitly. */
-  --radius-sm: 0px;
-  --radius: 0px;
-  --radius-lg: 0px;
+  /* Real values — Tailwind's rounded-sm/md/lg/xl/2xl/3xl resolve from these,
+     so every card, button, input and badge in the app picks up genuine
+     rounding from this one place. */
+  --radius-sm: 8px;
+  --radius: 16px;
+  --radius-lg: 20px;
 
-  /* Cards are line drawings and carry no shadow. These are for things that
-     genuinely float: the search dropdown, a dialog. */
-  --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
-  --shadow: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
-  --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
-  --glow: none;
+  /* Real elevation. Cards lift off the canvas instead of sitting flush with
+     it, which is what a flat grey-on-grey wireframe was missing. */
+  --shadow-sm: 0 1px 2px rgba(16, 17, 26, 0.05), 0 1px 1px rgba(16, 17, 26, 0.04);
+  --shadow: 0 8px 24px -6px rgba(16, 17, 26, 0.12), 0 2px 8px -2px rgba(16, 17, 26, 0.06);
+  --shadow-lg: 0 24px 56px -12px rgba(16, 17, 26, 0.22), 0 8px 20px -6px rgba(16, 17, 26, 0.1);
+  --glow: 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #14191e;
-    --surface: #1b2228;
-    --surface-2: #212a31;
-    --surface-3: #2a343c;
-    --border: color-mix(in srgb, #e7eaec 20%, transparent);
-    --border-strong: color-mix(in srgb, #e7eaec 38%, transparent);
-  --chart-grid: rgba(231, 234, 236, 0.1);
-  --chart-axis: rgba(231, 234, 236, 0.38);
-  --chart-compare: rgba(231, 234, 236, 0.4);
-    --chart-grid: rgba(231, 234, 236, 0.1);
-    --chart-axis: rgba(231, 234, 236, 0.38);
-    --chart-compare: rgba(231, 234, 236, 0.4);
+    --background: #090a10;
+    --surface: #12141c;
+    --surface-2: #171a24;
+    --surface-3: #20232f;
+    --border: color-mix(in srgb, #eef0f8 14%, transparent);
+    --border-strong: color-mix(in srgb, #eef0f8 30%, transparent);
+    --chart-grid: rgba(238, 240, 248, 0.08);
+    --chart-axis: rgba(238, 240, 248, 0.32);
+    --chart-compare: rgba(238, 240, 248, 0.4);
 
-    --foreground: #e7eaec;
-    --muted-strong: #c3c9ce;
-    --muted: #a4acb2;
-    --faint: #8d949a;
+    --foreground: #eef0f8;
+    --muted-strong: #c5c9d8;
+    --muted: #999eb3;
+    --faint: #7d8296;
 
-    --accent: #8db0d1;
-    --accent-hover: #a3c0da;
-    --accent-fg: #14191e;
-    --accent-soft: #22303c;
-    --accent-bright: #8db0d1;
+    --accent: #8490fa;
+    --accent-hover: #a1abfc;
+    --accent-fg: #0c0d14;
+    --accent-soft: #1c2050;
+    --accent-bright: #97a2fb;
+    --accent-2: #f2b90f;
+    --accent-2-bright: #ffce3d;
 
-    --good: #5fae92;
-    --good-soft: #1c2f29;
-    --good-fg: #7cc4a9;
-    --fair: #8d949a;
-    --fair-soft: #212a31;
-    --fair-fg: #a4acb2;
-    --poor: #d97b8a;
-    --poor-soft: #332226;
-    --poor-fg: #e396a3;
-    --unknown: #8d949a;
-    --unknown-soft: #212a31;
-    --unknown-fg: #a4acb2;
+    --good: #3fc389;
+    --good-soft: #123424;
+    --good-fg: #74e0ac;
+    --fair: #999eb3;
+    --fair-soft: #171a24;
+    --fair-fg: #c5c9d8;
+    --poor: #f56b81;
+    --poor-soft: #391521;
+    --poor-fg: #ff92a3;
+    --unknown: #999eb3;
+    --unknown-soft: #171a24;
+    --unknown-fg: #c5c9d8;
 
-    --up: #5fae92;
-    --down: #d97b8a;
+    --up: #3fc389;
+    --down: #f56b81;
 
-    --series-1: #8db0d1;
-    --series-2: #6f93b4;
-    --series-3: #b9d0e3;
-    --series-4: #8d949a;
+    --series-1: #97a2fb;
+    --series-2: #6f7bdb;
+    --series-3: #c3caff;
+    --series-4: #999eb3;
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
-    --shadow: 0 3px 10px rgb(0 0 0 / 0.55);
-    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-    --glow: none;
+    --shadow: 0 8px 24px -4px rgb(0 0 0 / 0.55), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 24px 56px -10px rgb(0 0 0 / 0.65), 0 8px 20px -6px rgb(0 0 0 / 0.45);
+    --glow: 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 }
 
 :root[data-theme="dark"] {
-  --background: #14191e;
-  --surface: #1b2228;
-  --surface-2: #212a31;
-  --surface-3: #2a343c;
-  --border: color-mix(in srgb, #e7eaec 20%, transparent);
-  --border-strong: color-mix(in srgb, #e7eaec 38%, transparent);
+  --background: #090a10;
+  --surface: #12141c;
+  --surface-2: #171a24;
+  --surface-3: #20232f;
+  --border: color-mix(in srgb, #eef0f8 14%, transparent);
+  --border-strong: color-mix(in srgb, #eef0f8 30%, transparent);
+  --chart-grid: rgba(238, 240, 248, 0.08);
+  --chart-axis: rgba(238, 240, 248, 0.32);
+  --chart-compare: rgba(238, 240, 248, 0.4);
 
-  --foreground: #e7eaec;
-  --muted-strong: #c3c9ce;
-  --muted: #a4acb2;
-  --faint: #8d949a;
+  --foreground: #eef0f8;
+  --muted-strong: #c5c9d8;
+  --muted: #999eb3;
+  --faint: #7d8296;
 
-  --accent: #8db0d1;
-  --accent-hover: #a3c0da;
-  --accent-fg: #14191e;
-  --accent-soft: #22303c;
-  --accent-bright: #8db0d1;
+  --accent: #8490fa;
+  --accent-hover: #a1abfc;
+  --accent-fg: #0c0d14;
+  --accent-soft: #1c2050;
+  --accent-bright: #97a2fb;
+  --accent-2: #f2b90f;
+  --accent-2-bright: #ffce3d;
 
-  --good: #5fae92;
-  --good-soft: #1c2f29;
-  --good-fg: #7cc4a9;
-  --fair: #8d949a;
-  --fair-soft: #212a31;
-  --fair-fg: #a4acb2;
-  --poor: #d97b8a;
-  --poor-soft: #332226;
-  --poor-fg: #e396a3;
-  --unknown: #8d949a;
-  --unknown-soft: #212a31;
-  --unknown-fg: #a4acb2;
+  --good: #3fc389;
+  --good-soft: #123424;
+  --good-fg: #74e0ac;
+  --fair: #999eb3;
+  --fair-soft: #171a24;
+  --fair-fg: #c5c9d8;
+  --poor: #f56b81;
+  --poor-soft: #391521;
+  --poor-fg: #ff92a3;
+  --unknown: #999eb3;
+  --unknown-soft: #171a24;
+  --unknown-fg: #c5c9d8;
 
-  --up: #5fae92;
-  --down: #d97b8a;
+  --up: #3fc389;
+  --down: #f56b81;
 
-  --series-1: #8db0d1;
-  --series-2: #6f93b4;
-  --series-3: #b9d0e3;
-  --series-4: #8d949a;
+  --series-1: #97a2fb;
+  --series-2: #6f7bdb;
+  --series-3: #c3caff;
+  --series-4: #999eb3;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
-  --shadow: 0 3px 10px rgb(0 0 0 / 0.55);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-  --glow: none;
+  --shadow: 0 8px 24px -4px rgb(0 0 0 / 0.55), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 24px 56px -10px rgb(0 0 0 / 0.65), 0 8px 20px -6px rgb(0 0 0 / 0.45);
+  --glow: 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 
@@ -212,6 +213,8 @@
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
   --color-accent-bright: var(--accent-bright);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-bright: var(--accent-2-bright);
   --color-good: var(--good);
   --color-good-soft: var(--good-soft);
   --color-good-fg: var(--good-fg);
@@ -236,21 +239,21 @@
   --radius-card: var(--radius);
 
   /*
-    The radius scale, zeroed at the source.
+    The radius scale, set at the source.
 
     Tailwind resolves rounded-sm/md/lg/xl from these, so setting them here
-    squares every one of the ninety-odd call sites at once — rather than
+    rounds every one of the ninety-odd call sites at once — rather than
     editing each, which would leave the next `rounded-lg` somebody types
-    quietly reintroducing the old language. rounded-full is deliberately left
-    alone: a status dot and the account initial are circles because they are
-    marks, not boxes, and squaring them would make a dot look like a bug.
+    quietly reintroducing the old flat language. rounded-full stays 9999px by
+    Tailwind's own default: a status dot and the account initial are circles
+    because they are marks, not boxes.
   */
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 30px;
 }
 
 body {

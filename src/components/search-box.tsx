@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CornerBrackets } from "@/components/ui";
 
 interface Result {
   symbol: string;
@@ -156,8 +155,8 @@ export function SearchBox({
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           className={cn(
-            "w-full border border-border bg-transparent pl-9 pr-3 outline-none transition-colors placeholder:text-faint focus:border-accent",
-            hero ? "h-11 text-[0.90625rem]" : "h-[34px] text-[0.84375rem]",
+            "w-full rounded-lg border border-border bg-surface pl-9 pr-3 outline-none transition-colors placeholder:text-faint focus:border-accent focus:ring-4 focus:ring-accent/10",
+            hero ? "h-12 text-[0.90625rem] shadow-sm" : "h-[34px] text-[0.84375rem]",
           )}
         />
         </div>
@@ -165,11 +164,9 @@ export function SearchBox({
           <button
             type="button"
             onClick={submit}
-            className="font-display relative h-11 border border-accent bg-accent text-[0.90625rem] font-semibold text-accent-fg transition-colors hover:bg-accent-hover hover:border-accent-hover"
+            className="font-display h-12 rounded-lg bg-accent text-[0.90625rem] font-semibold text-accent-fg shadow-sm transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-accent-hover hover:shadow"
           >
             {submitLabel}
-            {/* The one solid object on the board still carries its brackets. */}
-            <CornerBrackets />
           </button>
         )}
       </div>
@@ -178,7 +175,7 @@ export function SearchBox({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-80 w-full overflow-auto border border-border bg-surface py-1 shadow-[var(--shadow-lg)]"
+          className="absolute z-50 mt-2 max-h-80 w-full overflow-auto rounded-xl border border-border bg-surface py-1 shadow-[var(--shadow-lg)]"
         >
           {results.length === 0 && loading && (
             <li className="px-3 py-2 text-sm text-muted">Searching…</li>

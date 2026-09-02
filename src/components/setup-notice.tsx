@@ -112,6 +112,7 @@ function content(status: Exclude<ScreenStatus, "ok">): {
           {
             title: "Running on Railway?",
             body: "Execute both inside the container so it uses the internal network.",
+            // "StockFilter" here is the Railway service name, not the product — unchanged by the rebrand.
             code: "railway ssh -s StockFilter -- npm run db:migrate",
           },
         ],
@@ -159,7 +160,7 @@ function content(status: Exclude<ScreenStatus, "ok">): {
           {
             title: "Running on Railway?",
             body: "Run it inside the container so it uses the internal network.",
-            code: "railway ssh -s StockFilter -- npm run ingest -- --limit 25",
+            code: "railway ssh -s StockFilter -- npm run ingest -- --limit 25", // same Railway service name
           },
         ],
       };
