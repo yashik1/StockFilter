@@ -13,6 +13,7 @@
 import "dotenv/config";
 import { closeDb } from "../src/lib/db";
 import { refreshQuotes } from "../src/lib/ingest";
+import { hasAnyPriceProvider } from "../src/lib/providers";
 import { getUniverse } from "../src/lib/universe";
 
 async function main() {
@@ -33,6 +34,23 @@ async function main() {
       "DATABASE_URL points at railway.internal, which only resolves inside Railway.\n" +
         "Use the Postgres service's PUBLIC connection string instead (Railway ->\n" +
         "Postgres service -> Connect -> Public Network).\n",
+    );
+    process.exit(1);
+  }
+
+  /*
+    A quote request degrades a total provider failure to `null` rather than
+    throwing — right for a stock page, wrong for this script. With every
+    source unconfigured, every one of hundreds of symbols would resolve to
+    "no quote" just as fast as if it had actually been checked: no error, a
+    suspiciously quick run, and a final tally of 0 updated / 0 failed that
+    explains nothing. Catching it here instead of discovering it symbol 544.
+  */
+  if (!hasAnyPriceProvider()) {
+    console.error(
+      "No price provider is configured — nothing here would ever return a quote.\n" +
+        "Set at least one of FINNHUB_API_KEY, TWELVEDATA_API_KEY, TIINGO_API_KEY or\n" +
+        "EODHD_API_KEY (or ENABLE_YAHOO_FALLBACK=true).\n",
     );
     process.exit(1);
   }
