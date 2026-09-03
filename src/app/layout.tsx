@@ -9,6 +9,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth";
 import { AccountMenu } from "@/components/auth/account-menu";
+import { UpsellRail } from "@/components/billing/upsell-rail";
+import { accountIsEnough } from "@/lib/billing/access-mode";
+import { getEntitlement } from "@/lib/billing/entitlement";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -132,10 +135,50 @@ const NAV = [
  */
 const FOOTER_LINK = "block py-1 text-muted transition-colors hover:text-accent";
 
+/*
+  The shell's width, and why it is two figures rather than one.
+
+  Header, main and footer all share this, so the logo, the first column of a
+  table and the footer's first heading sit on one vertical line. Three separate
+  max-widths cannot align at every viewport size, and the misalignment shows up
+  precisely on the wide screens the rail exists for.
+
+  1416 = 1360 of content + the 28 of padding either side: exactly what the
+  layout was before the rail, so every screen below the breakpoint is unchanged
+  to the pixel. 1672 = that content, 24 of gap and the 288 the rail occupies.
+
+  Two caps rather than one because a single wide cap leaves the content hugging
+  the left with a growing strip of nothing to its right at every width between
+  the two — which is the complaint this change set out to fix, moved rather than
+  solved. Capping at 1416 until the rail actually appears means the leftover is
+  either zero or occupied, never merely empty.
+
+  The content column keeps its own 1360 cap throughout. Letting it grow into the
+  full shell would be the easy way to fill a wide screen and the wrong one:
+  running prose past about 100 characters a line is measurably harder to read,
+  and this app is mostly prose about companies.
+*/
+const SHELL = "mx-auto w-full max-w-[1416px] px-7 min-[1700px]:max-w-[1672px]";
+
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Read once here rather than per page: the header needs it on every route,
   // and this is a JWT session so it costs no database round trip.
   const session = await auth().catch(() => null);
+
+  /*
+    Whether the rail has anything to say to this visitor.
+
+    While `accountIsEnough` is set, a signed-in reader already has everything
+    the paid tiers will hold, so there is nothing to offer them and the rail
+    stays off — the question is answered from the session alone, with no
+    database round trip added to every page in the app. When that flag flips,
+    the real subscription state is what decides, and only then does this cost
+    a query.
+  */
+  const signedIn = Boolean(session?.user?.id);
+  const showUpsell = accountIsEnough
+    ? !signedIn
+    : !(await getEntitlement().catch(() => null))?.subscribed;
 
   return (
     <html
@@ -177,7 +220,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           id="site-header"
           className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_srgb,var(--background)_88%,transparent)] shadow-sm backdrop-blur-[10px]"
         >
-          <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-3 px-7 py-2.5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(180px,320px)] xl:grid-cols-[auto_minmax(0,1fr)_minmax(180px,400px)]">
+          <div className={`${SHELL} grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-5 gap-y-3 py-2.5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(180px,320px)] xl:grid-cols-[auto_minmax(0,1fr)_minmax(180px,400px)]`}>
             <Link
               href="/"
               className="flex shrink-0 items-center gap-2.5 text-foreground"
@@ -210,7 +253,25 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1360px] flex-1 px-7 py-8">{children}</main>
+        {/*
+          The content column and the rail, as one row.
+
+          `flex-1` on the wrapper keeps the footer pinned to the bottom on a
+          short page, which is what `flex-1` on <main> used to do. The rail is
+          `shrink-0` and hidden until there is genuinely room for it, so on
+          every narrower screen this collapses to exactly what it was before:
+          one centred column, nothing reflowed.
+        */}
+        <div className={`${SHELL} flex flex-1 gap-6`}>
+          <main className="w-full max-w-[1360px] flex-1 py-8">{children}</main>
+
+          {/* The same 1700 the shell widens at, and it has to stay in step: the
+              rail appearing before the shell has room for it would take its
+              288px straight out of the content column. */}
+          <div className="hidden w-72 shrink-0 py-8 min-[1700px]:block">
+            <UpsellRail show={showUpsell} />
+          </div>
+        </div>
 
         {/*
           Three columns that collapse on their own.
@@ -222,7 +283,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           what let them read as an afterthought before.
         */}
         <footer className="mt-10 border-t border-border bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)]">
-          <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-8 px-7 pt-[26px] pb-[34px]">
+          <div className={`${SHELL} grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-8 pt-[26px] pb-[34px]`}>
             <div>
               <p className="font-display text-sm font-semibold text-foreground">
                 Educational information only — not investment advice.

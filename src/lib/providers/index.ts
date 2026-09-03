@@ -420,6 +420,22 @@ export function getProvider(): MarketDataProvider {
 }
 
 /**
+ * Whether a quote request can reach any provider at all.
+ *
+ * `getQuote` degrades a total failure to `null` rather than throwing — right
+ * for a stock page, where "price unavailable" beats a 500. Wrong for a batch
+ * script deciding whether it did any work: with every source unconfigured,
+ * `fetchQuoteWithFailover` never makes a request and returns `null` for every
+ * symbol just as fast as if it had — no error, and nothing to distinguish "the
+ * whole universe has no data today" from "nothing here was ever going to work".
+ * A refresh script should check this before spending its whole run finding
+ * that out the slow way.
+ */
+export function hasAnyPriceProvider(): boolean {
+  return eodhd.isConfigured() || PRICE_SOURCES.some((s) => s.isConfigured());
+}
+
+/**
  * Classifies a symbol as an operating company or a fund.
  * Funds file no financial statements, so balance-sheet scoring cannot apply.
  */
