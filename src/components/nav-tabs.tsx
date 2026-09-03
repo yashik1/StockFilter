@@ -13,7 +13,6 @@ import {
   History,
   NotebookPen,
   GraduationCap,
-  Tag,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,7 +38,6 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "/backtest": History,
   "/journal": NotebookPen,
   "/learn": GraduationCap,
-  "/pricing": Tag,
 };
 
 /**
