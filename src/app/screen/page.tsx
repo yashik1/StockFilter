@@ -24,6 +24,7 @@ import {
   type SortKey,
 } from "@/lib/screener";
 import { DISPLAY_SECTORS } from "@/lib/scoring/sectors";
+import { accountIsEnough } from "@/lib/billing/access-mode";
 import { canAccess, getEntitlement } from "@/lib/billing/entitlement";
 
 export const dynamic = "force-dynamic";
@@ -296,14 +297,26 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
         */}
         {advancedRequested && !mayUseAdvanced && (
           <Card className="p-4">
+            {/*
+              No /pricing to point at while the pricing page is paused, and no
+              loss in that: with accountIsEnough set, "Pro" already collapses to
+              "signed in" (see requiredLevel in lib/billing/tiers.ts), so the
+              honest fix for this reader really is signing in, not a plan page.
+              Revisit the wording here if ACCESS_MODE ever flips back on.
+            */}
             <p className="text-sm leading-relaxed text-muted-strong">
-              This link uses filters that are part of Pro — book value, margins, returns, debt
-              cover and the accounting screens. They have been left out, so these are the
-              results for the rest of it.{" "}
-              <Link href="/pricing" className="text-accent underline underline-offset-2">
-                See what Pro adds
-              </Link>
-              .
+              This link uses filters that need a free account — book value, margins, returns,
+              debt cover and the accounting screens. They have been left out, so these are the
+              results for the rest of it.
+              {accountIsEnough && (
+                <>
+                  {" "}
+                  <Link href="/signin" className="text-accent underline underline-offset-2">
+                    Sign in to use them
+                  </Link>
+                  .
+                </>
+              )}
             </p>
           </Card>
         )}
@@ -331,11 +344,11 @@ export default async function ScreenPage({ searchParams }: PageProps<"/screen">)
                 >
                   Export CSV
                 </a>
-              ) : (
-                <Link href="/pricing" className="text-xs text-muted underline underline-offset-2">
-                  Export with Pro
+              ) : accountIsEnough ? (
+                <Link href="/signin" className="text-xs text-muted underline underline-offset-2">
+                  Sign in to export
                 </Link>
-              )}
+              ) : null}
             </div>
             <ResultsTable rows={result.rows} />
           </Card>

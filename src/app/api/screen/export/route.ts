@@ -28,9 +28,15 @@ export async function GET(request: Request) {
       resource exists and is being withheld pending something the caller has
       not done, and keeping the status the same across every gate means the
       API's contract does not change every time the pricing does.
+
+      With accountIsEnough set, CSV_EXPORT collapses to "account" (see
+      requiredLevel in lib/billing/tiers.ts), so reaching this branch means
+      the caller specifically is not signed in — the message and the link say
+      that rather than naming a plan, and there is no /pricing to send anyone
+      to while it is paused.
     */
     return NextResponse.json(
-      { error: "Exporting results is part of Pro.", upgrade: "/pricing" },
+      { error: "Exporting results needs a free account.", upgrade: "/signin" },
       { status: 402 },
     );
   }
