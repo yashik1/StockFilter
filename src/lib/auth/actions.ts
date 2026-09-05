@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "../db";
 import { passwordResetTokens, users } from "../db/schema";
-import { sendEmail } from "../email";
+import { isEmailConfigured, sendEmail } from "../email";
 import { describePasswordProblem, hashPassword } from "./password";
 import {
   describeUsernameProblem,
@@ -214,14 +214,33 @@ export async function requestPasswordReset(
 ): Promise<ActionResult> {
   const email = normalizeEmail(form.get("email"));
 
-  // One message for every outcome below — unknown address, known address,
-  // no database. The visitor learns nothing about who is registered.
-  const generic: ActionResult = {
-    ok: true,
-    message: "If that address has an account, a reset link is on its way.",
-  };
+  /*
+    One message for every outcome below — unknown address, known address, no
+    database. The visitor learns nothing about who is registered.
 
-  if (!EMAIL_SHAPE.test(email) || !isDatabaseConfigured()) return generic;
+    Two versions of it, chosen by whether this deployment can send mail at
+    all. Without a provider the link is written to the server log and nothing
+    leaves the building, so the old wording sent people to watch an inbox for
+    a message that provably could not arrive — the flow looked like it worked
+    and simply did not, which is the worst of both.
+
+    Choosing between the two on `isEmailConfigured()` rather than on anything
+    about the address keeps it outside the enumeration problem the rest of
+    this function is written around: it is a fact about the deployment, so
+    every submission gets the same answer either way. The token is still
+    generated and logged below, because that is the only way an operator can
+    finish a reset while there is no mail provider.
+  */
+  const answer: ActionResult = isEmailConfigured()
+    ? { ok: true, message: "If that address has an account, a reset link is on its way." }
+    : {
+        ok: false,
+        message:
+          "This site cannot send email yet, so a reset link cannot reach you. " +
+          "Ask whoever runs it to set a new password for you directly.",
+      };
+
+  if (!EMAIL_SHAPE.test(email) || !isDatabaseConfigured()) return answer;
 
   const db = getDb();
   const [user] = await db
@@ -229,7 +248,7 @@ export async function requestPasswordReset(
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
-  if (!user) return generic;
+  if (!user) return answer;
 
   const token = randomBytes(32).toString("base64url");
   await db.insert(passwordResetTokens).values({
@@ -248,7 +267,7 @@ export async function requestPasswordReset(
       "If you did not ask for this, ignore it — your password has not changed.",
   });
 
-  return generic;
+  return answer;
 }
 
 export async function resetPassword(

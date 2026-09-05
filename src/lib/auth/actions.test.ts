@@ -34,6 +34,8 @@ let resetTokenRows: {
   usedAt: Date | null;
 }[] = [];
 let insertUsersError: unknown = null;
+/** Whether the deployment under test has a mail provider. See the reset tests. */
+let emailConfigured = true;
 
 const insertedUsers: { email: string; name: string | null; passwordHash: string }[] = [];
 const insertedResetTokens: { userId: string; tokenHash: string; expires: Date }[] = [];
@@ -92,9 +94,10 @@ vi.mock("../db", () => ({
 }));
 
 vi.mock("../email", () => ({
+  isEmailConfigured: () => emailConfigured,
   sendEmail: async (opts: { to: string; subject: string; text: string }) => {
     sentEmails.push(opts);
-    return { delivered: true };
+    return { delivered: emailConfigured };
   },
 }));
 
@@ -123,6 +126,7 @@ beforeEach(() => {
   usernameRows = [];
   resetTokenRows = [];
   insertUsersError = null;
+  emailConfigured = true;
   insertedUsers.length = 0;
   insertedResetTokens.length = 0;
   updatedUserPasswords.length = 0;
@@ -284,6 +288,50 @@ describe("requestPasswordReset", () => {
     const result = await requestPasswordReset(null, form({ email }));
     expect(result.ok).toBe(true);
     expect(sentEmails).toHaveLength(0);
+  });
+
+  /*
+    With no mail provider the link goes to the server log and nowhere else, so
+    "a reset link is on its way" describes something that cannot happen. These
+    cover the honest answer and, more importantly, that making it honest did
+    not open the enumeration hole the rest of this flow is built to avoid.
+  */
+  describe("with no mail provider configured", () => {
+    it("says the link cannot be delivered rather than claiming it was sent", async () => {
+      emailConfigured = false;
+      existingUserRows = [{ id: "user-1" }];
+
+      const result = await requestPasswordReset(null, form({ email }));
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toMatch(/cannot send email/i);
+      expect(result.message).not.toMatch(/on its way/i);
+    });
+
+    it("still answers identically for a registered and an unregistered address", async () => {
+      emailConfigured = false;
+
+      existingUserRows = [];
+      const unknown = await requestPasswordReset(null, form({ email }));
+
+      existingUserRows = [{ id: "user-1" }];
+      const known = await requestPasswordReset(null, form({ email }));
+
+      // The whole point: the message changed with the deployment, not with
+      // whether this particular address is registered here.
+      expect(unknown).toEqual(known);
+    });
+
+    it("still writes the link out, which is the operator's only way to finish a reset", async () => {
+      emailConfigured = false;
+      existingUserRows = [{ id: "user-1" }];
+
+      await requestPasswordReset(null, form({ email }));
+
+      expect(sentEmails).toHaveLength(1);
+      expect(sentEmails[0].text).toContain("https://marketminer.test/reset-password?token=");
+      expect(insertedResetTokens).toHaveLength(1);
+    });
   });
 });
 
